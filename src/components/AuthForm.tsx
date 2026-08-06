@@ -16,6 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import { send } from '@/lib/client';
+import { isValidEmail } from '@/lib/validation';
 
 export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
@@ -27,6 +28,14 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidEmail(email.trim())) {
+      setError('Enter a valid email address.');
+      return;
+    }
+    if (mode === 'register' && password.length < 8) {
+      setError('Passwords need at least 8 characters.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -70,7 +79,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               : 'Starter categories and a demo account are set up for you.'}
           </Typography>
 
-          <form onSubmit={submit}>
+          <form onSubmit={submit} noValidate>
             <Stack spacing={2}>
               {mode === 'register' && (
                 <TextField

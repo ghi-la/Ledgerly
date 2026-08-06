@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { Account, Category, Rule, User } from '@/lib/models';
 import { HttpError, ok, route } from '@/lib/api';
 import { CATEGORY_PALETTE, STARTER_CATEGORIES, STARTER_RULES } from '@/lib/starter';
+import { isValidEmail } from '@/lib/validation';
 
 export const POST = route(async (req: Request) => {
   if (process.env.ALLOW_REGISTRATION === 'false') {
@@ -14,7 +15,9 @@ export const POST = route(async (req: Request) => {
     .toLowerCase()
     .trim();
 
-  if (!cleanEmail.includes('@')) throw new HttpError(400, 'Enter a valid email address.');
+  if (!isValidEmail(cleanEmail)) {
+    throw new HttpError(400, 'Enter a valid email address.');
+  }
   if (String(password ?? '').length < 8) {
     throw new HttpError(400, 'Passwords need at least 8 characters.');
   }

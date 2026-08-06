@@ -55,9 +55,11 @@ async function main() {
 
   const now = new Date();
   const docs = [];
+  let i = 0;
   for (let m = 0; m < 4; m++) {
     for (const [desc, amt, cat] of samples) {
-      const date = new Date(now.getFullYear(), now.getMonth() - m, 5 + (docs.length % 20));
+      const date = new Date(now.getFullYear(), now.getMonth() - m, 5 + (i % 20));
+      i++;
       docs.push({
         userId: user._id,
         accountId: account._id,

@@ -9,9 +9,56 @@ export interface ImportMapping {
   amount?: string;
   debit?: string;
   credit?: string;
+  balance?: string;
   merchant?: string;
   reference?: string;
   notes?: string;
+}
+
+function parseRowAmount(
+  row: Record<string, string>,
+  get: (row: Record<string, string>, key?: string) => string,
+  mapping: ImportMapping,
+  amountMode: 'single' | 'debit_credit',
+  decimalSeparator: 'auto' | '.' | ',',
+  invert: boolean,
+) {
+  let amount = NaN;
+  if (amountMode === 'single' || (mapping.debit && mapping.debit === mapping.credit)) {
+    // Money-out/money-in mapped to the same column means it's really one signed
+    // column: positive = money in, negative = money out.
+    amount = parseAmount(get(row, mapping.amount ?? mapping.debit), decimalSeparator);
+  } else {
+    const debit = parseAmount(get(row, mapping.debit), decimalSeparator);
+    const credit = parseAmount(get(row, mapping.credit), decimalSeparator);
+    if (!isNaN(debit) && debit !== 0) amount = -Math.abs(debit);
+    else if (!isNaN(credit) && credit !== 0) amount = Math.abs(credit);
+    else amount = 0;
+  }
+  return invert && !isNaN(amount) ? -amount : amount;
+}
+
+/**
+ * If the file carries its own running-balance column, checks it's internally
+ * consistent: each row's statement balance should equal the previous row's
+ * plus this row's amount. A mismatch usually means a misread amount/date, a
+ * missing row, or a mapping mistake — mutates matching drafts in place rather
+ * than silently importing them.
+ */
+function flagBalanceMismatches<T extends { index: number; date: string | null; amount: number; statementBalance: number | null; expectedBalance: number | null }>(
+  drafts: T[],
+) {
+  const withStatementBalance = drafts
+    .filter((d) => d.date && d.statementBalance !== null)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime() || a.index - b.index);
+  for (let i = 1; i < withStatementBalance.length; i++) {
+    const prev = withStatementBalance[i - 1];
+    const curr = withStatementBalance[i];
+    const expected = prev.statementBalance! + curr.amount;
+    if (Math.round(expected * 100) !== Math.round(curr.statementBalance! * 100)) {
+      curr.expectedBalance = expected;
+    }
+  }
 }
 
 /**
@@ -55,17 +102,10 @@ export const POST = route(async (req: Request) => {
     const date = parseDate(get(row, mapping.date), dateFormat);
     const description = get(row, mapping.description) || get(row, mapping.merchant) || '—';
 
-    let amount = NaN;
-    if (amountMode === 'single') {
-      amount = parseAmount(get(row, mapping.amount), decimalSeparator);
-    } else {
-      const debit = parseAmount(get(row, mapping.debit), decimalSeparator);
-      const credit = parseAmount(get(row, mapping.credit), decimalSeparator);
-      if (!isNaN(debit) && debit !== 0) amount = -Math.abs(debit);
-      else if (!isNaN(credit) && credit !== 0) amount = Math.abs(credit);
-      else amount = 0;
-    }
-    if (invert && !isNaN(amount)) amount = -amount;
+    const amount = parseRowAmount(row, get, mapping, amountMode, decimalSeparator, invert);
+
+    const statementBalanceRaw = mapping.balance ? parseAmount(get(row, mapping.balance), decimalSeparator) : NaN;
+    const statementBalance = isNaN(statementBalanceRaw) ? null : statementBalanceRaw;
 
     const error = !date
       ? 'Date could not be read'
@@ -87,6 +127,8 @@ export const POST = route(async (req: Request) => {
       tags: [] as string[],
       duplicate: false,
       error,
+      statementBalance,
+      expectedBalance: null as number | null,
       dedupeKey: date && !isNaN(amount)
         ? dedupeKey(String(accountId), date, amount, description)
         : null,
@@ -130,12 +172,15 @@ export const POST = route(async (req: Request) => {
     seen.add(d.dedupeKey);
   }
 
+  flagBalanceMismatches(drafts);
+
   return ok({
     drafts,
     stats: {
       total: drafts.length,
       errors: drafts.filter((d) => d.error).length,
       duplicates: drafts.filter((d) => d.duplicate).length,
+      balanceMismatches: drafts.filter((d) => d.expectedBalance !== null).length,
       categorised: drafts.filter((d) => d.categoryId).length,
       moneyIn: drafts.filter((d) => d.amount > 0).reduce((s, d) => s + d.amount, 0),
       moneyOut: drafts.filter((d) => d.amount < 0).reduce((s, d) => s + d.amount, 0),

@@ -26,6 +26,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import UploadIcon from '@mui/icons-material/UploadFileOutlined';
@@ -46,17 +47,20 @@ interface Draft {
   tags: string[];
   duplicate: boolean;
   error: string | null;
+  statementBalance: number | null;
+  expectedBalance: number | null;
 }
 
 const FIELDS = [
   { key: 'date', label: 'Date', required: true },
   { key: 'description', label: 'Description', required: true },
-  { key: 'amount', label: 'Amount (single column)', mode: 'single' },
-  { key: 'debit', label: 'Money out', mode: 'debit_credit' },
-  { key: 'credit', label: 'Money in', mode: 'debit_credit' },
-  { key: 'merchant', label: 'Merchant / payee' },
-  { key: 'reference', label: 'Reference' },
-  { key: 'notes', label: 'Notes' },
+  { key: 'amount', label: 'Amount (single column)', mode: 'single', required: false },
+  { key: 'debit', label: 'Money out', mode: 'debit_credit', required: false },
+  { key: 'credit', label: 'Money in', mode: 'debit_credit', required: false },
+  { key: 'balance', label: 'Balance (optional, from statement)', required: false },
+  { key: 'merchant', label: 'Merchant / payee', required: false },
+  { key: 'reference', label: 'Reference', required: false },
+  { key: 'notes', label: 'Notes', required: false },
 ] as const;
 
 /** Best-effort match of common bank export headers to our fields. */
@@ -66,6 +70,7 @@ const GUESSES: Record<string, RegExp> = {
   amount: /^(amount|value|importo|sum|betrag)/i,
   debit: /(debit|withdrawal|money out|paid out|uscite|dare)/i,
   credit: /(credit|deposit|money in|paid in|entrate|avere)/i,
+  balance: /(running balance|available balance|^balance|saldo)/i,
   merchant: /(merchant|payee|beneficiary|counterparty|name)/i,
   reference: /(reference|ref|transaction id|check|cheque)/i,
   notes: /(notes|note|comment|category|type)/i,
@@ -120,6 +125,13 @@ export default function ImportPage() {
         for (const [field, rx] of Object.entries(GUESSES)) {
           const match = fields.find((f) => rx.test(f));
           if (match) guessed[field] = match;
+        }
+        if (guessed.debit && guessed.debit === guessed.credit) {
+          // A single column matched both "debit" and "credit" wording (e.g. "Credit/Debit
+          // Amount") — that's one signed column, not separate money-out/money-in columns.
+          guessed.amount = guessed.debit;
+          delete guessed.debit;
+          delete guessed.credit;
         }
         setMapping(guessed);
         setAmountMode(guessed.amount ? 'single' : guessed.debit || guessed.credit ? 'debit_credit' : 'single');
@@ -189,14 +201,35 @@ export default function ImportPage() {
       included: included.length,
       skipped: drafts.length - included.length,
       categorised: included.filter((d) => d.categoryId).length,
+      balanceIssues: drafts.filter((d) => d.expectedBalance !== null).length,
       in: included.filter((d) => d.amount > 0).reduce((s, d) => s + d.amount, 0),
       out: included.filter((d) => d.amount < 0).reduce((s, d) => s + d.amount, 0),
     };
   }, [drafts, excluded]);
 
+  /** Fixes a problematic row's date/amount in place and re-evaluates whether it's importable. */
+  const updateDraft = (index: number, patch: Partial<Pick<Draft, 'date' | 'amount'>>) => {
+    const current = drafts.find((x) => x.index === index);
+    if (!current) return;
+    const merged = { ...current, ...patch };
+    const error = !merged.date
+      ? 'Date could not be read'
+      : isNaN(merged.amount)
+        ? 'Amount could not be read'
+        : null;
+    setDrafts((prev) => prev.map((x) => (x.index === index ? { ...merged, error } : x)));
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      if (error) next.add(index);
+      else next.delete(index);
+      return next;
+    });
+  };
+
   const mappingReady =
     !!accountId &&
     !!mapping.date &&
+    !!mapping.description &&
     (amountMode === 'single' ? !!mapping.amount : !!(mapping.debit || mapping.credit));
 
   return (
@@ -299,6 +332,7 @@ export default function ImportPage() {
                       key={f.key}
                       select
                       label={f.label}
+                      required={f.required}
                       value={mapping[f.key] ?? ''}
                       onChange={(e) => setMapping({ ...mapping, [f.key]: e.target.value })}
                     >
@@ -404,6 +438,9 @@ export default function ImportPage() {
                   <Stat label="Importing" value={String(summary.included)} />
                   <Stat label="Skipped" value={String(summary.skipped)} />
                   <Stat label="Auto-categorised" value={String(summary.categorised)} />
+                  {summary.balanceIssues > 0 && (
+                    <Stat label="Balance issues" value={String(summary.balanceIssues)} />
+                  )}
                   <Stat
                     label="Money in"
                     value={<Money value={summary.in} currency={currency} locale={locale} />}
@@ -465,8 +502,26 @@ export default function ImportPage() {
                           }
                         />
                       </TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                        {d.date ? formatDate(d.date, locale) : '—'}
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {d.date ? (
+                          <Typography sx={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                            {formatDate(d.date, locale)}
+                          </Typography>
+                        ) : (
+                          <TextField
+                            type="date"
+                            size="small"
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ width: 155 }}
+                            onChange={(e) =>
+                              updateDraft(d.index, {
+                                date: e.target.value
+                                  ? new Date(`${e.target.value}T00:00:00.000Z`).toISOString()
+                                  : null,
+                              })
+                            }
+                          />
+                        )}
                       </TableCell>
                       <TableCell sx={{ maxWidth: 340 }}>
                         <Typography noWrap sx={{ fontSize: 14 }}>
@@ -501,23 +556,53 @@ export default function ImportPage() {
                         )}
                       </TableCell>
                       <TableCell align="right">
-                        <Money value={d.amount} currency={currency} locale={locale} colored bold />
-                      </TableCell>
-                      <TableCell>
-                        {d.error ? (
-                          <Chip size="small" color="error" label={d.error} />
-                        ) : d.duplicate ? (
-                          <Chip size="small" color="warning" variant="outlined" label="Already imported" />
-                        ) : d.categoryId ? (
-                          <Chip
+                        {d.error === 'Amount could not be read' || d.expectedBalance !== null ? (
+                          <TextField
+                            type="number"
                             size="small"
-                            variant="outlined"
-                            label={categoryById.get(d.categoryId)?.name ?? 'Categorised'}
-                            sx={{ borderColor: categoryById.get(d.categoryId)?.color }}
+                            value={isNaN(d.amount) ? '' : d.amount}
+                            sx={{ width: 130 }}
+                            onChange={(e) =>
+                              updateDraft(d.index, {
+                                amount: e.target.value === '' ? NaN : Number(e.target.value),
+                              })
+                            }
                           />
                         ) : (
-                          <Chip size="small" variant="outlined" label="Needs a category" />
+                          <Money value={d.amount} currency={currency} locale={locale} colored bold />
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+                          {d.error ? (
+                            <Chip size="small" color="error" label={d.error} />
+                          ) : d.duplicate ? (
+                            <Chip size="small" color="warning" variant="outlined" label="Already imported" />
+                          ) : d.categoryId ? (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={categoryById.get(d.categoryId)?.name ?? 'Categorised'}
+                              sx={{ borderColor: categoryById.get(d.categoryId)?.color }}
+                            />
+                          ) : (
+                            <Chip size="small" variant="outlined" label="Needs a category" />
+                          )}
+                          {d.expectedBalance !== null && (
+                            <Tooltip
+                              title={
+                                <>
+                                  Statement shows{' '}
+                                  <Money value={d.statementBalance ?? 0} currency={currency} locale={locale} /> but{' '}
+                                  <Money value={d.expectedBalance} currency={currency} locale={locale} /> was expected
+                                  from the running total.
+                                </>
+                              }
+                            >
+                              <Chip size="small" color="warning" label="Balance doesn't match" />
+                            </Tooltip>
+                          )}
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   ))}

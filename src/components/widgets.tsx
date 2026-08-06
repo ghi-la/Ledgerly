@@ -9,7 +9,9 @@ import {
   Divider,
   LinearProgress,
   Link,
+  MenuItem,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import {
@@ -27,11 +29,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { formatDate, formatMoney, monthLabel } from '@/lib/client';
+import { DEFAULT_RANGE, RANGE_PRESETS, formatDate, formatMoney, monthLabel } from '@/lib/client';
 import { Money } from './ui';
 
 export interface Stats {
-  month: string;
+  from: string;
+  to: string;
   netWorth: number;
   accounts: { _id: string; name: string; type: string; color: string; balance: number; archived: boolean }[];
   totals: { income: number; expense: number; net: number; count: number; budgeted: number };
@@ -64,10 +67,12 @@ export interface WidgetProps {
   currency: string;
   locale: string;
   config?: Record<string, unknown>;
+  range?: string;
+  onRangeChange?: (range: string) => void;
 }
 
 const WIDGET_TITLES: Record<string, string> = {
-  'net-worth': 'This month',
+  'net-worth': 'Overview',
   accounts: 'Accounts',
   'spend-by-category': 'Where the money went',
   'monthly-trend': 'Income and spending',
@@ -85,18 +90,49 @@ export const WIDGET_CATALOGUE = Object.entries(WIDGET_TITLES).map(([type, label]
   label,
 }));
 
-function Shell({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Shell({
+  title,
+  action,
+  range,
+  onRangeChange,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  range?: string;
+  onRangeChange?: (range: string) => void;
+  children: React.ReactNode;
+}) {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
-        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5, gap: 1 }}>
           <Typography
             variant="overline"
             sx={{ color: 'text.secondary', fontSize: 11, lineHeight: 1.6 }}
           >
             {title}
           </Typography>
-          {action}
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+            {onRangeChange && (
+              <TextField
+                select
+                size="small"
+                variant="standard"
+                value={range ?? DEFAULT_RANGE}
+                onChange={(e) => onRangeChange(e.target.value)}
+                SelectProps={{ disableUnderline: true }}
+                sx={{ '& .MuiSelect-select': { fontSize: 12, fontWeight: 600, py: 0.25 } }}
+              >
+                {RANGE_PRESETS.map((r) => (
+                  <MenuItem key={r.key} value={r.key} sx={{ fontSize: 13 }}>
+                    {r.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            {action}
+          </Stack>
         </Stack>
         {children}
       </CardContent>
@@ -110,7 +146,14 @@ const Nothing = ({ children }: { children: React.ReactNode }) => (
   </Typography>
 );
 
-export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & { type: string }) {
+export function WidgetRenderer({
+  type,
+  stats,
+  currency,
+  locale,
+  range,
+  onRangeChange,
+}: WidgetProps & { type: string }) {
   const money = (v: number) => formatMoney(v, currency, locale);
 
   switch (type) {
@@ -122,7 +165,7 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
         { label: 'Left over', value: stats.totals.net, colored: true },
       ];
       return (
-        <Shell title={widgetTitle(type)}>
+        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             divider={<Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />}
@@ -147,6 +190,8 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
       return (
         <Shell
           title={widgetTitle(type)}
+          range={range}
+          onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/accounts" variant="caption">
               Manage
@@ -181,9 +226,9 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
     case 'spend-by-category': {
       const data = stats.spendByCategory.slice(0, 8);
       return (
-        <Shell title={widgetTitle(type)}>
+        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
           {data.length === 0 ? (
-            <Nothing>Nothing spent this month.</Nothing>
+            <Nothing>Nothing spent in this period.</Nothing>
           ) : (
             <Box sx={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -218,7 +263,7 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
 
     case 'monthly-trend':
       return (
-        <Shell title={widgetTitle(type)}>
+        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
           <Box sx={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
@@ -249,7 +294,7 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
 
     case 'income-vs-expense':
       return (
-        <Shell title={widgetTitle(type)}>
+        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
           <Box sx={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
@@ -272,6 +317,8 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
       return (
         <Shell
           title={widgetTitle(type)}
+          range={range}
+          onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/budgets" variant="caption">
               Edit
@@ -314,6 +361,8 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
       return (
         <Shell
           title={widgetTitle(type)}
+          range={range}
+          onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/transactions" variant="caption">
               See all
@@ -346,6 +395,8 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
       return (
         <Shell
           title={widgetTitle(type)}
+          range={range}
+          onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/goals" variant="caption">
               Edit
@@ -386,9 +437,9 @@ export function WidgetRenderer({ type, stats, currency, locale }: WidgetProps & 
 
     case 'top-merchants':
       return (
-        <Shell title={widgetTitle(type)}>
+        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
           {stats.topMerchants.length === 0 ? (
-            <Nothing>Nothing to show for this month.</Nothing>
+            <Nothing>Nothing to show for this period.</Nothing>
           ) : (
             <Stack spacing={1}>
               {stats.topMerchants.map((m) => (

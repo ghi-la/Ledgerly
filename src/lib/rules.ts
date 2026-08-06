@@ -105,8 +105,8 @@ export function conditionMatches(tx: MatchableTx, c: RuleCondition): boolean {
     }
   }
 
-  const hay = c.caseSensitive ? raw : raw.toLowerCase();
-  const needle = c.caseSensitive ? String(c.value) : String(c.value).toLowerCase();
+  const hay = raw.toLowerCase();
+  const needle = String(c.value).toLowerCase();
 
   switch (c.operator) {
     case 'contains':
@@ -123,7 +123,7 @@ export function conditionMatches(tx: MatchableTx, c: RuleCondition): boolean {
       return hay.endsWith(needle);
     case 'regex':
       try {
-        return new RegExp(String(c.value), c.caseSensitive ? '' : 'i').test(raw);
+        return new RegExp(String(c.value), 'i').test(raw);
       } catch {
         return false;
       }

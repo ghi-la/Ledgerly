@@ -4,38 +4,79 @@ import { ok, requireUser, route } from '@/lib/api';
 export const dynamic = 'force-dynamic';
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const key = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+const monthKeyOf = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+
+/** Every calendar month touched by [from, to], oldest first. */
+function monthsBetween(from: Date, to: Date) {
+  const keys: string[] = [];
+  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
+  while (cursor <= end) {
+    keys.push(monthKeyOf(cursor));
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return keys;
+}
+
+/** Sums each category's applicable monthly budget (month-specific overrides the recurring default) across every month in range. */
+function budgetTotalsByCategory(budgets: Record<string, unknown>[], monthKeys: string[]) {
+  const totals = new Map<string, number>();
+  for (const monthKey of monthKeys) {
+    const byCategory = new Map<string, number>();
+    for (const b of budgets) {
+      const month = String(b.month);
+      if (month !== 'default' && month !== monthKey) continue;
+      const id = String(b.categoryId);
+      if (!byCategory.has(id) || month === monthKey) byCategory.set(id, Number(b.amount));
+    }
+    for (const [id, amount] of byCategory) totals.set(id, (totals.get(id) ?? 0) + amount);
+  }
+  return totals;
+}
 
 /**
- * One call, everything the dashboard needs: balances, category spend, a
- * rolling monthly series, budget progress and goal progress.
- * Query: ?month=YYYY-MM&months=6
+ * Everything one dashboard widget needs for its own time window: balances
+ * (always current), category spend, a monthly series, budget progress and
+ * goal progress. Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD (defaults to the
+ * trailing 3 months ending today).
  */
 export const GET = route(async (req: Request) => {
   const userId = await requireUser();
   const url = new URL(req.url);
-  const month = url.searchParams.get('month') ?? key(new Date());
-  const months = Math.min(Math.max(Number(url.searchParams.get('months') ?? 6), 1), 24);
 
-  const [y, m] = month.split('-').map(Number);
-  const monthStart = new Date(Date.UTC(y, m - 1, 1));
-  const monthEnd = new Date(Date.UTC(y, m, 1));
-  const seriesStart = new Date(Date.UTC(y, m - months, 1));
+  const now = new Date();
+  const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
+  const fromParam = url.searchParams.get('from');
+  const toParam = url.searchParams.get('to');
+  const to = toParam ? new Date(`${toParam}T23:59:59.999Z`) : now;
 
-  const [accounts, categories, budgets, goals] = await Promise.all([
+  const [accounts, categories, budgets, goals, oldestTx] = await Promise.all([
     Account.find({ userId }).lean(),
     Category.find({ userId }).lean(),
     Budget.find({ userId }).lean(),
     Goal.find({ userId, archived: false }).lean(),
+    // "all time" resolves to the user's actual earliest transaction, not an arbitrary fixed date.
+    fromParam === 'oldest'
+      ? Transaction.findOne({ userId }).sort({ date: 1 }).select('date').lean()
+      : Promise.resolve(null),
   ]);
 
-  const [balanceAgg, monthAgg, byCategoryAgg, seriesAgg, merchantsAgg, recent] = await Promise.all([
+  const from =
+    fromParam === 'oldest'
+      ? new Date((oldestTx as { date: Date } | null)?.date ?? to)
+      : fromParam
+        ? new Date(fromParam)
+        : defaultFrom;
+
+  const monthKeys = monthsBetween(from, to);
+
+  const [balanceAgg, totalsAgg, byCategoryAgg, seriesAgg, merchantsAgg, recent] = await Promise.all([
     Transaction.aggregate([
       { $match: { userId } },
       { $group: { _id: '$accountId', total: { $sum: '$amount' } } },
     ]),
     Transaction.aggregate([
-      { $match: { userId, date: { $gte: monthStart, $lt: monthEnd }, type: { $ne: 'transfer' } } },
+      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' } } },
       {
         $group: {
           _id: null,
@@ -46,19 +87,12 @@ export const GET = route(async (req: Request) => {
       },
     ]),
     Transaction.aggregate([
-      {
-        $match: {
-          userId,
-          date: { $gte: monthStart, $lt: monthEnd },
-          type: { $ne: 'transfer' },
-          amount: { $lt: 0 },
-        },
-      },
+      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 } } },
       { $group: { _id: '$categoryId', total: { $sum: '$amount' }, count: { $sum: 1 } } },
       { $sort: { total: 1 } },
     ]),
     Transaction.aggregate([
-      { $match: { userId, date: { $gte: seriesStart, $lt: monthEnd }, type: { $ne: 'transfer' } } },
+      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
@@ -69,14 +103,7 @@ export const GET = route(async (req: Request) => {
       { $sort: { _id: 1 } },
     ]),
     Transaction.aggregate([
-      {
-        $match: {
-          userId,
-          date: { $gte: monthStart, $lt: monthEnd },
-          type: { $ne: 'transfer' },
-          amount: { $lt: 0 },
-        },
-      },
+      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 } } },
       {
         $group: {
           _id: { $toLower: { $ifNull: ['$merchant', ''] } },
@@ -88,7 +115,7 @@ export const GET = route(async (req: Request) => {
       { $sort: { total: 1 } },
       { $limit: 8 },
     ]),
-    Transaction.find({ userId }).sort({ date: -1, _id: -1 }).limit(8).lean(),
+    Transaction.find({ userId, date: { $gte: from, $lte: to } }).sort({ date: -1, _id: -1 }).limit(8).lean(),
   ]);
 
   const balanceByAccount = new Map(balanceAgg.map((b) => [String(b._id), b.total]));
@@ -114,46 +141,38 @@ export const GET = route(async (req: Request) => {
     };
   });
 
-  // Fill gaps so the trend chart has one point per month.
-  const series: { month: string; income: number; expense: number; net: number }[] = [];
-  const found = new Map(seriesAgg.map((s) => [s._id as string, s]));
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(Date.UTC(y, m - 1 - i, 1));
-    const k = key(d);
-    const row = found.get(k);
+  // Fill gaps so the trend chart has one point per month in range.
+  const foundSeries = new Map(seriesAgg.map((s) => [s._id as string, s]));
+  const series = monthKeys.map((k) => {
+    const row = foundSeries.get(k);
     const income = row?.income ?? 0;
     const expense = Math.abs(row?.expense ?? 0);
-    series.push({ month: k, income, expense, net: income - expense });
-  }
+    return { month: k, income, expense, net: income - expense };
+  });
 
   const spendMap = new Map(spendByCategory.map((s) => [s.categoryId, s.amount]));
-  const budgetRows = budgets
-    .filter((b) => b.month === 'default' || b.month === month)
-    .reduce<Record<string, { amount: number; month: string }>>((acc, b) => {
-      const id = String(b.categoryId);
-      // A month-specific budget wins over the recurring default.
-      if (!acc[id] || b.month === month) acc[id] = { amount: b.amount, month: b.month };
-      return acc;
-    }, {});
+  const budgetTotals = budgetTotalsByCategory(budgets, monthKeys);
+  const budgetProgress = [...budgetTotals.entries()]
+    .map(([categoryId, budget]) => {
+      const cat = categoryById.get(categoryId);
+      const spent = spendMap.get(categoryId) ?? 0;
+      return {
+        categoryId,
+        name: cat?.name ?? 'Removed category',
+        color: cat?.color ?? '#9AA0A6',
+        budget,
+        spent,
+        remaining: budget - spent,
+        percent: budget ? Math.round((spent / budget) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.percent - a.percent);
 
-  const budgetProgress = Object.entries(budgetRows).map(([categoryId, b]) => {
-    const cat = categoryById.get(categoryId);
-    const spent = spendMap.get(categoryId) ?? 0;
-    return {
-      categoryId,
-      name: cat?.name ?? 'Removed category',
-      color: cat?.color ?? '#9AA0A6',
-      budget: b.amount,
-      spent,
-      remaining: b.amount - spent,
-      percent: b.amount ? Math.round((spent / b.amount) * 100) : 0,
-    };
-  }).sort((a, b) => b.percent - a.percent);
-
-  const totals = monthAgg[0] ?? { income: 0, expense: 0, count: 0 };
+  const totals = totalsAgg[0] ?? { income: 0, expense: 0, count: 0 };
 
   return ok({
-    month,
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
     netWorth: accountRows.filter((a) => !a.archived).reduce((s, a) => s + a.balance, 0),
     accounts: accountRows,
     totals: {
@@ -172,7 +191,7 @@ export const GET = route(async (req: Request) => {
       color: g.color,
       targetAmount: g.targetAmount,
       savedAmount: g.accountId
-        ? ((accountRows.find((a) => a._id === String(g.accountId))?.balance ?? g.savedAmount))
+        ? (accountRows.find((a) => a._id === String(g.accountId))?.balance ?? g.savedAmount)
         : g.savedAmount,
       targetDate: g.targetDate,
       linkedAccount: g.accountId ? String(g.accountId) : null,

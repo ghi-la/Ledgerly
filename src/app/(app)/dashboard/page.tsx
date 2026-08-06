@@ -23,26 +23,47 @@ import {
 import TuneIcon from '@mui/icons-material/TuneOutlined';
 import UpIcon from '@mui/icons-material/KeyboardArrowUp';
 import DownIcon from '@mui/icons-material/KeyboardArrowDown';
-import ChevronLeft from '@mui/icons-material/ChevronLeft';
-import ChevronRight from '@mui/icons-material/ChevronRight';
-import { fetcher, monthKey, monthLabel, send } from '@/lib/client';
+import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
 import { PageHeader, useSettings } from '@/components/ui';
 import { WidgetRenderer, widgetTitle, type Stats } from '@/components/widgets';
 
 const SPAN = { third: 4, half: 6, full: 12 } as const;
 
-function shiftMonth(key: string, delta: number) {
-  const [y, m] = key.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+function DashboardWidget({
+  widget,
+  currency,
+  locale,
+  onRangeChange,
+}: {
+  widget: { id: string; type: string; config?: Record<string, unknown> };
+  currency: string;
+  locale: string;
+  onRangeChange: (range: string) => void;
+}) {
+  const range = (widget.config?.range as string) ?? DEFAULT_RANGE;
+  const { from, to } = rangeToDates(range);
+  const { data: stats, error } = useSWR<Stats>(`/api/stats?from=${from}&to=${to}`, fetcher);
+
+  if (error) return <Alert severity="error">Could not load this widget.</Alert>;
+  if (!stats) return <Skeleton variant="rounded" height={220} />;
+
+  return (
+    <WidgetRenderer
+      type={widget.type}
+      stats={stats}
+      currency={currency}
+      locale={locale}
+      config={widget.config}
+      range={range}
+      onRangeChange={onRangeChange}
+    />
+  );
 }
 
 export default function DashboardPage() {
-  const [month, setMonth] = useState(monthKey());
   const [customising, setCustomising] = useState(false);
   const { settings, currency, locale, mutate: mutateSettings } = useSettings();
 
-  const { data: stats, error } = useSWR<Stats>(`/api/stats?month=${month}&months=6`, fetcher);
   const widgets = settings?.dashboard ?? [];
 
   const saveWidgets = async (next: typeof widgets) => {
@@ -78,73 +99,49 @@ export default function DashboardPage() {
     <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
       <PageHeader
         title="Dashboard"
-        subtitle={`Figures for ${monthLabel(month, locale)}`}
+        subtitle="Each card has its own time range — 3 months by default."
         action={
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <IconButton size="small" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">
-              <ChevronLeft />
+          <Tooltip title="Customise widgets">
+            <IconButton onClick={() => setCustomising(true)} aria-label="Customise widgets">
+              <TuneIcon />
             </IconButton>
-            <TextField
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value || monthKey())}
-              sx={{ width: 165 }}
-            />
-            <IconButton size="small" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">
-              <ChevronRight />
-            </IconButton>
-            <Tooltip title="Customise widgets">
-              <IconButton onClick={() => setCustomising(true)} aria-label="Customise widgets">
-                <TuneIcon />
-              </IconButton>
-            </Tooltip>
-          </Stack>
+          </Tooltip>
         }
       />
 
-      {error && <Alert severity="error">Could not load your figures. Refresh to try again.</Alert>}
-
-      {!stats && !error && (
-        <Grid container spacing={2}>
-          {[12, 6, 6, 12].map((span, i) => (
-            <Grid item xs={12} md={span} key={i}>
-              <Skeleton variant="rounded" height={i === 0 ? 120 : 260} />
+      <Grid container spacing={2}>
+        {widgets
+          .filter((w) => w.visible)
+          .map((w) => (
+            <Grid item xs={12} md={SPAN[w.size] ?? 6} key={w.id}>
+              <DashboardWidget
+                widget={w}
+                currency={currency}
+                locale={locale}
+                onRangeChange={(range) =>
+                  update(
+                    widgets.findIndex((x) => x.id === w.id),
+                    { config: { ...w.config, range } },
+                  )
+                }
+              />
             </Grid>
           ))}
-        </Grid>
-      )}
-
-      {stats && (
-        <Grid container spacing={2}>
-          {widgets
-            .filter((w) => w.visible)
-            .map((w) => (
-              <Grid item xs={12} md={SPAN[w.size] ?? 6} key={w.id}>
-                <WidgetRenderer
-                  type={w.type}
-                  stats={stats}
-                  currency={currency}
-                  locale={locale}
-                  config={w.config}
-                />
-              </Grid>
-            ))}
-          {widgets.filter((w) => w.visible).length === 0 && (
-            <Grid item xs={12}>
-              <Alert
-                severity="info"
-                action={
-                  <Button size="small" onClick={() => setCustomising(true)}>
-                    Choose widgets
-                  </Button>
-                }
-              >
-                Every widget is hidden right now.
-              </Alert>
-            </Grid>
-          )}
-        </Grid>
-      )}
+        {widgets.filter((w) => w.visible).length === 0 && (
+          <Grid item xs={12}>
+            <Alert
+              severity="info"
+              action={
+                <Button size="small" onClick={() => setCustomising(true)}>
+                  Choose widgets
+                </Button>
+              }
+            >
+              Every widget is hidden right now.
+            </Alert>
+          </Grid>
+        )}
+      </Grid>
 
       <Dialog open={customising} onClose={() => setCustomising(false)} fullWidth maxWidth="sm">
         <DialogTitle>Customise your dashboard</DialogTitle>

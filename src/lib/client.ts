@@ -48,3 +48,34 @@ export function monthLabel(key: string, locale = 'en-GB') {
     new Date(y, m - 1, 1),
   );
 }
+
+/** Time-interval presets every dashboard widget can be set to, independently. */
+export const RANGE_PRESETS = [
+  { key: '1m', label: '1M' },
+  { key: '3m', label: '3M' },
+  { key: '6m', label: '6M' },
+  { key: '12m', label: '12M' },
+  { key: 'ytd', label: 'YTD' },
+  { key: 'all', label: 'All' },
+] as const;
+
+export type RangeKey = (typeof RANGE_PRESETS)[number]['key'];
+
+export const DEFAULT_RANGE: RangeKey = '3m';
+
+const dateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Turns a preset key into a concrete [from, to] date-string window ending
+ * today. "all" sends the sentinel 'oldest' — the server resolves it to the
+ * user's actual earliest transaction rather than an arbitrary fixed date.
+ */
+export function rangeToDates(key: string, today = new Date()): { from: string; to: string } {
+  const to = dateStr(today);
+  if (key === 'all') return { from: 'oldest', to };
+  if (key === 'ytd') return { from: `${today.getFullYear()}-01-01`, to };
+  const months = { '1m': 1, '3m': 3, '6m': 6, '12m': 12 }[key] ?? 3;
+  const start = new Date(today.getFullYear(), today.getMonth() - (months - 1), 1);
+  return { from: dateStr(start), to };
+}

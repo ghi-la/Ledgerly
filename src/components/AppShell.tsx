@@ -33,6 +33,7 @@ import RulesIcon from '@mui/icons-material/FilterAltOutlined';
 import BudgetIcon from '@mui/icons-material/DonutLargeOutlined';
 import GoalIcon from '@mui/icons-material/SavingsOutlined';
 import ImportIcon from '@mui/icons-material/UploadFileOutlined';
+import ExportIcon from '@mui/icons-material/FileDownloadOutlined';
 import SettingsIcon from '@mui/icons-material/TuneOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import DarkIcon from '@mui/icons-material/DarkModeOutlined';
@@ -45,6 +46,7 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
   { href: '/transactions', label: 'Transactions', icon: <ReceiptIcon /> },
   { href: '/import', label: 'Import', icon: <ImportIcon /> },
+  { href: '/export', label: 'Export', icon: <ExportIcon /> },
   { href: '/accounts', label: 'Accounts', icon: <AccountsIcon /> },
   { href: '/categories', label: 'Categories', icon: <CategoryIcon /> },
   { href: '/rules', label: 'Rules', icon: <RulesIcon /> },

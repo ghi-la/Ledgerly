@@ -39,7 +39,6 @@ interface Condition {
   operator: string;
   value: string;
   value2?: string;
-  caseSensitive?: boolean;
 }
 interface Rule {
   _id: string;

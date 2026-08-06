@@ -68,7 +68,6 @@ export interface RuleCondition {
   operator: ConditionOperator;
   value: string;
   value2?: string;
-  caseSensitive?: boolean;
 }
 
 /* ----------------------------------------------------------------- schemas */
@@ -153,6 +152,7 @@ const TransactionSchema = new Schema(
   { timestamps: true },
 );
 TransactionSchema.index({ userId: 1, date: -1 });
+TransactionSchema.index({ accountId: 1, date: 1 });
 
 const RuleSchema = new Schema(
   {
@@ -169,7 +169,6 @@ const RuleSchema = new Schema(
             operator: String,
             value: String,
             value2: String,
-            caseSensitive: { type: Boolean, default: false },
           },
           { _id: false },
         ),

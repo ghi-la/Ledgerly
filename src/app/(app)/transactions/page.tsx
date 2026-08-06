@@ -24,6 +24,7 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -33,6 +34,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import SwapIcon from '@mui/icons-material/SwapHorizOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import EditIcon from '@mui/icons-material/EditOutlined';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
 
@@ -43,6 +45,7 @@ interface Tx {
   merchant?: string;
   notes?: string;
   amount: number;
+  balance?: number;
   type: string;
   accountId: string;
   categoryId: string | null;
@@ -75,23 +78,31 @@ export default function TransactionsPage() {
   const [to, setTo] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [sortBy, setSortBy] = useState<'date' | 'description' | 'account' | 'category' | 'amount'>('date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selected, setSelected] = useState<string[]>([]);
   const [toast, setToast] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [editing, setEditing] = useState<Tx | null>(null);
 
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
 
   const query = useMemo(() => {
-    const p = new URLSearchParams({ limit: String(rowsPerPage), skip: String(page * rowsPerPage) });
+    const p = new URLSearchParams({
+      limit: String(rowsPerPage),
+      skip: String(page * rowsPerPage),
+      sortBy,
+      sortDir,
+    });
     if (search) p.set('search', search);
     if (accountId) p.set('accountId', accountId);
     if (categoryId) p.set('categoryId', categoryId);
     if (from) p.set('from', from);
     if (to) p.set('to', to);
     return p.toString();
-  }, [search, accountId, categoryId, from, to, page, rowsPerPage]);
+  }, [search, accountId, categoryId, from, to, page, rowsPerPage, sortBy, sortDir]);
 
   const { data, mutate, isLoading } = useSWR<{ items: Tx[]; total: number }>(
     `/api/transactions?${query}`,
@@ -100,6 +111,16 @@ export default function TransactionsPage() {
 
   const categoryById = new Map((categories ?? []).map((c) => [c._id, c]));
   const accountById = new Map((accounts ?? []).map((a) => [a._id, a]));
+
+  const toggleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
 
   const setCategory = async (id: string, value: string) => {
     await send(`/api/transactions/${id}`, 'PATCH', { categoryId: value || null });
@@ -269,6 +290,9 @@ export default function TransactionsPage() {
                     </Typography>
                   </Box>
                   <Money value={t.amount} currency={currency} locale={locale} colored bold />
+                  <IconButton size="small" sx={{ mt: -0.5 }} onClick={() => setEditing(t)}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
                 </Stack>
                 <TextField
                   select
@@ -300,11 +324,52 @@ export default function TransactionsPage() {
                       onChange={(e) => setSelected(e.target.checked ? rows.map((r) => r._id) : [])}
                     />
                   </TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Account</TableCell>
-                  <TableCell sx={{ minWidth: 190 }}>Category</TableCell>
-                  <TableCell align="right">Amount</TableCell>
+                  <TableCell sortDirection={sortBy === 'date' ? sortDir : false}>
+                    <TableSortLabel
+                      active={sortBy === 'date'}
+                      direction={sortBy === 'date' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('date')}
+                    >
+                      Date
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'description' ? sortDir : false}>
+                    <TableSortLabel
+                      active={sortBy === 'description'}
+                      direction={sortBy === 'description' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('description')}
+                    >
+                      Description
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'account' ? sortDir : false}>
+                    <TableSortLabel
+                      active={sortBy === 'account'}
+                      direction={sortBy === 'account' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('account')}
+                    >
+                      Account
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 190 }} sortDirection={sortBy === 'category' ? sortDir : false}>
+                    <TableSortLabel
+                      active={sortBy === 'category'}
+                      direction={sortBy === 'category' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('category')}
+                    >
+                      Category
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="right" sortDirection={sortBy === 'amount' ? sortDir : false}>
+                    <TableSortLabel
+                      active={sortBy === 'amount'}
+                      direction={sortBy === 'amount' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('amount')}
+                    >
+                      Amount
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="right">Balance</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
@@ -369,6 +434,18 @@ export default function TransactionsPage() {
                       <Money value={t.amount} currency={currency} locale={locale} colored bold />
                     </TableCell>
                     <TableCell align="right">
+                      {t.balance !== undefined ? (
+                        <Money value={t.balance} currency={currency} locale={locale} />
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Edit">
+                        <IconButton size="small" onClick={() => setEditing(t)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
@@ -419,6 +496,17 @@ export default function TransactionsPage() {
         onSaved={() => {
           mutate();
           setToast('Transfer recorded.');
+        }}
+      />
+      <EditDialog
+        key={editing?._id}
+        transaction={editing}
+        onClose={() => setEditing(null)}
+        accounts={accounts ?? []}
+        categories={categories ?? []}
+        onSaved={() => {
+          mutate();
+          setToast('Transaction updated.');
         }}
       />
 
@@ -480,6 +568,130 @@ function AddDialog({
             select
             label="Account"
             value={form.accountId || accounts[0]?._id || ''}
+            onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+          >
+            {accounts.map((a) => (
+              <MenuItem key={a._id} value={a._id}>
+                {a.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            type="date"
+            label="Date"
+            InputLabelProps={{ shrink: true }}
+            value={form.date}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
+          />
+          <TextField
+            label="Description"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+          <Stack direction="row" spacing={1}>
+            <TextField
+              select
+              label="Direction"
+              value={form.direction}
+              onChange={(e) => setForm({ ...form, direction: e.target.value })}
+              sx={{ width: 140 }}
+            >
+              <MenuItem value="out">Money out</MenuItem>
+              <MenuItem value="in">Money in</MenuItem>
+            </TextField>
+            <TextField
+              label="Amount"
+              type="number"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              fullWidth
+            />
+          </Stack>
+          <TextField
+            select
+            label="Category"
+            value={form.categoryId}
+            onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+          >
+            <MenuItem value="">Uncategorised</MenuItem>
+            {categories.map((c) => (
+              <MenuItem key={c._id} value={c._id}>
+                {c.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Notes"
+            multiline
+            minRows={2}
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          />
+          {error && <Alert severity="error">{error}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={save}>
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function EditDialog({
+  transaction,
+  onClose,
+  accounts,
+  categories,
+  onSaved,
+}: {
+  transaction: Tx | null;
+  onClose: () => void;
+  accounts: Account[];
+  categories: Category[];
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    accountId: transaction?.accountId ?? '',
+    date: transaction?.date.slice(0, 10) ?? today(),
+    description: transaction?.description ?? '',
+    amount: transaction ? String(Math.abs(transaction.amount)) : '',
+    categoryId: transaction?.categoryId ?? '',
+    direction: (transaction?.amount ?? 0) < 0 ? 'out' : 'in',
+    notes: transaction?.notes ?? '',
+  });
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    if (!transaction) return;
+    try {
+      const value = Math.abs(Number(form.amount));
+      await send(`/api/transactions/${transaction._id}`, 'PATCH', {
+        accountId: form.accountId,
+        date: form.date,
+        description: form.description,
+        amount: form.direction === 'out' ? -value : value,
+        categoryId: form.categoryId || null,
+        notes: form.notes,
+      });
+      onSaved();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save.');
+    }
+  };
+
+  return (
+    <Dialog open={!!transaction} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Edit transaction</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 0.5 }}>
+          <TextField
+            select
+            label="Account"
+            value={form.accountId}
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
             {accounts.map((a) => (

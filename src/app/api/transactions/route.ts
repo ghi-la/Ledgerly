@@ -1,47 +1,90 @@
-import { Transaction } from '@/lib/models';
+import { Account, Category, Transaction } from '@/lib/models';
 import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
 import { dedupeKey, recurringKey } from '@/lib/parse';
+import { buildTransactionFilter } from '@/lib/transactionFilter';
 
 export const dynamic = 'force-dynamic';
+
+const SORTABLE_FIELDS = new Set(['date', 'description', 'amount', 'account', 'category']);
+
+function fetchSorted(
+  filter: Record<string, unknown>,
+  sortBy: string,
+  sortDir: 1 | -1,
+  skip: number,
+  limit: number,
+) {
+  if (sortBy !== 'account' && sortBy !== 'category') {
+    return Transaction.find(filter).sort({ [sortBy]: sortDir, _id: sortDir }).skip(skip).limit(limit).lean();
+  }
+  const from = sortBy === 'account' ? Account.collection.name : Category.collection.name;
+  const localField = sortBy === 'account' ? 'accountId' : 'categoryId';
+  return Transaction.aggregate([
+    { $match: filter },
+    { $lookup: { from, localField, foreignField: '_id', as: '_sortJoin' } },
+    { $addFields: { _sortName: { $ifNull: [{ $arrayElemAt: ['$_sortJoin.name', 0] }, ''] } } },
+    { $sort: { _sortName: sortDir, _id: sortDir } },
+    { $skip: skip },
+    { $limit: limit },
+    { $project: { _sortJoin: 0, _sortName: 0 } },
+  ]);
+}
+
+/**
+ * Attaches each transaction's running balance in its own account's full
+ * chronological ledger (seeded by the account's opening balance) — the real
+ * point-in-time balance, independent of whatever filter/sort produced `items`.
+ */
+async function attachBalances(userId: unknown, items: Record<string, unknown>[]) {
+  if (!items.length) return;
+  const accountIds = [...new Set(items.map((i) => String(i.accountId)))].map((id) => oid(id));
+  const txIds = items.map((i) => i._id);
+
+  const [accounts, running] = await Promise.all([
+    Account.find({ _id: { $in: accountIds } }, { openingBalance: 1 }).lean(),
+    Transaction.aggregate([
+      { $match: { userId, accountId: { $in: accountIds } } },
+      {
+        $setWindowFields: {
+          partitionBy: '$accountId',
+          sortBy: { date: 1, _id: 1 },
+          output: { runningTotal: { $sum: '$amount', window: { documents: ['unbounded', 'current'] } } },
+        },
+      },
+      { $match: { _id: { $in: txIds } } },
+      { $project: { runningTotal: 1 } },
+    ]),
+  ]);
+
+  const openingByAccount = new Map(accounts.map((a) => [String(a._id), a.openingBalance ?? 0]));
+  const runningByTx = new Map(running.map((r) => [String(r._id), r.runningTotal]));
+
+  for (const item of items) {
+    const opening = openingByAccount.get(String(item.accountId)) ?? 0;
+    const runningTotal = runningByTx.get(String(item._id)) ?? 0;
+    item.balance = opening + runningTotal;
+  }
+}
 
 export const GET = route(async (req: Request) => {
   const userId = await requireUser();
   const url = new URL(req.url);
   const q = url.searchParams;
 
-  const filter: Record<string, unknown> = { userId };
-
-  const accountId = oid(q.get('accountId'));
-  if (accountId) filter.accountId = accountId;
-
-  const categoryParam = q.get('categoryId');
-  if (categoryParam === 'none') filter.categoryId = null;
-  else if (oid(categoryParam)) filter.categoryId = oid(categoryParam);
-
-  if (q.get('type')) filter.type = q.get('type');
-
-  const from = q.get('from');
-  const to = q.get('to');
-  if (from || to) {
-    filter.date = {
-      ...(from && { $gte: new Date(from) }),
-      ...(to && { $lte: new Date(`${to}T23:59:59.999Z`) }),
-    };
-  }
-
-  const search = q.get('search')?.trim();
-  if (search) {
-    const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    filter.$or = [{ description: rx }, { merchant: rx }, { notes: rx }, { reference: rx }];
-  }
+  const filter = buildTransactionFilter(userId, q);
 
   const limit = Math.min(Number(q.get('limit') ?? 100), 500);
   const skip = Number(q.get('skip') ?? 0);
 
+  const sortByParam = q.get('sortBy') ?? 'date';
+  const sortBy = SORTABLE_FIELDS.has(sortByParam) ? sortByParam : 'date';
+  const sortDir = q.get('sortDir') === 'asc' ? 1 : -1;
+
   const [items, total] = await Promise.all([
-    Transaction.find(filter).sort({ date: -1, _id: -1 }).skip(skip).limit(limit).lean(),
+    fetchSorted(filter, sortBy, sortDir, skip, limit),
     Transaction.countDocuments(filter),
   ]);
+  await attachBalances(userId, items);
 
   return ok({ items, total, limit, skip });
 });

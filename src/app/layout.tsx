@@ -13,10 +13,11 @@ const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', displ
 export const metadata: Metadata = {
   title: 'Ledgerly — personal budgets',
   description: 'Track accounts, categorise imports automatically, and watch your budgets.',
-  icons: {
-    icon: '/favicon.png',
-    shortcut: '/favicon.png',
-  }
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Ledgerly',
+  },
 };
 
 export const viewport: Viewport = {

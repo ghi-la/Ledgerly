@@ -4,6 +4,8 @@ import { Account, Category, Rule, User } from '@/lib/models';
 import { HttpError, ok, route } from '@/lib/api';
 import { CATEGORY_PALETTE, STARTER_CATEGORIES, STARTER_RULES } from '@/lib/starter';
 import { isValidEmail } from '@/lib/validation';
+import { sendVerificationEmail } from '@/lib/email';
+import { createVerificationToken, VERIFICATION_TOKEN_TTL_MS } from '@/lib/verification';
 
 export const POST = route(async (req: Request) => {
   if (process.env.ALLOW_REGISTRATION === 'false') {
@@ -27,6 +29,8 @@ export const POST = route(async (req: Request) => {
     throw new HttpError(409, 'That email is already registered. Sign in instead.');
   }
 
+  const { token, tokenHash } = createVerificationToken();
+
   const user = await User.create({
     name: String(name ?? '').trim() || cleanEmail.split('@')[0],
     email: cleanEmail,
@@ -34,6 +38,10 @@ export const POST = route(async (req: Request) => {
     encSalt: encSalt ? String(encSalt) : null,
     encDekWrapped: encDekWrapped ? String(encDekWrapped) : null,
     encDekIv: encDekIv ? String(encDekIv) : null,
+    emailVerified: false,
+    emailVerificationTokenHash: tokenHash,
+    emailVerificationExpires: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
+    emailVerificationSentAt: new Date(),
   });
 
   // Starter data so the app is usable on first load.
@@ -69,5 +77,16 @@ export const POST = route(async (req: Request) => {
     })),
   );
 
-  return ok({ id: String(user._id), accountId: String(account._id) }, 201);
+  // The account (and its token) already exist at this point regardless of
+  // whether the email goes out, so a delivery failure shouldn't turn into a
+  // dead end where the user can't register OR resend. Log it and let them
+  // retry from the "check your email" screen instead.
+  const verifyUrl = new URL(`/verify-email?token=${token}`, req.url).toString();
+  try {
+    await sendVerificationEmail(cleanEmail, user.name, verifyUrl);
+  } catch (err) {
+    console.error('[register] Verification email failed to send:', err);
+  }
+
+  return ok({ id: String(user._id), accountId: String(account._id), requiresVerification: true }, 201);
 });

@@ -28,6 +28,10 @@ Mongoose on MongoDB Atlas. Ready to deploy on Vercel.
 - **Budgets, goals, transfers, recurring detection** - monthly per-category
   limits, savings goals that can track a linked account, two-legged transfers
   excluded from spending totals, and automatic spotting of subscriptions.
+- **Email confirmation on sign-up** - new accounts can't sign in until the
+  confirmation link sent to their address is followed, so registration spam
+  doesn't produce usable accounts. Sent via Resend; falls back to logging
+  the link to the server console if no API key is configured.
 
 ## Deploy to Vercel
 
@@ -41,6 +45,19 @@ Mongoose on MongoDB Atlas. Ready to deploy on Vercel.
 
    Optional: `ALLOW_REGISTRATION=false` closes public sign-ups once your
    accounts exist.
+
+   Optional: `RESEND_API_KEY` (a free [Resend](https://resend.com) account
+   gives 100 emails/day) and `EMAIL_FROM` enable the sign-up confirmation
+   email. Without a key, the confirmation link is only logged server-side,
+   so set this before letting real users register.
+
+   `EMAIL_FROM` only delivers to arbitrary recipients once its domain is
+   verified: in the Resend dashboard, Domains -> Add Domain -> enter a
+   domain or subdomain you own -> add the DKIM/SPF (and optional DMARC)
+   TXT records it gives you at your DNS provider -> wait for the domain to
+   show as Verified. Until then, `EMAIL_FROM` can only be the shared
+   `onboarding@resend.dev` sender, which only reaches the inbox on your
+   Resend account.
 
 3. In Atlas, allow Vercel to connect: under Network Access, add `0.0.0.0/0`
    (or Vercel's IP ranges).
@@ -78,13 +95,14 @@ A sample bank export to try the importer with is in `sample/sample-statement.csv
 ```
 src/
   app/
-    (auth)/          login + register pages
+    (auth)/          login, register, verify-email pages
     (app)/           dashboard, transactions, import, accounts,
                      categories, rules, budgets, goals, settings
-    api/             24 route handlers (accounts, transactions, rules,
-                     import/preview, import/commit, stats, recurring, …)
+    api/             25 route handlers (accounts, transactions, rules,
+                     import/preview, import/commit, stats, recurring,
+                     verify-email, resend-verification, …)
   components/        AppShell, widgets, AuthForm, shared UI
-  lib/               db, models, auth, rules engine, CSV parsing, theme
+  lib/               db, models, auth, rules engine, CSV parsing, theme, email
   middleware.ts      edge auth guard
 scripts/seed.ts      optional demo seed
 sample/              example bank CSV

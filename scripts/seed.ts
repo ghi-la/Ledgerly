@@ -18,6 +18,7 @@ async function main() {
     name: 'Demo',
     email,
     passwordHash: await bcrypt.hash('password12345', 10),
+    emailVerified: true,
   });
 
   const account = await Account.create({ userId: user._id, name: 'Everyday', type: 'checking' });

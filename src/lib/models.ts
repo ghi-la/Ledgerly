@@ -96,6 +96,13 @@ const UserSchema = new Schema(
     encSalt: { type: String, default: null },
     encDekWrapped: { type: String, default: null },
     encDekIv: { type: String, default: null },
+    // Email confirmation, required before credentials sign-in succeeds, to
+    // keep registration spam from creating usable accounts. The token itself
+    // is never stored - only its hash - so a DB read can't produce a valid link.
+    emailVerified: { type: Boolean, default: false },
+    emailVerificationTokenHash: { type: String, default: null },
+    emailVerificationExpires: { type: Date, default: null },
+    emailVerificationSentAt: { type: Date, default: null },
     settings: {
       currency: { type: String, default: 'EUR' },
       locale: { type: String, default: 'en-GB' },

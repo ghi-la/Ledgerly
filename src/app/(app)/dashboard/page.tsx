@@ -99,7 +99,7 @@ export default function DashboardPage() {
     <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
       <PageHeader
         title="Dashboard"
-        subtitle="Each card has its own time range — 3 months by default."
+        subtitle="Each card has its own time range (3 months by default)."
         action={
           <Tooltip title="Customise widgets">
             <IconButton onClick={() => setCustomising(true)} aria-label="Customise widgets">

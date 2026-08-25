@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Ledgerly — personal budgets',
+    name: 'Ledgerly - personal budgets',
     short_name: 'Ledgerly',
     description: 'Track accounts, categorise imports automatically, and watch your budgets.',
     start_url: '/',

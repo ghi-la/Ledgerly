@@ -128,7 +128,7 @@ export default function ImportPage() {
         }
         if (guessed.debit && guessed.debit === guessed.credit) {
           // A single column matched both "debit" and "credit" wording (e.g. "Credit/Debit
-          // Amount") — that's one signed column, not separate money-out/money-in columns.
+          // Amount"); that's one signed column, not separate money-out/money-in columns.
           guessed.amount = guessed.debit;
           delete guessed.debit;
           delete guessed.credit;

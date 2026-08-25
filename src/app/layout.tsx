@@ -11,7 +11,7 @@ const body = Inter({ subsets: ['latin'], variable: '--font-body', display: 'swap
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'Ledgerly — personal budgets',
+  title: 'Ledgerly - personal budgets',
   description: 'Track accounts, categorise imports automatically, and watch your budgets.',
   appleWebApp: {
     capable: true,

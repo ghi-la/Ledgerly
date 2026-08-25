@@ -42,7 +42,7 @@ function parseRowAmount(
  * If the file carries its own running-balance column, checks it's internally
  * consistent: each row's statement balance should equal the previous row's
  * plus this row's amount. A mismatch usually means a misread amount/date, a
- * missing row, or a mapping mistake — mutates matching drafts in place rather
+ * missing row, or a mapping mistake; mutates matching drafts in place rather
  * than silently importing them.
  */
 function flagBalanceMismatches<T extends { index: number; date: string | null; amount: number; statementBalance: number | null; expectedBalance: number | null }>(
@@ -100,7 +100,7 @@ export const POST = route(async (req: Request) => {
 
   const drafts = rows.map((row, index) => {
     const date = parseDate(get(row, mapping.date), dateFormat);
-    const description = get(row, mapping.description) || get(row, mapping.merchant) || '—';
+    const description = get(row, mapping.description) || get(row, mapping.merchant) || '-';
 
     const amount = parseRowAmount(row, get, mapping, amountMode, decimalSeparator, invert);
 

@@ -126,7 +126,7 @@ export default function GoalsPage() {
         <Card>
           <EmptyState
             title="No goals yet"
-            description="Set a target — a trip, a deposit, a rainy-day fund — and watch it fill up."
+            description="Set a target (a trip, a deposit, a rainy-day fund) and watch it fill up."
             actionLabel="Create a goal"
             onAction={openNew}
           />

@@ -68,7 +68,7 @@ const dateStr = (d: Date) =>
 
 /**
  * Turns a preset key into a concrete [from, to] date-string window ending
- * today. "all" sends the sentinel 'oldest' — the server resolves it to the
+ * today. "all" sends the sentinel 'oldest'; the server resolves it to the
  * user's actual earliest transaction rather than an arbitrary fixed date.
  */
 export function rangeToDates(key: string, today = new Date()): { from: string; to: string } {

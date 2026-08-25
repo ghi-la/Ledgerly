@@ -286,7 +286,7 @@ export default function TransactionsPage() {
                       {t.description}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {formatDate(t.date, locale)} · {accountById.get(t.accountId)?.name ?? '—'}
+                      {formatDate(t.date, locale)} · {accountById.get(t.accountId)?.name ?? '-'}
                     </Typography>
                   </Box>
                   <Money value={t.amount} currency={currency} locale={locale} colored bold />
@@ -396,7 +396,7 @@ export default function TransactionsPage() {
                       {t.transferId && <Chip size="small" label="Transfer" sx={{ mt: 0.5 }} />}
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 13 }}>
-                      {accountById.get(t.accountId)?.name ?? '—'}
+                      {accountById.get(t.accountId)?.name ?? '-'}
                     </TableCell>
                     <TableCell>
                       <TextField
@@ -437,7 +437,7 @@ export default function TransactionsPage() {
                       {t.balance !== undefined ? (
                         <Money value={t.balance} currency={currency} locale={locale} />
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </TableCell>
                     <TableCell align="right">

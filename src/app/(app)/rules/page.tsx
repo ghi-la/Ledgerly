@@ -199,7 +199,7 @@ export default function RulesPage() {
       setToast(
         res.updated
           ? `Applied rules to ${res.updated} of ${res.scanned} transactions.`
-          : `No changes — scanned ${res.scanned} transactions.`,
+          : `No changes; scanned ${res.scanned} transactions.`,
       );
     } catch (e) {
       setToast(e instanceof Error ? e.message : 'Could not run rules.');

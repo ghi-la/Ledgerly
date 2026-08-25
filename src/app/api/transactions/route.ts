@@ -32,7 +32,7 @@ function fetchSorted(
 
 /**
  * Attaches each transaction's running balance in its own account's full
- * chronological ledger (seeded by the account's opening balance) — the real
+ * chronological ledger (seeded by the account's opening balance); the real
  * point-in-time balance, independent of whatever filter/sort produced `items`.
  */
 async function attachBalances(userId: unknown, items: Record<string, unknown>[]) {

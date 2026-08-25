@@ -24,7 +24,18 @@ export const POST = route(async (req: Request) => {
     items.map((item: { id: string; description: string; merchant: string; notes: string }) =>
       Transaction.updateOne(
         { _id: item.id, userId },
-        { $set: { description: item.description, merchant: item.merchant, notes: item.notes, encVersion: 1 } },
+        {
+          $set: {
+            description: item.description,
+            merchant: item.merchant,
+            notes: item.notes,
+            encVersion: 1,
+            // The old plaintext-derived recurringKey (if any) is a snippet
+            // of the description we're encrypting right now, so it can't
+            // survive the migration either.
+            recurringKey: null,
+          },
+        },
       ),
     ),
   );

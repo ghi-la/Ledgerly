@@ -26,7 +26,12 @@ export const GET = route(async () => {
   const groups = new Map<string, typeof transactions>();
 
   for (const tx of transactions) {
-    const k = tx.recurringKey || recurringKey(tx.description ?? '');
+    // Encrypted transactions never carry a recurringKey (see the write
+    // routes), and tx.description is ciphertext for them too, so the
+    // fallback below must not run on those rows: recurring detection simply
+    // doesn't group encrypted transactions, the same trade-off already made
+    // for "top merchants" in the stats route.
+    const k = tx.recurringKey || (tx.encVersion === 1 ? null : recurringKey(tx.description ?? ''));
     if (!k || k.length < 3) continue;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k)!.push(tx);

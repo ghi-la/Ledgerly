@@ -26,9 +26,12 @@ export const POST = route(async (req: Request) => {
       const amount = Number(d.amount);
       // `description` may already be ciphertext (encVersion 1); `plainDescription`
       // carries the plaintext just for this request, used only to compute the
-      // dedupe/recurring fingerprints below — it's never persisted.
+      // dedupe fingerprint below (a one-way hash, never persisted as-is).
+      // Once encrypted, `recurringKey` stays null rather than storing a
+      // readable snippet of the description in the clear.
       const description = String(d.description ?? '').trim();
       const plainDescription = String(d.plainDescription ?? d.description ?? '').trim();
+      const encVersion = d.encVersion === 1 ? 1 : 0;
       return {
         userId,
         accountId,
@@ -41,10 +44,10 @@ export const POST = route(async (req: Request) => {
         notes: String(d.notes ?? ''),
         tags: Array.isArray(d.tags) ? d.tags : [],
         type: d.type ?? (amount >= 0 ? 'income' : 'expense'),
-        encVersion: d.encVersion === 1 ? 1 : 0,
+        encVersion,
         importBatchId,
         dedupeKey: dedupeKey(String(accountId), date, amount, plainDescription),
-        recurringKey: recurringKey(plainDescription),
+        recurringKey: encVersion === 1 ? null : recurringKey(plainDescription),
       };
     });
 

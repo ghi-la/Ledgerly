@@ -19,7 +19,12 @@ export const PATCH = route(async (req: Request, ctx: Ctx) => {
   if (body.reference !== undefined) set.reference = String(body.reference);
   if (body.tags !== undefined) set.tags = body.tags;
   if (body.type !== undefined) set.type = body.type;
-  if (body.encVersion === 1) set.encVersion = 1;
+  if (body.encVersion === 1) {
+    set.encVersion = 1;
+    // Whatever recurringKey this row had (plaintext-derived, from before it
+    // was encrypted) no longer applies once description is ciphertext.
+    set.recurringKey = null;
+  }
 
   const tx = await Transaction.findOneAndUpdate({ _id: id, userId }, { $set: set }, { new: true });
   if (!tx) throw new HttpError(404, 'That transaction no longer exists.');

@@ -102,9 +102,14 @@ export const POST = route(async (req: Request) => {
 
   // `description` may already be ciphertext (encVersion 1); `plainDescription`
   // carries the plaintext just for this request, used only to compute the
-  // dedupe/recurring fingerprints below — it's never persisted.
+  // dedupe fingerprint below (a one-way hash, never persisted as-is). Once
+  // encrypted, `recurringKey` stays null rather than storing a readable
+  // snippet of the description in the clear: same trade-off already made for
+  // "top merchants" in the stats route, which excludes encrypted rows from
+  // its plaintext-grouping instead of leaking a fragment to enable it.
   const description = String(body.description ?? '').trim();
   const plainDescription = String(body.plainDescription ?? body.description ?? '').trim();
+  const encVersion = body.encVersion === 1 ? 1 : 0;
 
   const tx = await Transaction.create({
     userId,
@@ -118,9 +123,9 @@ export const POST = route(async (req: Request) => {
     notes: body.notes ?? '',
     tags: body.tags ?? [],
     type: body.type ?? (amount >= 0 ? 'income' : 'expense'),
-    encVersion: body.encVersion === 1 ? 1 : 0,
+    encVersion,
     dedupeKey: dedupeKey(String(accountId), date, amount, plainDescription),
-    recurringKey: recurringKey(plainDescription),
+    recurringKey: encVersion === 1 ? null : recurringKey(plainDescription),
   });
 
   return ok(tx, 201);

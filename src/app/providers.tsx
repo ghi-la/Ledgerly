@@ -1,17 +1,18 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { ThemeProvider, CssBaseline } from '@mui/material';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { SessionProvider } from 'next-auth/react';
 import { buildTheme } from '@/lib/theme';
+import { CssBaseline, ThemeProvider } from '@mui/material';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { Analytics } from '@vercel/analytics/next';
+import { SessionProvider } from 'next-auth/react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 type Mode = 'light' | 'dark';
 const ColorModeContext = createContext<{ mode: Mode; toggle: () => void }>({
   mode: 'light',
-  toggle: () => {},
+  toggle: () => { },
 });
 
 export const useColorMode = () => useContext(ColorModeContext);
@@ -44,6 +45,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <ColorModeContext.Provider value={value}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
+          <Analytics />
           <LocalizationProvider dateAdapter={AdapterDayjs}>
             <SessionProvider>{children}</SessionProvider>
           </LocalizationProvider>

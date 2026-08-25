@@ -39,6 +39,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DarkIcon from '@mui/icons-material/DarkModeOutlined';
 import LightIcon from '@mui/icons-material/LightModeOutlined';
 import { useColorMode } from '@/app/providers';
+import { useEncryption } from './EncryptionProvider';
 import RouteProgress from './RouteProgress';
 
 const DRAWER = 248;
@@ -71,6 +72,7 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const { mode, toggle } = useColorMode();
+  const { clear: clearEncryptionKey } = useEncryption();
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
 
@@ -172,7 +174,14 @@ export default function AppShell({
             >
               Settings
             </MenuItem>
-            <MenuItem onClick={() => signOut({ callbackUrl: '/login' })}>Sign out</MenuItem>
+            <MenuItem
+              onClick={() => {
+                clearEncryptionKey();
+                signOut({ callbackUrl: '/login' });
+              }}
+            >
+              Sign out
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>

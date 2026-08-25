@@ -102,8 +102,22 @@ export const GET = route(async (req: Request) => {
       },
       { $sort: { _id: 1 } },
     ]),
+    // Grouping by merchant text only makes sense for plaintext rows — once a
+    // transaction's merchant is encrypted, every write produces different
+    // ciphertext even for the same merchant, so it can never group with
+    // anything. Encrypted rows are excluded here rather than polluting the
+    // "top merchants" list with meaningless single-transaction ciphertext
+    // groups.
     Transaction.aggregate([
-      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 } } },
+      {
+        $match: {
+          userId,
+          date: { $gte: from, $lte: to },
+          type: { $ne: 'transfer' },
+          amount: { $lt: 0 },
+          encVersion: { $ne: 1 },
+        },
+      },
       {
         $group: {
           _id: { $toLower: { $ifNull: ['$merchant', ''] } },
@@ -205,6 +219,7 @@ export const GET = route(async (req: Request) => {
       _id: String(t._id),
       date: t.date,
       description: t.description,
+      encVersion: t.encVersion ?? 0,
       amount: t.amount,
       type: t.type,
       categoryId: t.categoryId ? String(t.categoryId) : null,

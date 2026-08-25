@@ -32,6 +32,8 @@ import {
 import UploadIcon from '@mui/icons-material/UploadFileOutlined';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
+import { useEncryption } from '@/components/EncryptionProvider';
+import { encryptField } from '@/lib/cryptoField';
 
 interface Draft {
   index: number;
@@ -78,6 +80,7 @@ const GUESSES: Record<string, RegExp> = {
 
 export default function ImportPage() {
   const { currency, locale } = useSettings();
+  const { dek } = useEncryption();
   const { data: accounts } = useSWR<{ _id: string; name: string }[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<{ _id: string; name: string; color: string }[]>(
     '/api/categories',
@@ -175,7 +178,19 @@ export default function ImportPage() {
     setError('');
     try {
       const chosen = drafts.filter((d) => !excluded.has(d.index) && !d.error);
-      const res = await send('/api/import/commit', 'POST', { accountId, drafts: chosen });
+      const prepared = dek
+        ? await Promise.all(
+            chosen.map(async (d) => ({
+              ...d,
+              plainDescription: d.description,
+              description: await encryptField(dek, d.description),
+              merchant: await encryptField(dek, d.merchant),
+              notes: await encryptField(dek, d.notes),
+              encVersion: 1,
+            })),
+          )
+        : chosen;
+      const res = await send('/api/import/commit', 'POST', { accountId, drafts: prepared });
       setToast(`Imported ${res.imported} transactions.`);
       reset();
     } catch (e) {

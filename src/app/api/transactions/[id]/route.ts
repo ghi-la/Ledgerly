@@ -19,6 +19,7 @@ export const PATCH = route(async (req: Request, ctx: Ctx) => {
   if (body.reference !== undefined) set.reference = String(body.reference);
   if (body.tags !== undefined) set.tags = body.tags;
   if (body.type !== undefined) set.type = body.type;
+  if (body.encVersion === 1) set.encVersion = 1;
 
   const tx = await Transaction.findOneAndUpdate({ _id: id, userId }, { $set: set }, { new: true });
   if (!tx) throw new HttpError(404, 'That transaction no longer exists.');

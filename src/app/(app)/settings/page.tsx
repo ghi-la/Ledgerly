@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
+import { DecryptedText } from '@/components/widgets';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD', 'CHF', 'CAD', 'AUD', 'JPY', 'SEK', 'NOK', 'DKK', 'PLN', 'INR'];
 const LOCALES = [
@@ -34,6 +35,7 @@ interface Recurring {
   items: {
     key: string;
     label: string;
+    labelEncVersion?: number;
     cadence: string;
     averageAmount: number;
     direction: string;
@@ -149,9 +151,12 @@ export default function SettingsPage() {
             {(recurring?.items ?? []).map((r) => (
               <Stack key={r.key} direction="row" spacing={1.5} sx={{ alignItems: 'center', py: 1.25 }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 600 }} noWrap>
-                    {r.label}
-                  </Typography>
+                  <DecryptedText
+                    value={r.label}
+                    encVersion={r.labelEncVersion}
+                    sx={{ fontWeight: 600 }}
+                    noWrap
+                  />
                   <Stack direction="row" spacing={0.75} sx={{ mt: 0.25 }}>
                     <Chip size="small" label={r.cadence} variant="outlined" />
                     {r.categoryName && <Chip size="small" label={r.categoryName} variant="outlined" />}

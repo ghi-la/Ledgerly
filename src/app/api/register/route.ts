@@ -10,7 +10,7 @@ export const POST = route(async (req: Request) => {
     throw new HttpError(403, 'Registration is closed on this instance.');
   }
 
-  const { name, email, password } = await req.json();
+  const { name, email, password, encSalt, encDekWrapped, encDekIv } = await req.json();
   const cleanEmail = String(email ?? '')
     .toLowerCase()
     .trim();
@@ -31,6 +31,9 @@ export const POST = route(async (req: Request) => {
     name: String(name ?? '').trim() || cleanEmail.split('@')[0],
     email: cleanEmail,
     passwordHash: await bcrypt.hash(String(password), 10),
+    encSalt: encSalt ? String(encSalt) : null,
+    encDekWrapped: encDekWrapped ? String(encDekWrapped) : null,
+    encDekIv: encDekIv ? String(encDekIv) : null,
   });
 
   // Starter data so the app is usable on first load.

@@ -100,7 +100,11 @@ export const POST = route(async (req: Request) => {
   const date = new Date(body.date);
   if (isNaN(date.getTime())) throw new HttpError(400, 'Enter a valid date.');
 
+  // `description` may already be ciphertext (encVersion 1); `plainDescription`
+  // carries the plaintext just for this request, used only to compute the
+  // dedupe/recurring fingerprints below — it's never persisted.
   const description = String(body.description ?? '').trim();
+  const plainDescription = String(body.plainDescription ?? body.description ?? '').trim();
 
   const tx = await Transaction.create({
     userId,
@@ -114,8 +118,9 @@ export const POST = route(async (req: Request) => {
     notes: body.notes ?? '',
     tags: body.tags ?? [],
     type: body.type ?? (amount >= 0 ? 'income' : 'expense'),
-    dedupeKey: dedupeKey(String(accountId), date, amount, description),
-    recurringKey: recurringKey(description),
+    encVersion: body.encVersion === 1 ? 1 : 0,
+    dedupeKey: dedupeKey(String(accountId), date, amount, plainDescription),
+    recurringKey: recurringKey(plainDescription),
   });
 
   return ok(tx, 201);

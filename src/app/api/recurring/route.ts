@@ -61,6 +61,7 @@ export const GET = route(async () => {
     results.push({
       key: k,
       label: last.description,
+      labelEncVersion: last.encVersion ?? 0,
       cadence,
       averageGapDays: Math.round(avgGap),
       averageAmount: Math.round(avgAmount * 100) / 100,

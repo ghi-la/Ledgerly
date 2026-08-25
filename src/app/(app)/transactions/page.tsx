@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
   Alert,
@@ -40,13 +40,16 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDownRounded';
 import TrendingUpIcon from '@mui/icons-material/TrendingUpRounded';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
+import { useEncryption } from '@/components/EncryptionProvider';
+import { decryptTxFields, encryptField, type EncryptableTx } from '@/lib/cryptoField';
 
-interface Tx {
+interface Tx extends EncryptableTx {
   _id: string;
   date: string;
   description: string;
   merchant?: string;
   notes?: string;
+  reference?: string;
   amount: number;
   balance?: number;
   type: string;
@@ -137,26 +140,67 @@ export default function TransactionsPage() {
 
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
+  const { dek } = useEncryption();
 
-  const query = useMemo(() => {
-    const p = new URLSearchParams({
-      limit: String(rowsPerPage),
-      skip: String(page * rowsPerPage),
-      sortBy,
-      sortDir,
-    });
-    if (search) p.set('search', search);
+  const searchTerm = search.trim();
+
+  // Filters shared by both fetch modes below (everything except the text
+  // search itself, which the server can no longer match once description /
+  // merchant / notes are encrypted).
+  const baseQuery = useMemo(() => {
+    const p = new URLSearchParams({ sortBy, sortDir });
     if (accountId) p.set('accountId', accountId);
     if (categoryId) p.set('categoryId', categoryId);
     if (from) p.set('from', from);
     if (to) p.set('to', to);
     return p.toString();
-  }, [search, accountId, categoryId, from, to, page, rowsPerPage, sortBy, sortDir]);
+  }, [accountId, categoryId, from, to, sortBy, sortDir]);
 
+  // Normal mode: server-side pagination, used whenever there's no text search.
   const { data, mutate, isLoading } = useSWR<{ items: Tx[]; total: number }>(
-    `/api/transactions?${query}`,
+    searchTerm ? null : `/api/transactions?${baseQuery}&limit=${rowsPerPage}&skip=${page * rowsPerPage}`,
     fetcher,
   );
+
+  // Search mode: fetch every row matching the non-text filters (capped, for a
+  // personal-scale account), then decrypt and filter by the search term in
+  // the browser, then paginate the filtered results ourselves.
+  const SEARCH_FETCH_CAP = 5000;
+  const { data: searchData, mutate: mutateSearch, isLoading: searchLoading } = useSWR<{
+    items: Tx[];
+    total: number;
+  }>(searchTerm ? `/api/transactions?${baseQuery}&limit=${SEARCH_FETCH_CAP}&skip=0` : null, fetcher);
+
+  const refresh = () => {
+    mutate();
+    mutateSearch();
+  };
+
+  const [decryptedBase, setDecryptedBase] = useState<Tx[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const source = searchTerm ? searchData?.items : data?.items;
+    (async () => {
+      const items = source ?? [];
+      const decrypted = await Promise.all(items.map((t) => decryptTxFields(t, dek)));
+      if (!cancelled) setDecryptedBase(decrypted);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [data, searchData, searchTerm, dek]);
+
+  const searchFiltered = useMemo(() => {
+    if (!searchTerm) return decryptedBase;
+    const needle = searchTerm.toLowerCase();
+    return decryptedBase.filter((t) =>
+      [t.description, t.merchant, t.notes, t.reference].some((f) => (f ?? '').toLowerCase().includes(needle)),
+    );
+  }, [decryptedBase, searchTerm]);
+
+  const rows = searchTerm ? searchFiltered.slice(page * rowsPerPage, (page + 1) * rowsPerPage) : decryptedBase;
+  const total = searchTerm ? searchFiltered.length : (data?.total ?? 0);
+  const effectiveLoading = searchTerm ? searchLoading : isLoading;
 
   const categoryById = new Map((categories ?? []).map((c) => [c._id, c]));
   const accountById = new Map((accounts ?? []).map((a) => [a._id, a]));
@@ -173,7 +217,7 @@ export default function TransactionsPage() {
 
   const setCategory = async (id: string, value: string) => {
     await send(`/api/transactions/${id}`, 'PATCH', { categoryId: value || null });
-    mutate();
+    refresh();
   };
 
   const bulkCategorise = async (value: string) => {
@@ -182,23 +226,21 @@ export default function TransactionsPage() {
     );
     setToast(`Updated ${selected.length} transactions.`);
     setSelected([]);
-    mutate();
+    refresh();
   };
 
   const removeSelected = async () => {
     await send('/api/transactions', 'DELETE', { ids: selected });
     setToast(`Deleted ${selected.length} transactions.`);
     setSelected([]);
-    mutate();
+    refresh();
   };
-
-  const rows = data?.items ?? [];
 
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
       <PageHeader
         title="Transactions"
-        subtitle={data ? `${data.total} matching entries` : 'Loading…'}
+        subtitle={effectiveLoading ? 'Loading…' : `${total} matching entries`}
         action={
           <Stack direction="row" spacing={1}>
             <Button startIcon={<SwapIcon />} variant="outlined" onClick={() => setTransferOpen(true)}>
@@ -304,7 +346,7 @@ export default function TransactionsPage() {
       )}
 
       <Card>
-        {!isLoading && rows.length === 0 ? (
+        {!effectiveLoading && rows.length === 0 ? (
           <EmptyState
             title="No transactions here"
             description="Adjust the filters, or import a CSV to fill this in."
@@ -484,7 +526,7 @@ export default function TransactionsPage() {
                           size="small"
                           onClick={async () => {
                             await send(`/api/transactions/${t._id}`, 'DELETE');
-                            mutate();
+                            refresh();
                           }}
                         >
                           <DeleteIcon fontSize="small" />
@@ -500,7 +542,7 @@ export default function TransactionsPage() {
 
         <TablePagination
           component="div"
-          count={data?.total ?? 0}
+          count={total}
           page={page}
           onPageChange={(_, p) => setPage(p)}
           rowsPerPage={rowsPerPage}
@@ -518,7 +560,7 @@ export default function TransactionsPage() {
         accounts={accounts ?? []}
         categories={categories ?? []}
         onSaved={() => {
-          mutate();
+          refresh();
           setToast('Transaction added.');
         }}
       />
@@ -527,7 +569,7 @@ export default function TransactionsPage() {
         onClose={() => setTransferOpen(false)}
         accounts={accounts ?? []}
         onSaved={() => {
-          mutate();
+          refresh();
           setToast('Transfer recorded.');
         }}
       />
@@ -538,7 +580,7 @@ export default function TransactionsPage() {
         accounts={accounts ?? []}
         categories={categories ?? []}
         onSaved={() => {
-          mutate();
+          refresh();
           setToast('Transaction updated.');
         }}
       />
@@ -571,18 +613,26 @@ function AddDialog({
     notes: '',
   });
   const [error, setError] = useState('');
+  const { dek } = useEncryption();
 
   const save = async () => {
     try {
       const value = Math.abs(Number(form.amount));
+      const text = dek
+        ? {
+            description: await encryptField(dek, form.description),
+            notes: await encryptField(dek, form.notes),
+            plainDescription: form.description,
+            encVersion: 1,
+          }
+        : { description: form.description, notes: form.notes };
       await send('/api/transactions', 'POST', {
         accountId: form.accountId || accounts[0]?._id,
         date: form.date,
-        description: form.description,
         amount: form.direction === 'out' ? -value : value,
         categoryId: form.categoryId || null,
-        notes: form.notes,
         type: form.direction === 'out' ? 'expense' : 'income',
+        ...text,
       });
       onSaved();
       onClose();
@@ -692,18 +742,30 @@ function EditDialog({
     notes: transaction?.notes ?? '',
   });
   const [error, setError] = useState('');
+  const { dek } = useEncryption();
 
   const save = async () => {
     if (!transaction) return;
     try {
       const value = Math.abs(Number(form.amount));
+      // There's no merchant field in this form, but if description/notes are
+      // becoming ciphertext, merchant has to move with them — encVersion is
+      // one flag for all three fields, so a stale plaintext merchant next to
+      // freshly-encrypted description/notes would fail to decrypt.
+      const text = dek
+        ? {
+            description: await encryptField(dek, form.description),
+            notes: await encryptField(dek, form.notes),
+            merchant: await encryptField(dek, transaction.merchant ?? ''),
+            encVersion: 1,
+          }
+        : { description: form.description, notes: form.notes };
       await send(`/api/transactions/${transaction._id}`, 'PATCH', {
         accountId: form.accountId,
         date: form.date,
-        description: form.description,
         amount: form.direction === 'out' ? -value : value,
         categoryId: form.categoryId || null,
-        notes: form.notes,
+        ...text,
       });
       onSaved();
       onClose();

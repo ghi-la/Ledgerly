@@ -89,6 +89,13 @@ const UserSchema = new Schema(
     name: String,
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
+    // Envelope encryption for description/merchant/notes: encSalt derives a
+    // password-based key that unwraps encDekWrapped into the actual
+    // per-account data key. The server stores these but can never derive the
+    // key itself — only the browser, after the user's password, can.
+    encSalt: { type: String, default: null },
+    encDekWrapped: { type: String, default: null },
+    encDekIv: { type: String, default: null },
     settings: {
       currency: { type: String, default: 'EUR' },
       locale: { type: String, default: 'en-GB' },
@@ -148,6 +155,9 @@ const TransactionSchema = new Schema(
     dedupeKey: { type: String, default: null, index: true },
     appliedRuleId: { type: Schema.Types.ObjectId, ref: 'Rule', default: null },
     recurringKey: { type: String, default: null, index: true },
+    // 0 = description/merchant/notes are plaintext (pre-encryption records,
+    // migrated lazily on next login); 1 = those three fields are ciphertext.
+    encVersion: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

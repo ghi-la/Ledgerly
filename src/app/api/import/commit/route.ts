@@ -24,7 +24,11 @@ export const POST = route(async (req: Request) => {
     .map((d) => {
       const date = new Date(String(d.date));
       const amount = Number(d.amount);
+      // `description` may already be ciphertext (encVersion 1); `plainDescription`
+      // carries the plaintext just for this request, used only to compute the
+      // dedupe/recurring fingerprints below — it's never persisted.
       const description = String(d.description ?? '').trim();
+      const plainDescription = String(d.plainDescription ?? d.description ?? '').trim();
       return {
         userId,
         accountId,
@@ -37,9 +41,10 @@ export const POST = route(async (req: Request) => {
         notes: String(d.notes ?? ''),
         tags: Array.isArray(d.tags) ? d.tags : [],
         type: d.type ?? (amount >= 0 ? 'income' : 'expense'),
+        encVersion: d.encVersion === 1 ? 1 : 0,
         importBatchId,
-        dedupeKey: dedupeKey(String(accountId), date, amount, description),
-        recurringKey: recurringKey(description),
+        dedupeKey: dedupeKey(String(accountId), date, amount, plainDescription),
+        recurringKey: recurringKey(plainDescription),
       };
     });
 

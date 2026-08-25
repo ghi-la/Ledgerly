@@ -15,11 +15,15 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { send } from '@/lib/client';
+import { fetcher, send } from '@/lib/client';
 import { isValidEmail } from '@/lib/validation';
+import { generateDek, generateSaltB64, unwrapDek, wrapDek } from '@/lib/cryptoField';
+import { useEncryption } from '@/components/EncryptionProvider';
+import { migrateEncryption } from '@/lib/migrateEncryption';
 
 export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
+  const { setDek } = useEncryption();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +32,8 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValidEmail(email.trim())) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!isValidEmail(cleanEmail)) {
       setError('Enter a valid email address.');
       return;
     }
@@ -39,11 +44,44 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     setBusy(true);
     setError('');
     try {
+      let dek: CryptoKey;
+
       if (mode === 'register') {
-        await send('/api/register', 'POST', { name, email, password });
+        // The description/merchant/notes encryption key is generated here,
+        // wrapped with a key derived from the password, and only the wrapped
+        // form ever reaches the server — it can't derive the key itself.
+        dek = await generateDek();
+        const salt = generateSaltB64();
+        const { wrapped, iv } = await wrapDek(dek, password, salt);
+        await send('/api/register', 'POST', {
+          name,
+          email: cleanEmail,
+          password,
+          encSalt: salt,
+          encDekWrapped: wrapped,
+          encDekIv: iv,
+        });
+        const res = await signIn('credentials', { email: cleanEmail, password, redirect: false });
+        if (res?.error) throw new Error('That email and password combination did not work.');
+      } else {
+        const res = await signIn('credentials', { email: cleanEmail, password, redirect: false });
+        if (res?.error) throw new Error('That email and password combination did not work.');
+
+        const key = await fetcher('/api/encryption/key');
+        if (key.encDekWrapped && key.encDekIv && key.encSalt) {
+          dek = await unwrapDek(key.encDekWrapped, key.encDekIv, password, key.encSalt);
+        } else {
+          // Account predates this feature — bootstrap it now, on this login.
+          dek = await generateDek();
+          const salt = generateSaltB64();
+          const { wrapped, iv } = await wrapDek(dek, password, salt);
+          await send('/api/encryption/key', 'PATCH', { encSalt: salt, encDekWrapped: wrapped, encDekIv: iv });
+        }
       }
-      const res = await signIn('credentials', { email, password, redirect: false });
-      if (res?.error) throw new Error('That email and password combination did not work.');
+
+      setDek(dek);
+      migrateEncryption(dek).catch(() => {});
+
       router.push('/dashboard');
       router.refresh();
     } catch (err) {

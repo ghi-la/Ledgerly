@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
+import Papa from 'papaparse';
 import { Box, Button, Card, CardContent, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/FileDownloadOutlined';
 import { fetcher } from '@/lib/client';
 import { PageHeader } from '@/components/ui';
+import { useEncryption } from '@/components/EncryptionProvider';
+import { decryptTxFields, type EncryptableTx } from '@/lib/cryptoField';
 
 interface Account {
   _id: string;
@@ -15,38 +18,92 @@ interface Category {
   _id: string;
   name: string;
 }
+interface ExportTx extends EncryptableTx {
+  _id: string;
+  date: string;
+  merchant?: string;
+  accountId: string;
+  categoryId: string | null;
+  amount: number;
+  type: string;
+  reference?: string;
+}
 
 export default function ExportPage() {
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
+  const { dek } = useEncryption();
 
   const [search, setSearch] = useState('');
   const [accountId, setAccountId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const query = useMemo(() => {
+  // Account/category/date filters only — text search can no longer be
+  // matched server-side once description/merchant/notes are encrypted, so
+  // it's applied client-side (see downloadCsv) after decrypting.
+  const filterQuery = useMemo(() => {
     const p = new URLSearchParams();
-    if (search) p.set('search', search);
     if (accountId) p.set('accountId', accountId);
     if (categoryId) p.set('categoryId', categoryId);
     if (from) p.set('from', from);
     if (to) p.set('to', to);
     return p.toString();
-  }, [search, accountId, categoryId, from, to]);
+  }, [accountId, categoryId, from, to]);
 
   const { data: preview } = useSWR<{ total: number }>(
-    `/api/transactions?${query}&limit=1&skip=0`,
+    `/api/transactions?${filterQuery}&limit=1&skip=0`,
     fetcher,
   );
 
-  const downloadCsv = () => {
-    const a = document.createElement('a');
-    a.href = `/api/export?${query}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+  const downloadCsv = async () => {
+    setBusy(true);
+    try {
+      const res = await fetcher(`/api/transactions?${filterQuery}&limit=50000&skip=0`);
+      let items: ExportTx[] = await Promise.all(
+        (res.items as ExportTx[]).map((t) => decryptTxFields(t, dek)),
+      );
+      const term = search.trim().toLowerCase();
+      if (term) {
+        items = items.filter((t) =>
+          [t.description, t.merchant, t.notes, t.reference].some((f) =>
+            (f ?? '').toLowerCase().includes(term),
+          ),
+        );
+      }
+
+      const accountName = new Map((accounts ?? []).map((a) => [a._id, a.name]));
+      const categoryName = new Map((categories ?? []).map((c) => [c._id, c.name]));
+
+      const csv = Papa.unparse({
+        fields: ['Date', 'Description', 'Merchant', 'Account', 'Category', 'Amount', 'Type', 'Reference', 'Notes'],
+        data: items.map((t) => [
+          new Date(t.date).toISOString().slice(0, 10),
+          t.description ?? '',
+          t.merchant ?? '',
+          accountName.get(t.accountId) ?? '',
+          t.categoryId ? (categoryName.get(t.categoryId) ?? '') : '',
+          t.amount,
+          t.type,
+          t.reference ?? '',
+          t.notes ?? '',
+        ]),
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ledgerly-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -129,10 +186,10 @@ export default function ExportPage() {
             <Button
               variant="contained"
               startIcon={<DownloadIcon />}
-              disabled={!preview?.total}
+              disabled={!preview?.total || busy}
               onClick={downloadCsv}
             >
-              Export CSV
+              {busy ? 'Preparing…' : 'Export CSV'}
             </Button>
           </Stack>
         </CardContent>

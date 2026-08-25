@@ -27,6 +27,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -39,6 +40,10 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     }
     if (mode === 'register' && password.length < 8) {
       setError('Passwords need at least 8 characters.');
+      return;
+    }
+    if (mode === 'register' && password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
     setBusy(true);
@@ -147,6 +152,17 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 helperText={mode === 'register' ? 'At least 8 characters.' : ' '}
               />
+              {mode === 'register' && (
+                <TextField
+                  label="Confirm password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  fullWidth
+                  autoComplete="new-password"
+                />
+              )}
               {error && <Alert severity="error">{error}</Alert>}
               <Button type="submit" variant="contained" size="large" disabled={busy}>
                 {busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}

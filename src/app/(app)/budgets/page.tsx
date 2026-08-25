@@ -9,10 +9,13 @@ import {
   CardContent,
   Grid,
   LinearProgress,
+  Skeleton,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 import { fetcher, monthKey, monthLabel, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
 
@@ -39,12 +42,12 @@ interface Category {
 export default function BudgetsPage() {
   const [month, setMonth] = useState(monthKey());
   const { currency, locale } = useSettings();
-  const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
+  const { data: categories, isLoading: categoriesLoading } = useSWR<Category[]>('/api/categories', fetcher);
   const { data: budgets, mutate: mutateBudgets } = useSWR<{ categoryId: string; amount: number; month: string }[]>(
     '/api/budgets',
     fetcher,
   );
-  const { data: stats, mutate: mutateStats } = useSWR<Stats>(
+  const { data: stats, mutate: mutateStats, isLoading: statsLoading } = useSWR<Stats>(
     `/api/stats?month=${month}&months=1`,
     fetcher,
   );
@@ -72,11 +75,12 @@ export default function BudgetsPage() {
         title="Budgets"
         subtitle="Set a monthly limit per category. Amounts carry over to every month unless you change one."
         action={
-          <TextField
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value || monthKey())}
-            sx={{ width: 165 }}
+          <DatePicker
+            views={['year', 'month']}
+            label="Month"
+            value={dayjs(`${month}-01`)}
+            onChange={(value) => setMonth(value?.isValid() ? value.format('YYYY-MM') : monthKey())}
+            slotProps={{ textField: { size: 'small', sx: { width: 165 } } }}
           />
         }
       />
@@ -84,28 +88,40 @@ export default function BudgetsPage() {
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Grid container spacing={2}>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
                 Budgeted
               </Typography>
               <Box>
-                <Money value={totalBudget} currency={currency} locale={locale} bold size={20} />
+                {categoriesLoading ? (
+                  <Skeleton width={100} height={30} />
+                ) : (
+                  <Money value={totalBudget} currency={currency} locale={locale} bold size={20} />
+                )}
               </Box>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
                 Spent · {monthLabel(month, locale)}
               </Typography>
               <Box>
-                <Money value={-totalSpent} currency={currency} locale={locale} bold size={20} colored />
+                {statsLoading ? (
+                  <Skeleton width={100} height={30} />
+                ) : (
+                  <Money value={-totalSpent} currency={currency} locale={locale} bold size={20} colored />
+                )}
               </Box>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
                 Remaining
               </Typography>
               <Box>
-                <Money value={totalBudget - totalSpent} currency={currency} locale={locale} bold size={20} colored />
+                {categoriesLoading || statsLoading ? (
+                  <Skeleton width={100} height={30} />
+                ) : (
+                  <Money value={totalBudget - totalSpent} currency={currency} locale={locale} bold size={20} colored />
+                )}
               </Box>
             </Grid>
           </Grid>
@@ -126,22 +142,31 @@ export default function BudgetsPage() {
         </CardContent>
       </Card>
 
-      {expenseCats.length === 0 && (
+      {!categoriesLoading && expenseCats.length === 0 && (
         <Alert severity="info">Add some spending categories first, then set budgets here.</Alert>
       )}
 
       <Stack spacing={1.5}>
-        {expenseCats.map((c) => {
+        {categoriesLoading &&
+          [0, 1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={78} />)}
+        {!categoriesLoading && expenseCats.map((c) => {
           const budget = budgetFor(c._id)?.amount ?? 0;
           const spent = spendByCategory.get(c._id) ?? 0;
           const percent = budget ? Math.round((spent / budget) * 100) : 0;
           return (
             <Card key={c._id}>
               <CardContent sx={{ py: 1.75, '&:last-child': { pb: 1.75 } }}>
-                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                  <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: c.color }} />
-                  <Typography sx={{ flex: 1, fontWeight: 600 }}>{c.name}</Typography>
-                  <Box sx={{ textAlign: 'right', minWidth: 120 }}>
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  useFlexGap
+                  sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                >
+                  <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: c.color, flexShrink: 0 }} />
+                  <Typography sx={{ flex: 1, minWidth: 80, fontWeight: 600 }} noWrap>
+                    {c.name}
+                  </Typography>
+                  <Box sx={{ textAlign: 'right' }}>
                     <Money value={spent} currency={currency} locale={locale} />
                     <Typography component="span" variant="caption" color="text.secondary">
                       {' '}
@@ -154,7 +179,7 @@ export default function BudgetsPage() {
                     label="Monthly budget"
                     defaultValue={budget || ''}
                     onBlur={(e) => setBudget(c._id, e.target.value)}
-                    sx={{ width: 150 }}
+                    sx={{ width: { xs: '100%', sm: 150 } }}
                   />
                 </Stack>
                 {budget > 0 && (

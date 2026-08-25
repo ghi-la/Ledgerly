@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { SessionProvider } from 'next-auth/react';
 import { buildTheme } from '@/lib/theme';
 
@@ -42,7 +44,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <ColorModeContext.Provider value={value}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <SessionProvider>{children}</SessionProvider>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <SessionProvider>{children}</SessionProvider>
+          </LocalizationProvider>
         </ThemeProvider>
       </ColorModeContext.Provider>
     </AppRouterCacheProvider>

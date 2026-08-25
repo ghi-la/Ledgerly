@@ -22,6 +22,11 @@ const shared: ThemeOptions = {
     overline: { letterSpacing: '0.14em', fontWeight: 600 },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        'html, body': { overflowX: 'hidden', maxWidth: '100%' },
+      },
+    },
     MuiCard: {
       defaultProps: { elevation: 0 },
       styleOverrides: {

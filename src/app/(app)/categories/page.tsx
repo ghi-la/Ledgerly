@@ -15,6 +15,7 @@ import {
   Grid,
   IconButton,
   MenuItem,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -37,7 +38,7 @@ interface Category {
 const empty = { name: '', kind: 'expense' as const, color: CATEGORY_PALETTE[0], parentId: '' };
 
 export default function CategoriesPage() {
-  const { data, mutate } = useSWR<Category[]>('/api/categories', fetcher);
+  const { data, mutate, isLoading } = useSWR<Category[]>('/api/categories', fetcher);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<{ name: string; kind: 'expense' | 'income'; color: string; parentId: string }>(empty);
@@ -91,10 +92,16 @@ export default function CategoriesPage() {
         return (
           <Box key={g.kind} sx={{ mb: 3 }}>
             <Typography variant="overline" color="text.secondary">
-              {g.label} · {items.length}
+              {g.label} {!isLoading && `· ${items.length}`}
             </Typography>
             <Grid container spacing={1.5} sx={{ mt: 0 }}>
-              {items.map((c) => (
+              {isLoading &&
+                [0, 1, 2].map((i) => (
+                  <Grid item xs={12} sm={6} md={4} key={i}>
+                    <Skeleton variant="rounded" height={56} />
+                  </Grid>
+                ))}
+              {!isLoading && items.map((c) => (
                 <Grid item xs={12} sm={6} md={4} key={c._id}>
                   <Card>
                     <CardContent
@@ -127,7 +134,7 @@ export default function CategoriesPage() {
                   </Card>
                 </Grid>
               ))}
-              {items.length === 0 && (
+              {!isLoading && items.length === 0 && (
                 <Grid item xs={12}>
                   <Typography variant="body2" color="text.secondary">
                     Nothing here yet.

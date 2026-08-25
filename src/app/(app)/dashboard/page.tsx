@@ -62,7 +62,7 @@ function DashboardWidget({
 
 export default function DashboardPage() {
   const [customising, setCustomising] = useState(false);
-  const { settings, currency, locale, mutate: mutateSettings } = useSettings();
+  const { settings, currency, locale, mutate: mutateSettings, isLoading: settingsLoading } = useSettings();
 
   const widgets = settings?.dashboard ?? [];
 
@@ -110,24 +110,30 @@ export default function DashboardPage() {
       />
 
       <Grid container spacing={2}>
-        {widgets
-          .filter((w) => w.visible)
-          .map((w) => (
-            <Grid item xs={12} md={SPAN[w.size] ?? 6} key={w.id}>
-              <DashboardWidget
-                widget={w}
-                currency={currency}
-                locale={locale}
-                onRangeChange={(range) =>
-                  update(
-                    widgets.findIndex((x) => x.id === w.id),
-                    { config: { ...w.config, range } },
-                  )
-                }
-              />
-            </Grid>
-          ))}
-        {widgets.filter((w) => w.visible).length === 0 && (
+        {settingsLoading
+          ? [0, 1, 2, 3].map((i) => (
+              <Grid item xs={12} md={6} key={i}>
+                <Skeleton variant="rounded" height={220} />
+              </Grid>
+            ))
+          : widgets
+              .filter((w) => w.visible)
+              .map((w) => (
+                <Grid item xs={12} md={SPAN[w.size] ?? 6} key={w.id}>
+                  <DashboardWidget
+                    widget={w}
+                    currency={currency}
+                    locale={locale}
+                    onRangeChange={(range) =>
+                      update(
+                        widgets.findIndex((x) => x.id === w.id),
+                        { config: { ...w.config, range } },
+                      )
+                    }
+                  />
+                </Grid>
+              ))}
+        {!settingsLoading && widgets.filter((w) => w.visible).length === 0 && (
           <Grid item xs={12}>
             <Alert
               severity="info"

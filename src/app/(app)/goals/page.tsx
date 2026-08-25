@@ -16,6 +16,7 @@ import {
   IconButton,
   LinearProgress,
   MenuItem,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -52,7 +53,7 @@ const empty = {
 };
 
 export default function GoalsPage() {
-  const { data: goals, mutate } = useSWR<Goal[]>('/api/goals', fetcher);
+  const { data: goals, mutate, isLoading } = useSWR<Goal[]>('/api/goals', fetcher);
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { currency, locale } = useSettings();
   const [open, setOpen] = useState(false);
@@ -121,7 +122,7 @@ export default function GoalsPage() {
         }
       />
 
-      {goals?.length === 0 && (
+      {!isLoading && goals?.length === 0 && (
         <Card>
           <EmptyState
             title="No goals yet"
@@ -133,6 +134,12 @@ export default function GoalsPage() {
       )}
 
       <Grid container spacing={2}>
+        {isLoading &&
+          [0, 1].map((i) => (
+            <Grid item xs={12} sm={6} key={i}>
+              <Skeleton variant="rounded" height={160} />
+            </Grid>
+          ))}
         {(goals ?? []).map((g) => {
           const saved = g.accountId ? (accountBalance.get(g.accountId) ?? g.savedAmount) : g.savedAmount;
           const pct = g.targetAmount ? Math.round((saved / g.targetAmount) * 100) : 0;

@@ -251,7 +251,7 @@ export function WidgetRenderer({
                     layout="vertical"
                     align="right"
                     verticalAlign="middle"
-                    wrapperStyle={{ fontSize: 12 }}
+                    wrapperStyle={{ fontSize: 12, maxWidth: '45%', overflowWrap: 'break-word' }}
                   />
                 </PieChart>
               </ResponsiveContainer>

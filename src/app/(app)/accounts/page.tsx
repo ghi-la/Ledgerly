@@ -16,6 +16,7 @@ import {
   Grid,
   IconButton,
   MenuItem,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -50,7 +51,7 @@ const TYPES = [
 const empty = { name: '', type: 'checking', institution: '', openingBalance: '0', color: CATEGORY_PALETTE[0] };
 
 export default function AccountsPage() {
-  const { data, mutate } = useSWR<Account[]>('/api/accounts', fetcher);
+  const { data, mutate, isLoading } = useSWR<Account[]>('/api/accounts', fetcher);
   const { currency, locale } = useSettings();
   const [editing, setEditing] = useState<Account | null>(null);
   const [form, setForm] = useState(empty);
@@ -126,7 +127,7 @@ export default function AccountsPage() {
         </Card>
       )}
 
-      {data?.length === 0 && (
+      {!isLoading && data?.length === 0 && (
         <Card>
           <EmptyState
             title="No accounts yet"
@@ -138,6 +139,12 @@ export default function AccountsPage() {
       )}
 
       <Grid container spacing={2}>
+        {isLoading &&
+          [0, 1, 2].map((i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}>
+              <Skeleton variant="rounded" height={140} />
+            </Grid>
+          ))}
         {(data ?? []).map((a) => (
           <Grid item xs={12} sm={6} md={4} key={a._id}>
             <Card sx={{ height: '100%', opacity: a.archived ? 0.6 : 1 }}>

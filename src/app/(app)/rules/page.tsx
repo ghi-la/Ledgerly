@@ -18,6 +18,7 @@ import {
   Grid,
   IconButton,
   MenuItem,
+  Skeleton,
   Snackbar,
   Stack,
   Switch,
@@ -109,7 +110,7 @@ const blankRule: {
 };
 
 export default function RulesPage() {
-  const { data: rules, mutate } = useSWR<Rule[]>('/api/rules', fetcher);
+  const { data: rules, mutate, isLoading } = useSWR<Rule[]>('/api/rules', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
@@ -243,7 +244,7 @@ export default function RulesPage() {
         to reclassify transactions you already have.
       </Alert>
 
-      {rules?.length === 0 && (
+      {!isLoading && rules?.length === 0 && (
         <Card>
           <EmptyState
             title="No rules yet"
@@ -255,6 +256,7 @@ export default function RulesPage() {
       )}
 
       <Stack spacing={1.5}>
+        {isLoading && [0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={64} />)}
         {(rules ?? []).map((r, i) => {
           const cat = r.actions.categoryId ? categoryById.get(r.actions.categoryId) : null;
           return (

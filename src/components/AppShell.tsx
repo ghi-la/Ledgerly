@@ -39,6 +39,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DarkIcon from '@mui/icons-material/DarkModeOutlined';
 import LightIcon from '@mui/icons-material/LightModeOutlined';
 import { useColorMode } from '@/app/providers';
+import RouteProgress from './RouteProgress';
 
 const DRAWER = 248;
 
@@ -129,6 +130,7 @@ export default function AppShell({
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100dvh', bgcolor: 'background.default' }}>
+      <RouteProgress />
       <AppBar
         position="fixed"
         color="inherit"
@@ -199,7 +201,9 @@ export default function AppShell({
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
           width: { md: `calc(100% - ${DRAWER}px)` },
+          overflowX: 'hidden',
           px: { xs: 1.5, sm: 3 },
           pt: { xs: 9, sm: 11 },
           pb: { xs: 12, md: 6 },

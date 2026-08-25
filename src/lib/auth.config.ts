@@ -11,7 +11,10 @@ export const authConfig: NextAuthConfig = {
   pages: { signIn: '/login' },
   providers: [],
   callbacks: {
-    authorized({ auth }) {
+    authorized({ auth, request }) {
+      // The landing page at "/" handles its own auth check and redirect,
+      // so it must stay reachable for signed-out visitors.
+      if (request.nextUrl.pathname === '/') return true;
       return !!auth?.user;
     },
     async jwt({ token, user }) {

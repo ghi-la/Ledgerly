@@ -56,9 +56,8 @@ const NAV = [
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
 
-const MOBILE_NAV = NAV.filter((n) =>
-  ['/dashboard', '/transactions', '/import', '/budgets'].includes(n.href),
-);
+const MOBILE_NAV_HREFS = ['/dashboard', '/transactions', '/goals', '/budgets'];
+const MOBILE_NAV = MOBILE_NAV_HREFS.map((href) => NAV.find((n) => n.href === href)!);
 
 export default function AppShell({
   children,
@@ -206,7 +205,7 @@ export default function AppShell({
           overflowX: 'hidden',
           px: { xs: 1.5, sm: 3 },
           pt: { xs: 9, sm: 11 },
-          pb: { xs: 12, md: 6 },
+          pb: { xs: 14, md: 6 },
         }}
       >
         {children}
@@ -224,7 +223,19 @@ export default function AppShell({
             borderTop: 1,
             borderColor: 'divider',
             zIndex: (t) => t.zIndex.appBar,
-            height: 64,
+            height: 76,
+            '& .MuiBottomNavigationAction-root': {
+              pt: 1,
+            },
+            '& .MuiSvgIcon-root': {
+              fontSize: 28,
+            },
+            '& .MuiBottomNavigationAction-label': {
+              fontSize: 13,
+              '&.Mui-selected': {
+                fontSize: 13,
+              },
+            },
           }}
         >
           {MOBILE_NAV.map((item) => (

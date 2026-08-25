@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  ListSubheader,
   MenuItem,
   Snackbar,
   Stack,
@@ -65,6 +66,28 @@ interface Category {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+const CATEGORY_GROUPS: { kind: string; label: string }[] = [
+  { kind: 'expense', label: 'Spending' },
+  { kind: 'income', label: 'Income' },
+];
+
+/** Renders category MenuItems split into "Spending" / "Income" sections, so
+ * it's obvious which side of the ledger a category belongs to. */
+function categoryMenuItems(categories: Category[]) {
+  return CATEGORY_GROUPS.flatMap((g) => {
+    const items = categories.filter((c) => c.kind === g.kind);
+    if (items.length === 0) return [];
+    return [
+      <ListSubheader key={`h-${g.kind}`}>{g.label}</ListSubheader>,
+      ...items.map((c) => (
+        <MenuItem key={c._id} value={c._id}>
+          {c.name}
+        </MenuItem>
+      )),
+    ];
+  });
+}
 
 export default function TransactionsPage() {
   const theme = useTheme();
@@ -207,11 +230,7 @@ export default function TransactionsPage() {
             >
               <MenuItem value="">All categories</MenuItem>
               <MenuItem value="none">Uncategorised</MenuItem>
-              {(categories ?? []).map((c) => (
-                <MenuItem key={c._id} value={c._id}>
-                  {c.name}
-                </MenuItem>
-              ))}
+              {categoryMenuItems(categories ?? [])}
             </TextField>
           </Grid>
           <Grid item xs={6} md={2}>
@@ -249,11 +268,7 @@ export default function TransactionsPage() {
               sx={{ minWidth: 200 }}
             >
               <MenuItem value="">Uncategorised</MenuItem>
-              {(categories ?? []).map((c) => (
-                <MenuItem key={c._id} value={c._id}>
-                  {c.name}
-                </MenuItem>
-              ))}
+              {categoryMenuItems(categories ?? [])}
             </TextField>
             <Button color="error" startIcon={<DeleteIcon />} onClick={removeSelected}>
               Delete
@@ -303,11 +318,7 @@ export default function TransactionsPage() {
                   onChange={(e) => setCategory(t._id, e.target.value)}
                 >
                   <MenuItem value="">Uncategorised</MenuItem>
-                  {(categories ?? []).map((c) => (
-                    <MenuItem key={c._id} value={c._id}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
+                  {categoryMenuItems(categories ?? [])}
                 </TextField>
               </Box>
             ))}
@@ -423,11 +434,7 @@ export default function TransactionsPage() {
                         }}
                       >
                         <MenuItem value="">Uncategorised</MenuItem>
-                        {(categories ?? []).map((c) => (
-                          <MenuItem key={c._id} value={c._id}>
-                            {c.name}
-                          </MenuItem>
-                        ))}
+                        {categoryMenuItems(categories ?? [])}
                       </TextField>
                     </TableCell>
                     <TableCell align="right">
@@ -614,11 +621,7 @@ function AddDialog({
             onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
           >
             <MenuItem value="">Uncategorised</MenuItem>
-            {categories.map((c) => (
-              <MenuItem key={c._id} value={c._id}>
-                {c.name}
-              </MenuItem>
-            ))}
+            {categoryMenuItems(categories)}
           </TextField>
           <TextField
             label="Notes"
@@ -738,11 +741,7 @@ function EditDialog({
             onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
           >
             <MenuItem value="">Uncategorised</MenuItem>
-            {categories.map((c) => (
-              <MenuItem key={c._id} value={c._id}>
-                {c.name}
-              </MenuItem>
-            ))}
+            {categoryMenuItems(categories)}
           </TextField>
           <TextField
             label="Notes"

@@ -6,6 +6,7 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SessionProvider } from 'next-auth/react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -46,6 +47,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <Analytics />
+          <SpeedInsights />
           <LocalizationProvider dateAdapter={AdapterDayjs}>
             <SessionProvider>{children}</SessionProvider>
           </LocalizationProvider>

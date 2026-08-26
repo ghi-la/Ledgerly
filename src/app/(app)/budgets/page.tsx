@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { fetcher, monthKey, monthLabel, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
+import { CategoryExpensesDialog } from '@/components/CategoryExpensesDialog';
 
 interface Stats {
   totals: { budgeted: number; expense: number };
@@ -43,14 +44,17 @@ interface Category {
 export default function BudgetsPage() {
   const { t } = useTranslation('budgets');
   const [month, setMonth] = useState(monthKey());
+  const [viewing, setViewing] = useState<{ id: string; name: string; color: string } | null>(null);
   const { currency, locale } = useSettings();
   const { data: categories, isLoading: categoriesLoading } = useSWR<Category[]>('/api/categories', fetcher);
   const { data: budgets, mutate: mutateBudgets } = useSWR<{ categoryId: string; amount: number; month: string }[]>(
     '/api/budgets',
     fetcher,
   );
+  const monthStart = dayjs(`${month}-01`).startOf('month').format('YYYY-MM-DD');
+  const monthEnd = dayjs(`${month}-01`).endOf('month').format('YYYY-MM-DD');
   const { data: stats, mutate: mutateStats, isLoading: statsLoading } = useSWR<Stats>(
-    `/api/stats?month=${month}&months=1`,
+    `/api/stats?from=${monthStart}&to=${monthEnd}`,
     fetcher,
   );
 
@@ -165,10 +169,17 @@ export default function BudgetsPage() {
                   sx={{ alignItems: 'center', flexWrap: 'wrap' }}
                 >
                   <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: c.color, flexShrink: 0 }} />
-                  <Typography sx={{ flex: 1, minWidth: 80, fontWeight: 600 }} noWrap>
+                  <Typography
+                    sx={{ flex: 1, minWidth: 80, fontWeight: 600, cursor: 'pointer' }}
+                    noWrap
+                    onClick={() => setViewing({ id: c._id, name: c.name, color: c.color })}
+                  >
                     {c.name}
                   </Typography>
-                  <Box sx={{ textAlign: 'right' }}>
+                  <Box
+                    sx={{ textAlign: 'right', cursor: 'pointer' }}
+                    onClick={() => setViewing({ id: c._id, name: c.name, color: c.color })}
+                  >
                     <Money value={spent} currency={currency} locale={locale} />
                     <Typography component="span" variant="caption" color="text.secondary">
                       {' '}
@@ -205,6 +216,18 @@ export default function BudgetsPage() {
           );
         })}
       </Stack>
+
+      <CategoryExpensesDialog
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        categoryId={viewing?.id ?? null}
+        categoryName={viewing?.name ?? ''}
+        color={viewing?.color}
+        from={monthStart}
+        to={monthEnd}
+        currency={currency}
+        locale={locale}
+      />
     </Box>
   );
 }

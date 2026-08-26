@@ -18,5 +18,17 @@
       "colour": "Colour"
     },
     "saveFailed": "Could not save."
+  },
+  "expensesDialog": {
+    "sortDate": "Date",
+    "sortAmount": "Amount",
+    "directionNewestFirst": "Newest first",
+    "directionOldestFirst": "Oldest first",
+    "directionHighestFirst": "Highest first",
+    "directionLowestFirst": "Lowest first",
+    "empty": "No transactions here yet.",
+    "count_one": "{{count}} transaction",
+    "count_other": "{{count}} transactions",
+    "showingFirst": "Showing first {{count}} of {{total}}"
   }
 }

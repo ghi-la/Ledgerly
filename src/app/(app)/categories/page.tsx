@@ -26,7 +26,8 @@ import DeleteIcon from '@mui/icons-material/DeleteOutline';
 import { useTranslation } from 'react-i18next';
 import { fetcher, send } from '@/lib/client';
 import { CATEGORY_PALETTE } from '@/lib/theme';
-import { PageHeader } from '@/components/ui';
+import { PageHeader, useSettings } from '@/components/ui';
+import { CategoryExpensesDialog } from '@/components/CategoryExpensesDialog';
 
 interface Category {
   _id: string;
@@ -41,10 +42,12 @@ const empty = { name: '', kind: 'expense' as const, color: CATEGORY_PALETTE[0], 
 export default function CategoriesPage() {
   const { t } = useTranslation('categories');
   const { data, mutate, isLoading } = useSWR<Category[]>('/api/categories', fetcher);
+  const { currency, locale } = useSettings();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<{ name: string; kind: 'expense' | 'income'; color: string; parentId: string }>(empty);
   const [error, setError] = useState('');
+  const [viewing, setViewing] = useState<Category | null>(null);
 
   const save = async () => {
     try {
@@ -109,8 +112,12 @@ export default function CategoriesPage() {
                     <CardContent
                       sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5, '&:last-child': { pb: 1.5 } }}
                     >
-                      <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: c.color }} />
-                      <Typography sx={{ flex: 1, fontWeight: 600 }} noWrap>
+                      <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: c.color, flexShrink: 0 }} />
+                      <Typography
+                        sx={{ flex: 1, fontWeight: 600, cursor: 'pointer', minWidth: 0 }}
+                        noWrap
+                        onClick={() => setViewing(c)}
+                      >
                         {c.name}
                       </Typography>
                       <IconButton
@@ -215,6 +222,16 @@ export default function CategoriesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <CategoryExpensesDialog
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        categoryId={viewing?._id ?? null}
+        categoryName={viewing?.name ?? ''}
+        color={viewing?.color}
+        currency={currency}
+        locale={locale}
+      />
     </Box>
   );
 }

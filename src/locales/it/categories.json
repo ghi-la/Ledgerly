@@ -18,5 +18,17 @@
       "colour": "Colore"
     },
     "saveFailed": "Impossibile salvare."
+  },
+  "expensesDialog": {
+    "sortDate": "Data",
+    "sortAmount": "Importo",
+    "directionNewestFirst": "Più recenti prima",
+    "directionOldestFirst": "Meno recenti prima",
+    "directionHighestFirst": "Importo più alto prima",
+    "directionLowestFirst": "Importo più basso prima",
+    "empty": "Ancora nessuna transazione qui.",
+    "count_one": "{{count}} transazione",
+    "count_other": "{{count}} transazioni",
+    "showingFirst": "Mostrando le prime {{count}} di {{total}}"
   }
 }

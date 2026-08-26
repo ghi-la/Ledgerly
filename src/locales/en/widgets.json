@@ -42,6 +42,10 @@
     "subcategoriesOf": "Subcategories of {{name}}",
     "viewAllTransactions": "View all transactions"
   },
+  "subcategories": {
+    "onClick": "Show: on click",
+    "always": "Subcategories: always shown"
+  },
   "empty": {
     "accounts": "No accounts yet.",
     "spendByCategory": "Nothing spent in this period.",

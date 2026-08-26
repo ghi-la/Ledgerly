@@ -42,6 +42,10 @@
     "subcategoriesOf": "Sottocategorie di {{name}}",
     "viewAllTransactions": "Vedi tutte le transazioni"
   },
+  "subcategories": {
+    "onClick": "Sottocategorie: al clic",
+    "always": "Sottocategorie: sempre visibili"
+  },
   "empty": {
     "accounts": "Ancora nessun conto.",
     "spendByCategory": "Nessuna spesa in questo periodo.",

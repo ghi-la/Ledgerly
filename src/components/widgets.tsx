@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import NextLink from 'next/link';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import {
   Box,
   Card,
@@ -182,21 +184,70 @@ function ConfigSelect({
 }
 
 type CategorySpendRow = Stats['categorySpend'][number];
+type FlatCategoryRow = {
+  categoryId: string | null;
+  name: string;
+  color: string;
+  amount: number;
+  count: number;
+  subcategoryCount: number;
+  depth: 0 | 1;
+};
 
 /** Extracted (rather than a switch case) since it needs its own local state for the expand panel and drill-down dialog. */
 function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, config, onConfigChange }: WidgetProps) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
   const chartType = (config?.chartType as string) ?? 'donut';
+  const subcategoryDisplay = (config?.subcategoryDisplay as string) ?? 'click';
+  const alwaysShow = subcategoryDisplay === 'always';
   const data = stats.categorySpend.slice(0, 8);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [manualExpandedId, setManualExpandedId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ categoryId: string | null; name: string; color?: string } | null>(null);
 
-  const handleSelect = (row: CategorySpendRow) => {
-    if (row.subcategories.length === 0) setDialog({ categoryId: row.categoryId, name: row.name, color: row.color });
-    else setExpandedId((cur) => (cur === row.categoryId ? null : row.categoryId));
+  // What the chart actually renders: just top-level categories in "click" mode,
+  // or top-level categories with their subcategories inlined right after them
+  // (indented, same as the categories/budgets pages) when "always shown" is on.
+  const chartRows: FlatCategoryRow[] = alwaysShow
+    ? data.flatMap((d) => [
+        { categoryId: d.categoryId, name: d.name, color: d.color, amount: d.amount, count: d.count, subcategoryCount: d.subcategories.length, depth: 0 as const },
+        ...d.subcategories.map((s) => ({
+          categoryId: s.categoryId as string | null,
+          name: s.name,
+          color: s.color,
+          amount: s.amount,
+          count: s.count,
+          subcategoryCount: 0,
+          depth: 1 as const,
+        })),
+      ])
+    : data.map((d) => ({
+        categoryId: d.categoryId,
+        name: d.name,
+        color: d.color,
+        amount: d.amount,
+        count: d.count,
+        subcategoryCount: d.subcategories.length,
+        depth: 0 as const,
+      }));
+
+  const rowByName = new Map(chartRows.map((r) => [r.name, r]));
+  const labelFor = (name: string) => {
+    const row = rowByName.get(name);
+    if (!row) return name;
+    if (row.depth === 1) return `↳ ${row.name}`;
+    if (!alwaysShow && row.subcategoryCount > 0) return `${row.name} (${row.subcategoryCount})`;
+    return row.name;
   };
-  const expandedRow = data.find((d) => d.categoryId === expandedId) ?? null;
+
+  const handleSelect = (row: FlatCategoryRow) => {
+    if (row.subcategoryCount === 0 || alwaysShow) {
+      setDialog({ categoryId: row.categoryId, name: row.name, color: row.color });
+      return;
+    }
+    setManualExpandedId((cur) => (cur === row.categoryId ? null : row.categoryId));
+  };
+  const expandedRow = !alwaysShow ? (data.find((d) => d.categoryId === manualExpandedId) ?? null) : null;
 
   return (
     <Shell
@@ -204,15 +255,25 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
       range={range}
       onRangeChange={onRangeChange}
       action={
-        <ConfigSelect
-          value={chartType}
-          onChange={(v) => onConfigChange?.({ chartType: v })}
-          options={[
-            { value: 'donut', label: t('chartTypes.donut') },
-            { value: 'bar', label: t('chartTypes.bar') },
-            { value: 'list', label: t('chartTypes.list') },
-          ]}
-        />
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: 0.5 }}>
+          <ConfigSelect
+            value={subcategoryDisplay}
+            onChange={(v) => onConfigChange?.({ subcategoryDisplay: v })}
+            options={[
+              { value: 'click', label: t('subcategories.onClick') },
+              { value: 'always', label: t('subcategories.always') },
+            ]}
+          />
+          <ConfigSelect
+            value={chartType}
+            onChange={(v) => onConfigChange?.({ chartType: v })}
+            options={[
+              { value: 'donut', label: t('chartTypes.donut') },
+              { value: 'bar', label: t('chartTypes.bar') },
+              { value: 'list', label: t('chartTypes.list') },
+            ]}
+          />
+        </Stack>
       }
     >
       {data.length === 0 ? (
@@ -223,16 +284,23 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
             <Box sx={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={data} dataKey="amount" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} stroke="none">
-                    {data.map((d) => (
-                      <Cell key={d.categoryId ?? 'none'} fill={d.color} cursor="pointer" onClick={() => handleSelect(d)} />
+                  <Pie data={chartRows} dataKey="amount" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} stroke="none">
+                    {chartRows.map((d) => (
+                      <Cell
+                        key={d.categoryId ?? 'none'}
+                        fill={d.color}
+                        fillOpacity={d.depth === 1 ? 0.6 : 1}
+                        cursor="pointer"
+                        onClick={() => handleSelect(d)}
+                      />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => money(v)} />
+                  <Tooltip formatter={(v: number, n: string) => [money(v), labelFor(n)]} />
                   <Legend
                     layout="vertical"
                     align="right"
                     verticalAlign="middle"
+                    formatter={(value: string) => labelFor(value)}
                     wrapperStyle={{ fontSize: 12, maxWidth: '45%', overflowWrap: 'break-word' }}
                   />
                 </PieChart>
@@ -243,13 +311,19 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
           {chartType === 'bar' && (
             <Box sx={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 8 }}>
+                <BarChart data={chartRows} layout="vertical" margin={{ left: 8, right: 16, top: 8 }}>
                   <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={110} fontSize={12} />
-                  <Tooltip formatter={(v: number) => money(v)} />
+                  <YAxis type="category" dataKey="name" width={130} fontSize={12} tickFormatter={labelFor} />
+                  <Tooltip formatter={(v: number, n: string) => [money(v), labelFor(n)]} />
                   <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
-                    {data.map((d) => (
-                      <Cell key={d.categoryId ?? 'none'} fill={d.color} cursor="pointer" onClick={() => handleSelect(d)} />
+                    {chartRows.map((d) => (
+                      <Cell
+                        key={d.categoryId ?? 'none'}
+                        fill={d.color}
+                        fillOpacity={d.depth === 1 ? 0.6 : 1}
+                        cursor="pointer"
+                        onClick={() => handleSelect(d)}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -259,18 +333,65 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
 
           {chartType === 'list' && (
             <Stack spacing={1}>
-              {data.map((d) => {
-                const pct = data[0]?.amount ? Math.round((d.amount / data[0].amount) * 100) : 0;
+              {chartRows.map((d) => {
+                const base = chartRows[0]?.amount;
+                const pct = base ? Math.round((d.amount / base) * 100) : 0;
+                const isExpanded = manualExpandedId === d.categoryId;
                 return (
-                  <Box key={d.categoryId ?? 'none'} onClick={() => handleSelect(d)} sx={{ cursor: 'pointer' }}>
-                    <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                      <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{d.name}</Typography>
-                      <Typography sx={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{money(d.amount)}</Typography>
+                  <Box key={d.categoryId ?? 'none'} onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                      {d.depth === 1 && (
+                        <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
+                      )}
+                      <Typography
+                        sx={{ flex: 1, fontSize: d.depth === 1 ? 13 : 14, fontWeight: d.depth === 1 ? 500 : 600 }}
+                        noWrap
+                      >
+                        {d.name}
+                      </Typography>
+                      {d.depth === 0 && !alwaysShow && d.subcategoryCount > 0 && (
+                        <>
+                          <Box
+                            sx={{
+                              minWidth: 18,
+                              height: 18,
+                              px: 0.5,
+                              borderRadius: 999,
+                              bgcolor: 'action.selected',
+                              color: 'text.secondary',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {d.subcategoryCount}
+                          </Box>
+                          <ExpandMoreIcon
+                            fontSize="small"
+                            sx={{
+                              color: 'text.disabled',
+                              transform: isExpanded ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.15s',
+                            }}
+                          />
+                        </>
+                      )}
+                      <Typography sx={{ fontFamily: 'var(--font-mono)', fontSize: d.depth === 1 ? 12 : 13 }}>
+                        {money(d.amount)}
+                      </Typography>
                     </Stack>
                     <LinearProgress
                       variant="determinate"
                       value={pct}
-                      sx={{ height: 6, borderRadius: 3, bgcolor: 'action.hover', '& .MuiLinearProgress-bar': { bgcolor: d.color, borderRadius: 3 } }}
+                      sx={{
+                        mt: 0.25,
+                        height: d.depth === 1 ? 4 : 6,
+                        borderRadius: 3,
+                        bgcolor: 'action.hover',
+                        '& .MuiLinearProgress-bar': { bgcolor: d.color, borderRadius: 3 },
+                      }}
                     />
                   </Box>
                 );
@@ -433,15 +554,6 @@ export function WidgetRenderer({
               ? [{ key: 'expense', label: t('chart.out'), color: '#C05746' }]
               : [{ key: 'net', label: t('chart.leftOver'), color: '#2E7D6F' }];
 
-      const commonAxes = (
-        <>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-          <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m, locale)} fontSize={11} />
-          <YAxis fontSize={11} width={64} tickFormatter={(v) => String(Math.round(v))} />
-          <Tooltip formatter={(v: number) => money(v)} labelFormatter={(m) => monthLabel(String(m), locale)} />
-        </>
-      );
-
       return (
         <Shell
           title={widgetTitle(type, t)}
@@ -475,14 +587,20 @@ export function WidgetRenderer({
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'bar' ? (
                 <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
-                  {commonAxes}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m, locale)} fontSize={11} />
+                  <YAxis fontSize={11} width={64} tickFormatter={(v) => String(Math.round(v))} />
+                  <Tooltip formatter={(v: number) => money(v)} labelFormatter={(m) => monthLabel(String(m), locale)} />
                   {seriesKeys.map((s) => (
                     <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[4, 4, 0, 0]} />
                   ))}
                 </BarChart>
               ) : chartType === 'line' ? (
                 <LineChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
-                  {commonAxes}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m, locale)} fontSize={11} />
+                  <YAxis fontSize={11} width={64} tickFormatter={(v) => String(Math.round(v))} />
+                  <Tooltip formatter={(v: number) => money(v)} labelFormatter={(m) => monthLabel(String(m), locale)} />
                   {seriesKeys.map((s) => (
                     <Line key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={2} dot={false} />
                   ))}
@@ -497,7 +615,10 @@ export function WidgetRenderer({
                       </linearGradient>
                     ))}
                   </defs>
-                  {commonAxes}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m, locale)} fontSize={11} />
+                  <YAxis fontSize={11} width={64} tickFormatter={(v) => String(Math.round(v))} />
+                  <Tooltip formatter={(v: number) => money(v)} labelFormatter={(m) => monthLabel(String(m), locale)} />
                   {seriesKeys.map((s) => (
                     <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={s.color} fill={`url(#g-${s.key})`} strokeWidth={2} />
                   ))}

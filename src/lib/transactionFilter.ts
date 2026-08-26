@@ -1,3 +1,4 @@
+import { Category } from '@/lib/models';
 import { oid } from '@/lib/api';
 
 /**
@@ -8,15 +9,24 @@ import { oid } from '@/lib/api';
  * them server-side, and filter in application code instead (see
  * `src/app/api/transactions/route.ts`).
  */
-export function buildTransactionFilter(userId: unknown, q: URLSearchParams) {
+export async function buildTransactionFilter(userId: unknown, q: URLSearchParams) {
   const filter: Record<string, unknown> = { userId };
 
   const accountId = oid(q.get('accountId'));
   if (accountId) filter.accountId = accountId;
 
   const categoryParam = q.get('categoryId');
-  if (categoryParam === 'none') filter.categoryId = null;
-  else if (oid(categoryParam)) filter.categoryId = oid(categoryParam);
+  if (categoryParam === 'none') {
+    filter.categoryId = null;
+  } else {
+    const catOid = oid(categoryParam);
+    if (catOid) {
+      // A parent category's filter also pulls in its subcategories'
+      // transactions, so drilling into a rolled-up category shows everything.
+      const children = await Category.find({ userId, parentId: catOid }, { _id: 1 }).lean();
+      filter.categoryId = children.length ? { $in: [catOid, ...children.map((c) => c._id)] } : catOid;
+    }
+  }
 
   if (q.get('type')) filter.type = q.get('type');
 

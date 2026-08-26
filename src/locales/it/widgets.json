@@ -25,6 +25,23 @@
     "manage": "Gestisci",
     "seeAll": "Vedi tutte"
   },
+  "chartTypes": {
+    "donut": "Ciambella",
+    "bar": "Barre",
+    "line": "Linea",
+    "area": "Area",
+    "list": "Elenco"
+  },
+  "metrics": {
+    "both": "Entrate e uscite",
+    "income": "Entrate",
+    "expense": "Uscite",
+    "net": "Saldo"
+  },
+  "drilldown": {
+    "subcategoriesOf": "Sottocategorie di {{name}}",
+    "viewAllTransactions": "Vedi tutte le transazioni"
+  },
   "empty": {
     "accounts": "Ancora nessun conto.",
     "spendByCategory": "Nessuna spesa in questo periodo.",

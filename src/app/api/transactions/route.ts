@@ -104,7 +104,7 @@ export const GET = route(async (req: Request) => {
   const url = new URL(req.url);
   const q = url.searchParams;
 
-  const filter = buildTransactionFilter(userId, q);
+  const filter = await buildTransactionFilter(userId, q);
 
   const limit = Math.min(Number(q.get('limit') ?? 100), 500);
   const skip = Number(q.get('skip') ?? 0);

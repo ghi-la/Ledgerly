@@ -55,12 +55,12 @@ export function CategoryExpensesDialog({
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const query = new URLSearchParams({ categoryId: categoryId ?? '', sortBy, sortDir, limit: '200' });
+  const query = new URLSearchParams({ categoryId: categoryId ?? 'none', sortBy, sortDir, limit: '200' });
   if (from) query.set('from', from);
   if (to) query.set('to', to);
 
   const { data, isLoading } = useSWR<{ items: Tx[]; total: number }>(
-    open && categoryId ? `/api/transactions?${query.toString()}` : null,
+    open ? `/api/transactions?${query.toString()}` : null,
     fetcher,
   );
 

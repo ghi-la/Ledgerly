@@ -25,6 +25,23 @@
     "manage": "Manage",
     "seeAll": "See all"
   },
+  "chartTypes": {
+    "donut": "Donut",
+    "bar": "Bar",
+    "line": "Line",
+    "area": "Area",
+    "list": "List"
+  },
+  "metrics": {
+    "both": "Income & expense",
+    "income": "Income",
+    "expense": "Expense",
+    "net": "Net"
+  },
+  "drilldown": {
+    "subcategoriesOf": "Subcategories of {{name}}",
+    "viewAllTransactions": "View all transactions"
+  },
   "empty": {
     "accounts": "No accounts yet.",
     "spendByCategory": "Nothing spent in this period.",

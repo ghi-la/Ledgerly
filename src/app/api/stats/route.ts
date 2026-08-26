@@ -158,6 +158,43 @@ export const GET = route(async (req: Request) => {
     };
   });
 
+  // Rolls each subcategory's spend into its parent, for the dashboard's
+  // expandable category widget - `spendByCategory` above stays leaf-level
+  // and unrolled, since the budgets page needs each category's own exact spend.
+  const leafByCategory = new Map(spendByCategory.map((s) => [s.categoryId, s]));
+  const childIdsByParent = new Map<string, string[]>();
+  for (const c of categories) {
+    if (!c.parentId) continue;
+    const pid = String(c.parentId);
+    if (!childIdsByParent.has(pid)) childIdsByParent.set(pid, []);
+    childIdsByParent.get(pid)!.push(String(c._id));
+  }
+
+  const categorySpend: {
+    categoryId: string | null;
+    name: string;
+    color: string;
+    amount: number;
+    count: number;
+    subcategories: { categoryId: string; name: string; color: string; amount: number; count: number }[];
+  }[] = [];
+
+  for (const c of categories) {
+    if (c.parentId) continue; // folded into its parent below
+    const id = String(c._id);
+    const own = leafByCategory.get(id);
+    const subcategories = (childIdsByParent.get(id) ?? [])
+      .map((cid) => leafByCategory.get(cid))
+      .filter((s): s is NonNullable<typeof s> => !!s && s.amount > 0)
+      .map((s) => ({ categoryId: s.categoryId as string, name: s.name, color: s.color, amount: s.amount, count: s.count }));
+    const amount = (own?.amount ?? 0) + subcategories.reduce((sum, s) => sum + s.amount, 0);
+    const count = (own?.count ?? 0) + subcategories.reduce((sum, s) => sum + s.count, 0);
+    if (amount > 0) categorySpend.push({ categoryId: id, name: c.name, color: c.color, amount, count, subcategories });
+  }
+  const uncategorised = leafByCategory.get(null);
+  if (uncategorised) categorySpend.push({ ...uncategorised, categoryId: null, subcategories: [] });
+  categorySpend.sort((a, b) => b.amount - a.amount);
+
   // Fill gaps so the trend chart has one point per month in range.
   const foundSeries = new Map(seriesAgg.map((s) => [s._id as string, s]));
   const series = monthKeys.map((k) => {
@@ -200,6 +237,7 @@ export const GET = route(async (req: Request) => {
       budgeted: budgetProgress.reduce((s, b) => s + b.budget, 0),
     },
     spendByCategory,
+    categorySpend,
     series,
     budgetProgress,
     goals: goals.map((g) => ({

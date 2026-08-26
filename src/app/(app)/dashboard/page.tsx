@@ -35,11 +35,13 @@ function DashboardWidget({
   currency,
   locale,
   onRangeChange,
+  onConfigChange,
 }: {
   widget: { id: string; type: string; config?: Record<string, unknown> };
   currency: string;
   locale: string;
   onRangeChange: (range: string) => void;
+  onConfigChange: (patch: Record<string, unknown>) => void;
 }) {
   const range = (widget.config?.range as string) ?? DEFAULT_RANGE;
   const { from, to } = rangeToDates(range);
@@ -58,6 +60,7 @@ function DashboardWidget({
       config={widget.config}
       range={range}
       onRangeChange={onRangeChange}
+      onConfigChange={onConfigChange}
     />
   );
 }
@@ -131,6 +134,12 @@ export default function DashboardPage() {
                       update(
                         widgets.findIndex((x) => x.id === w.id),
                         { config: { ...w.config, range } },
+                      )
+                    }
+                    onConfigChange={(patch) =>
+                      update(
+                        widgets.findIndex((x) => x.id === w.id),
+                        { config: { ...w.config, ...patch } },
                       )
                     }
                   />

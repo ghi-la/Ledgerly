@@ -31,6 +31,7 @@
     "This verification link is invalid or has already been used.": "This verification link is invalid or has already been used.",
     "This verification link has expired. Request a new one from the sign-in page.": "This verification link has expired. Request a new one from the sign-in page.",
     "Date could not be read": "Date could not be read",
-    "Amount could not be read": "Amount could not be read"
+    "Amount could not be read": "Amount could not be read",
+    "Temporary/disposable email addresses are not allowed. Please use a permanent email address.": "Temporary/disposable email addresses are not allowed. Please use a permanent email address."
   }
 }

@@ -31,6 +31,7 @@
     "This verification link is invalid or has already been used.": "Questo link di verifica non è valido o è già stato utilizzato.",
     "This verification link has expired. Request a new one from the sign-in page.": "Questo link di verifica è scaduto. Richiedine uno nuovo dalla pagina di accesso.",
     "Date could not be read": "Data non leggibile",
-    "Amount could not be read": "Importo non leggibile"
+    "Amount could not be read": "Importo non leggibile",
+    "Temporary/disposable email addresses are not allowed. Please use a permanent email address.": "Non sono consentiti indirizzi email temporanei/usa e getta. Utilizza un indirizzo email permanente."
   }
 }

@@ -1,0 +1,37 @@
+{
+  "title": "Conti",
+  "subtitle": "Ogni conto che tieni traccia, e cosa contiene in questo momento.",
+  "addAccount": "Aggiungi conto",
+  "combinedBalance": "Saldo complessivo",
+  "empty": {
+    "title": "Ancora nessun conto",
+    "description": "Aggiungi i conti che vuoi monitorare, poi importa i loro estratti conto."
+  },
+  "types": {
+    "checking": "Conto corrente",
+    "savings": "Risparmio",
+    "credit": "Carta di credito",
+    "cash": "Contanti",
+    "investment": "Investimenti"
+  },
+  "editAccount": "Modifica conto",
+  "deleteAccount": "Elimina conto",
+  "entries_one": "{{count}} voce",
+  "entries_other": "{{count}} voci",
+  "archived": "Archiviato",
+  "confirmDelete_one": "Eliminare \"{{name}}\" e la sua {{count}} transazione? L'operazione non può essere annullata.",
+  "confirmDelete_other": "Eliminare \"{{name}}\" e le sue {{count}} transazioni? L'operazione non può essere annullata.",
+  "dialog": {
+    "editTitle": "Modifica conto",
+    "addTitle": "Aggiungi un conto",
+    "fields": {
+      "name": "Nome",
+      "kind": "Tipo",
+      "institution": "Banca o gestore",
+      "startingBalance": "Saldo iniziale",
+      "startingBalanceHelper": "Il saldo prima della tua prima transazione importata.",
+      "colour": "Colore"
+    },
+    "saveFailed": "Impossibile salvare."
+  }
+}

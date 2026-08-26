@@ -1,5 +1,6 @@
 'use client';
 
+import 'dayjs/locale/it';
 import { buildTheme } from '@/lib/theme';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
@@ -9,6 +10,18 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SessionProvider } from 'next-auth/react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import I18nProvider from '@/i18n/I18nProvider';
+
+/** Keeps MUI X's date pickers (month/weekday names) in sync with `i18n.language` - a separate config knob react-i18next doesn't touch on its own. */
+function LocalizedPickers({ children }: { children: React.ReactNode }) {
+  const { i18n } = useTranslation();
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={i18n.language}>
+      {children}
+    </LocalizationProvider>
+  );
+}
 
 type Mode = 'light' | 'dark';
 const ColorModeContext = createContext<{ mode: Mode; toggle: () => void }>({
@@ -43,16 +56,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <AppRouterCacheProvider options={{ key: 'mui' }}>
-      <ColorModeContext.Provider value={value}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Analytics />
-          <SpeedInsights />
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <SessionProvider>{children}</SessionProvider>
-          </LocalizationProvider>
-        </ThemeProvider>
-      </ColorModeContext.Provider>
+      <I18nProvider>
+        <ColorModeContext.Provider value={value}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Analytics />
+            <SpeedInsights />
+            <LocalizedPickers>
+              <SessionProvider>{children}</SessionProvider>
+            </LocalizedPickers>
+          </ThemeProvider>
+        </ColorModeContext.Provider>
+      </I18nProvider>
     </AppRouterCacheProvider>
   );
 }

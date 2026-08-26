@@ -1,0 +1,22 @@
+{
+  "title": "Categorie",
+  "subtitle": "Nominale come preferisci pensare ai tuoi soldi. Le regole le assegnano all'importazione.",
+  "addCategory": "Aggiungi categoria",
+  "groups": { "spending": "Spese", "income": "Entrate" },
+  "editCategory": "Modifica categoria",
+  "deleteCategory": "Elimina categoria",
+  "nothingHere": "Ancora niente qui.",
+  "confirmDelete": "Eliminare \"{{name}}\"? Le transazioni che la usano diventeranno non categorizzate.",
+  "dialog": {
+    "editTitle": "Modifica categoria",
+    "addTitle": "Aggiungi una categoria",
+    "fields": {
+      "name": "Nome",
+      "type": "Tipo",
+      "sitsUnder": "Sotto a",
+      "topLevel": "Livello superiore",
+      "colour": "Colore"
+    },
+    "saveFailed": "Impossibile salvare."
+  }
+}

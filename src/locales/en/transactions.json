@@ -1,0 +1,70 @@
+{
+  "title": "Transactions",
+  "subtitle_one": "{{count}} matching entry",
+  "subtitle_other": "{{count}} matching entries",
+  "transfer": "Transfer",
+  "add": "Add",
+  "filters": {
+    "search": "Search description, notes, reference",
+    "account": "Account",
+    "allAccounts": "All accounts",
+    "category": "Category",
+    "allCategories": "All categories",
+    "from": "From",
+    "to": "To"
+  },
+  "categoryGroups": { "spending": "Spending", "income": "Income" },
+  "bulk": {
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "setCategory": "Set category",
+    "delete": "Delete"
+  },
+  "empty": {
+    "title": "No transactions here",
+    "description": "Adjust the filters, or import a CSV to fill this in."
+  },
+  "table": {
+    "date": "Date",
+    "description": "Description",
+    "account": "Account",
+    "category": "Category",
+    "amount": "Amount",
+    "balance": "Balance",
+    "transfer": "Transfer",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "toast": {
+    "updated_one": "Updated {{count}} transaction.",
+    "updated_other": "Updated {{count}} transactions.",
+    "deleted_one": "Deleted {{count}} transaction.",
+    "deleted_other": "Deleted {{count}} transactions.",
+    "added": "Transaction added.",
+    "transferRecorded": "Transfer recorded.",
+    "updatedOne": "Transaction updated."
+  },
+  "dialog": {
+    "add": { "title": "Add a transaction" },
+    "edit": { "title": "Edit transaction" },
+    "transfer": {
+      "title": "Move money between accounts",
+      "note": "Transfers are excluded from income and spending totals.",
+      "record": "Record transfer"
+    },
+    "fields": {
+      "account": "Account",
+      "date": "Date",
+      "description": "Description",
+      "direction": "Direction",
+      "moneyOut": "Money out",
+      "moneyIn": "Money in",
+      "amount": "Amount",
+      "category": "Category",
+      "notes": "Notes",
+      "from": "From",
+      "to": "To"
+    },
+    "saveFailed": "Could not save."
+  }
+}

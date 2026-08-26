@@ -1,0 +1,70 @@
+{
+  "nav": { "signIn": "Sign in", "getStarted": "Get started" },
+  "hero": {
+    "badge": "Private by design",
+    "title": "Your money, organised - without handing it over.",
+    "subtitle": "Ledgerly tracks accounts, categorises your spending automatically and keeps your budgets honest, with sensitive details encrypted before they're ever stored.",
+    "cta": "Create your free account",
+    "signIn": "Sign in",
+    "noCard": "No card required. Starter categories and rules are set up for you."
+  },
+  "features": {
+    "eyebrow": "Everything in one ledger",
+    "title": "Built for people who actually reconcile their statements",
+    "items": {
+      "accounts": {
+        "title": "All your accounts, one place",
+        "description": "Current, savings, credit, cash and investments; each with a live balance calculated from opening balance plus transactions."
+      },
+      "import": {
+        "title": "CSV import that just works",
+        "description": "Drop a bank export and columns are auto-mapped. Duplicates are flagged, both number formats and delimiters are handled, before you commit."
+      },
+      "rules": {
+        "title": "Rules that categorise for you",
+        "description": "Match on description, merchant, amount ranges or regex. Rules run automatically on import, or re-run on everything you already have."
+      },
+      "dashboard": {
+        "title": "A dashboard you can rearrange",
+        "description": "Show, hide, resize and reorder widgets: net worth, spend-by-category, monthly trend, budgets, top merchants and more."
+      },
+      "budgets": {
+        "title": "Budgets, goals and transfers",
+        "description": "Monthly per-category limits, savings goals linked to an account, two-legged transfers kept out of your spending totals."
+      },
+      "categories": {
+        "title": "Categories that fit your life",
+        "description": "Colour-coded, split into spending and income, with optional sub-categories (plus automatic recurring-payment detection)."
+      }
+    }
+  },
+  "privacy": {
+    "eyebrow": "Privacy that isn't an afterthought",
+    "title": "A budgeting app that isn't built on reading your budget",
+    "intro": "Most budgeting tools store your transaction details in plain text. Ledgerly encrypts the sensitive fields before they're stored, so a raw copy of the database alone doesn't expose them.",
+    "items": {
+      "encryptedAtRest": {
+        "title": "Encrypted at rest",
+        "description": "Transaction descriptions, merchants and notes are encrypted before they're ever written to the database."
+      },
+      "defenceInDepth": {
+        "title": "Defence in depth",
+        "description": "The encryption key is held separately from the database itself, so a database leak alone doesn't expose your transaction details."
+      },
+      "ownDatabase": {
+        "title": "Your data, your database",
+        "description": "Ledgerly runs on infrastructure you control, backed by your own MongoDB instance. No shared multi-tenant data store, no analytics resale."
+      }
+    }
+  },
+  "cta": {
+    "title": "Set up your ledger in a couple of minutes",
+    "subtitle": "Create an account, import a statement, and watch your budgets and net worth update themselves.",
+    "button": "Create your free account"
+  },
+  "footer": {
+    "copyright": "© {{year}} Ledgerly",
+    "signIn": "Sign in",
+    "createAccount": "Create account"
+  }
+}

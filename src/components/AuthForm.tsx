@@ -15,11 +15,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { send } from '@/lib/client';
 import { isValidEmail } from '@/lib/validation';
+import { translateApiError } from '@/i18n/translateApiError';
 
 export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
+  const { t, i18n } = useTranslation('auth');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,9 +41,9 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     setNotice('');
     try {
       await send('/api/resend-verification', 'POST', { email: targetEmail });
-      setNotice('Verification email sent. Check your inbox.');
+      setNotice(t('notices.verificationSent'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not resend the email.');
+      setError(err instanceof Error ? translateApiError(i18n, err.message) : t('errors.resendFailed'));
     } finally {
       setResending(false);
     }
@@ -50,15 +53,15 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
     if (!isValidEmail(cleanEmail)) {
-      setError('Enter a valid email address.');
+      setError(t('errors.invalidEmail'));
       return;
     }
     if (mode === 'register' && password.length < 8) {
-      setError('Passwords need at least 8 characters.');
+      setError(t('errors.passwordTooShort'));
       return;
     }
     if (mode === 'register' && password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('errors.passwordMismatch'));
       return;
     }
     setBusy(true);
@@ -89,7 +92,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       router.push('/dashboard');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setError(err instanceof Error ? translateApiError(i18n, err.message) : t('errors.generic'));
       setBusy(false);
     }
   };
@@ -116,11 +119,12 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           {mode === 'register' && unverifiedEmail ? (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <Typography variant="h4" sx={{ mb: 0.5 }}>
-                Check your email
+                {t('checkEmail.title')}
               </Typography>
               <Typography color="text.secondary">
-                We sent a confirmation link to <strong>{unverifiedEmail}</strong>. Follow it to
-                activate your account, then sign in.
+                {t('checkEmail.bodyPre')}
+                <strong>{unverifiedEmail}</strong>
+                {t('checkEmail.bodyPost')}
               </Typography>
               {notice && <Alert severity="success">{notice}</Alert>}
               {error && <Alert severity="error">{error}</Alert>}
@@ -130,30 +134,28 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 disabled={resending}
                 onClick={() => resendVerification(unverifiedEmail)}
               >
-                {resending ? 'Sending…' : 'Resend email'}
+                {resending ? t('sending') : t('resendEmail')}
               </Button>
               <Typography variant="body2" sx={{ textAlign: 'center' }}>
                 <Link component={NextLink} href="/login">
-                  Back to sign in
+                  {t('backToSignIn')}
                 </Link>
               </Typography>
             </Stack>
           ) : (
             <>
               <Typography variant="h4" sx={{ mt: 0.5, mb: 0.5 }}>
-                {mode === 'login' ? 'Sign in' : 'Create your account'}
+                {mode === 'login' ? t('signInTitle') : t('registerTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                {mode === 'login'
-                  ? 'Your accounts, rules and budgets are waiting.'
-                  : 'Starter categories and a demo account are set up for you.'}
+                {mode === 'login' ? t('signInSubtitle') : t('registerSubtitle')}
               </Typography>
 
               <form onSubmit={submit} noValidate>
                 <Stack spacing={2}>
                   {mode === 'register' && (
                     <TextField
-                      label="Name"
+                      label={t('fields.name')}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       fullWidth
@@ -161,7 +163,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                     />
                   )}
                   <TextField
-                    label="Email"
+                    label={t('fields.email')}
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -170,18 +172,18 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                     autoComplete="email"
                   />
                   <TextField
-                    label="Password"
+                    label={t('fields.password')}
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     fullWidth
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    helperText={mode === 'register' ? 'At least 8 characters.' : ' '}
+                    helperText={mode === 'register' ? t('passwordHelper') : ' '}
                   />
                   {mode === 'register' && (
                     <TextField
-                      label="Confirm password"
+                      label={t('fields.confirmPassword')}
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
@@ -199,17 +201,17 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                           disabled={resending}
                           onClick={() => resendVerification(unverifiedEmail)}
                         >
-                          {resending ? 'Sending…' : 'Resend'}
+                          {resending ? t('sending') : t('resend')}
                         </Button>
                       }
                     >
-                      Confirm your email before signing in.
+                      {t('confirmEmailWarning')}
                     </Alert>
                   )}
                   {notice && <Alert severity="success">{notice}</Alert>}
                   {error && <Alert severity="error">{error}</Alert>}
                   <Button type="submit" variant="contained" size="large" disabled={busy}>
-                    {busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}
+                    {busy ? t('working') : mode === 'login' ? t('signInButton') : t('createAccountButton')}
                   </Button>
                 </Stack>
               </form>
@@ -217,16 +219,16 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
                 {mode === 'login' ? (
                   <>
-                    No account yet?{' '}
+                    {t('noAccountYet')}{' '}
                     <Link component={NextLink} href="/register">
-                      Create one
+                      {t('createOne')}
                     </Link>
                   </>
                 ) : (
                   <>
-                    Already registered?{' '}
+                    {t('alreadyRegistered')}{' '}
                     <Link component={NextLink} href="/login">
-                      Sign in
+                      {t('signInLink')}
                     </Link>
                   </>
                 )}

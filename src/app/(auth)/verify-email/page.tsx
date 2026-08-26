@@ -4,9 +4,12 @@ import { Suspense, useEffect, useState } from 'react';
 import NextLink from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Box, Button, Card, CardContent, CircularProgress, Link, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { send } from '@/lib/client';
+import { translateApiError } from '@/i18n/translateApiError';
 
 function VerifyEmailContent() {
+  const { t, i18n } = useTranslation('auth');
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [status, setStatus] = useState<'checking' | 'success' | 'error'>('checking');
@@ -15,14 +18,14 @@ function VerifyEmailContent() {
   useEffect(() => {
     if (!token) {
       setStatus('error');
-      setMessage('Missing verification token.');
+      setMessage(t('errors.missingToken'));
       return;
     }
     send('/api/verify-email', 'POST', { token })
       .then(() => setStatus('success'))
       .catch((err) => {
         setStatus('error');
-        setMessage(err instanceof Error ? err.message : 'Could not verify this link.');
+        setMessage(err instanceof Error ? translateApiError(i18n, err.message) : t('errors.verifyFailed'));
       });
   }, [token]);
 
@@ -48,31 +51,29 @@ function VerifyEmailContent() {
           {status === 'checking' && (
             <Stack spacing={2} alignItems="center" sx={{ py: 4 }}>
               <CircularProgress size={28} />
-              <Typography color="text.secondary">Confirming your email…</Typography>
+              <Typography color="text.secondary">{t('verify.confirming')}</Typography>
             </Stack>
           )}
 
           {status === 'success' && (
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <Typography variant="h5">Email confirmed</Typography>
-              <Typography color="text.secondary">
-                Your account is ready. Sign in to start using Ledgerly.
-              </Typography>
+              <Typography variant="h5">{t('verify.confirmedTitle')}</Typography>
+              <Typography color="text.secondary">{t('verify.confirmedBody')}</Typography>
               <Button component={NextLink} href="/login" variant="contained" size="large">
-                Sign in
+                {t('signInButton')}
               </Button>
             </Stack>
           )}
 
           {status === 'error' && (
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <Typography variant="h5">Verification failed</Typography>
+              <Typography variant="h5">{t('verify.failedTitle')}</Typography>
               <Typography color="text.secondary">{message}</Typography>
               <Typography variant="body2">
                 <Link component={NextLink} href="/login">
-                  Back to sign in
+                  {t('backToSignIn')}
                 </Link>{' '}
-                (you can request a new link from there).
+                {t('verify.requestNewLink')}
               </Typography>
             </Stack>
           )}

@@ -1,0 +1,33 @@
+{
+  "title": "Savings goals",
+  "subtitle": "Track what you're putting money aside for. Link an account to update progress automatically.",
+  "newGoal": "New goal",
+  "empty": {
+    "title": "No goals yet",
+    "description": "Set a target (a trip, a deposit, a rainy-day fund) and watch it fill up.",
+    "action": "Create a goal"
+  },
+  "editGoal": "Edit goal",
+  "deleteGoal": "Delete goal",
+  "targetBy": "Target by {{date}}",
+  "of": "of {{amount}}",
+  "percentThere": "{{percent}}% there",
+  "trackingAccount": "· tracking {{account}}",
+  "anAccount": "an account",
+  "confirmDelete": "Delete goal \"{{name}}\"?",
+  "dialog": {
+    "editTitle": "Edit goal",
+    "newTitle": "New goal",
+    "fields": {
+      "name": "Name",
+      "targetAmount": "Target amount",
+      "trackAccount": "Track an account (optional)",
+      "trackAccountHelper": "Linked goals use that account's live balance.",
+      "trackManually": "Track manually",
+      "savedSoFar": "Saved so far",
+      "targetDate": "Target date (optional)",
+      "colour": "Colour"
+    },
+    "saveFailed": "Could not save."
+  }
+}

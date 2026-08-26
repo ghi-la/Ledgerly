@@ -1,0 +1,28 @@
+{
+  "title": "Esporta",
+  "subtitle": "Scarica le tue transazioni come file CSV, filtrate come preferisci.",
+  "filters": {
+    "search": "Cerca descrizione, note, riferimento",
+    "account": "Conto",
+    "allAccounts": "Tutti i conti",
+    "category": "Categoria",
+    "allCategories": "Tutte le categorie",
+    "from": "Da",
+    "to": "A"
+  },
+  "matching_one": "{{count}} transazione corrispondente",
+  "matching_other": "{{count}} transazioni corrispondenti",
+  "preparing": "Preparazione…",
+  "exportCsv": "Esporta CSV",
+  "csvHeaders": {
+    "date": "Data",
+    "description": "Descrizione",
+    "merchant": "Commerciante",
+    "account": "Conto",
+    "category": "Categoria",
+    "amount": "Importo",
+    "type": "Tipo",
+    "reference": "Riferimento",
+    "notes": "Note"
+  }
+}

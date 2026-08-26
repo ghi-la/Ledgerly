@@ -1,0 +1,83 @@
+{
+  "title": "Import a statement",
+  "subtitle": "Upload the CSV your bank gives you. Your rules categorise the rows before anything is saved.",
+  "steps": { "chooseFile": "Choose file", "matchColumns": "Match columns", "reviewImport": "Review and import" },
+  "dropzone": {
+    "title": "Drop your CSV here",
+    "subtitle": "Commas, semicolons and tabs all work. Nothing is saved until you review it.",
+    "chooseFile": "Choose a file"
+  },
+  "errors": {
+    "noHeaderRow": "That file has no header row we could read.",
+    "csvUnreadable": "That file could not be read as CSV.",
+    "previewFailed": "Preview failed.",
+    "importFailed": "Import failed."
+  },
+  "fileInfo": "{{fileName}} · {{count}} rows",
+  "fields": {
+    "importInto": "Import into account",
+    "amountsStoredAs": "How are amounts stored?",
+    "singleColumn": "One column, negative for money out",
+    "separateColumns": "Separate money-out and money-in columns",
+    "notInFile": "Not in this file",
+    "dateOrder": "Date order",
+    "detectAuto": "Detect automatically",
+    "dmy": "Day / month / year",
+    "mdy": "Month / day / year",
+    "ymd": "Year / month / day",
+    "decimalMark": "Decimal mark",
+    "detect": "Detect",
+    "point": "Point (1,234.56)",
+    "comma": "Comma (1.234,56)",
+    "flipSign": "Flip the sign (this file lists spending as positive)",
+    "skipDuplicates": "Skip rows already in this account",
+    "startOver": "Start over",
+    "reading": "Reading…",
+    "previewRows": "Preview rows"
+  },
+  "columnLabels": {
+    "date": "Date",
+    "description": "Description",
+    "amount": "Amount (single column)",
+    "debit": "Money out",
+    "credit": "Money in",
+    "balance": "Balance (optional, from statement)",
+    "merchant": "Merchant / payee",
+    "reference": "Reference",
+    "notes": "Notes"
+  },
+  "firstRows": "First rows in the file",
+  "summary": {
+    "importing": "Importing",
+    "skipped": "Skipped",
+    "autoCategorised": "Auto-categorised",
+    "balanceIssues": "Balance issues",
+    "moneyIn": "Money in",
+    "moneyOut": "Money out",
+    "back": "Back",
+    "saving": "Saving…",
+    "importRows_one": "Import {{count}} row",
+    "importRows_other": "Import {{count}} rows"
+  },
+  "table": {
+    "date": "Date",
+    "description": "Description",
+    "category": "Category",
+    "amount": "Amount",
+    "status": "Status",
+    "rule": "Rule: {{name}}",
+    "alreadyImported": "Already imported",
+    "categorised": "Categorised",
+    "needsCategory": "Needs a category",
+    "balanceMismatch": "Balance doesn't match",
+    "balanceTooltip": {
+      "pre": "Statement shows ",
+      "mid": " but ",
+      "post": " was expected from the running total."
+    }
+  },
+  "toast": {
+    "imported_one": "Imported {{count}} transaction.",
+    "imported_other": "Imported {{count}} transactions."
+  }
+}

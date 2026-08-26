@@ -24,6 +24,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { CATEGORY_PALETTE } from '@/lib/theme';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
@@ -53,6 +54,7 @@ const empty = {
 };
 
 export default function GoalsPage() {
+  const { t } = useTranslation('goals');
   const { data: goals, mutate, isLoading } = useSWR<Goal[]>('/api/goals', fetcher);
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { currency, locale } = useSettings();
@@ -100,12 +102,12 @@ export default function GoalsPage() {
       setOpen(false);
       mutate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('dialog.saveFailed'));
     }
   };
 
   const remove = async (g: Goal) => {
-    if (!confirm(`Delete goal "${g.name}"?`)) return;
+    if (!confirm(t('confirmDelete', { name: g.name }))) return;
     await send(`/api/goals/${g._id}`, 'DELETE');
     mutate();
   };
@@ -113,11 +115,11 @@ export default function GoalsPage() {
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
       <PageHeader
-        title="Savings goals"
-        subtitle="Track what you're putting money aside for. Link an account to update progress automatically."
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
           <Button startIcon={<AddIcon />} variant="contained" onClick={openNew}>
-            New goal
+            {t('newGoal')}
           </Button>
         }
       />
@@ -125,9 +127,9 @@ export default function GoalsPage() {
       {!isLoading && goals?.length === 0 && (
         <Card>
           <EmptyState
-            title="No goals yet"
-            description="Set a target (a trip, a deposit, a rainy-day fund) and watch it fill up."
-            actionLabel="Create a goal"
+            title={t('empty.title')}
+            description={t('empty.description')}
+            actionLabel={t('empty.action')}
             onAction={openNew}
           />
         </Card>
@@ -152,14 +154,14 @@ export default function GoalsPage() {
                       <Typography sx={{ fontWeight: 700, fontSize: 18 }}>{g.name}</Typography>
                       {g.targetDate && (
                         <Typography variant="caption" color="text.secondary">
-                          Target by {formatDate(g.targetDate, locale)}
+                          {t('targetBy', { date: formatDate(g.targetDate, locale) })}
                         </Typography>
                       )}
                     </Box>
-                    <IconButton size="small" onClick={() => openEdit(g)} aria-label="Edit goal">
+                    <IconButton size="small" onClick={() => openEdit(g)} aria-label={t('editGoal')}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => remove(g)} aria-label="Delete goal">
+                    <IconButton size="small" onClick={() => remove(g)} aria-label={t('deleteGoal')}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Stack>
@@ -167,7 +169,7 @@ export default function GoalsPage() {
                   <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', mt: 2 }}>
                     <Money value={saved} currency={currency} locale={locale} bold size={22} />
                     <Typography color="text.secondary" sx={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}>
-                      of {new Intl.NumberFormat(locale, { style: 'currency', currency }).format(g.targetAmount)}
+                      {t('of', { amount: new Intl.NumberFormat(locale, { style: 'currency', currency }).format(g.targetAmount) })}
                     </Typography>
                   </Stack>
 
@@ -183,8 +185,12 @@ export default function GoalsPage() {
                     }}
                   />
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
-                    {pct}% there
-                    {g.accountId ? ` · tracking ${accounts?.find((a) => a._id === g.accountId)?.name ?? 'an account'}` : ''}
+                    {t('percentThere', { percent: pct })}
+                    {g.accountId
+                      ? t('trackingAccount', {
+                          account: accounts?.find((a) => a._id === g.accountId)?.name ?? t('anAccount'),
+                        })
+                      : ''}
                   </Typography>
                 </CardContent>
               </Card>
@@ -194,29 +200,29 @@ export default function GoalsPage() {
       </Grid>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>{editing ? 'Edit goal' : 'New goal'}</DialogTitle>
+        <DialogTitle>{editing ? t('dialog.editTitle') : t('dialog.newTitle')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 0.5 }}>
             <TextField
-              label="Name"
+              label={t('dialog.fields.name')}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
             />
             <TextField
-              label="Target amount"
+              label={t('dialog.fields.targetAmount')}
               type="number"
               value={form.targetAmount}
               onChange={(e) => setForm({ ...form, targetAmount: e.target.value })}
             />
             <TextField
               select
-              label="Track an account (optional)"
+              label={t('dialog.fields.trackAccount')}
               value={form.accountId}
               onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-              helperText="Linked goals use that account's live balance."
+              helperText={t('dialog.fields.trackAccountHelper')}
             >
-              <MenuItem value="">Track manually</MenuItem>
+              <MenuItem value="">{t('dialog.fields.trackManually')}</MenuItem>
               {(accounts ?? []).map((a) => (
                 <MenuItem key={a._id} value={a._id}>
                   {a.name}
@@ -225,7 +231,7 @@ export default function GoalsPage() {
             </TextField>
             {!form.accountId && (
               <TextField
-                label="Saved so far"
+                label={t('dialog.fields.savedSoFar')}
                 type="number"
                 value={form.savedAmount}
                 onChange={(e) => setForm({ ...form, savedAmount: e.target.value })}
@@ -233,14 +239,14 @@ export default function GoalsPage() {
             )}
             <TextField
               type="date"
-              label="Target date (optional)"
+              label={t('dialog.fields.targetDate')}
               InputLabelProps={{ shrink: true }}
               value={form.targetDate}
               onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
             />
             <Box>
               <Typography variant="caption" color="text.secondary">
-                Colour
+                {t('dialog.fields.colour')}
               </Typography>
               <Stack direction="row" sx={{ flexWrap: 'wrap', mt: 0.5, gap: 0.75 }}>
                 {CATEGORY_PALETTE.map((c) => (
@@ -265,9 +271,9 @@ export default function GoalsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => setOpen(false)}>{t('common:actions.cancel')}</Button>
           <Button variant="contained" onClick={save}>
-            Save
+            {t('common:actions.save')}
           </Button>
         </DialogActions>
       </Dialog>

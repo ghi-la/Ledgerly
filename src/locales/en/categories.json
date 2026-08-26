@@ -1,0 +1,22 @@
+{
+  "title": "Categories",
+  "subtitle": "Name them however you think about your money. Rules assign them on import.",
+  "addCategory": "Add category",
+  "groups": { "spending": "Spending", "income": "Income" },
+  "editCategory": "Edit category",
+  "deleteCategory": "Delete category",
+  "nothingHere": "Nothing here yet.",
+  "confirmDelete": "Delete \"{{name}}\"? Transactions using it become uncategorised.",
+  "dialog": {
+    "editTitle": "Edit category",
+    "addTitle": "Add a category",
+    "fields": {
+      "name": "Name",
+      "type": "Type",
+      "sitsUnder": "Sits under",
+      "topLevel": "Top level",
+      "colour": "Colour"
+    },
+    "saveFailed": "Could not save."
+  }
+}

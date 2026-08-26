@@ -17,18 +17,16 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
 import { DecryptedText } from '@/components/widgets';
+import { toI18nLang } from '@/i18n/languageMap';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD', 'CHF', 'CAD', 'AUD', 'JPY', 'SEK', 'NOK', 'DKK', 'PLN', 'INR'];
 const LOCALES = [
-  { value: 'en-GB', label: 'English (UK)' },
-  { value: 'en-US', label: 'English (US)' },
+  { value: 'en-GB', label: 'English' },
   { value: 'it-IT', label: 'Italiano' },
-  { value: 'de-DE', label: 'Deutsch' },
-  { value: 'fr-FR', label: 'Français' },
-  { value: 'es-ES', label: 'Español' },
 ];
 
 interface Recurring {
@@ -46,6 +44,7 @@ interface Recurring {
 }
 
 export default function SettingsPage() {
+  const { t, i18n } = useTranslation('settings');
   const { profile, currency, locale, mutate } = useSettings();
   const [name, setName] = useState('');
   const [curr, setCurr] = useState('EUR');
@@ -64,30 +63,31 @@ export default function SettingsPage() {
 
   const save = async () => {
     await send('/api/settings', 'PATCH', { name, currency: curr, locale: loc });
+    void i18n.changeLanguage(toI18nLang(loc));
     mutate();
-    setToast('Settings saved.');
+    setToast(t('toast.saved'));
   };
 
   return (
     <Box sx={{ maxWidth: 820, mx: 'auto' }}>
-      <PageHeader title="Settings" subtitle="Your profile, currency, and the recurring charges we spotted." />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="overline" color="text.secondary">
-            Profile
+            {t('profile')}
           </Typography>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid item xs={12} sm={6}>
-              <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth />
+              <TextField label={t('fields.name')} value={name} onChange={(e) => setName(e.target.value)} fullWidth />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField label="Email" value={profile?.email ?? ''} fullWidth disabled />
+              <TextField label={t('fields.email')} value={profile?.email ?? ''} fullWidth disabled />
             </Grid>
             <Grid item xs={6}>
               <TextField
                 select
-                label="Currency"
+                label={t('fields.currency')}
                 value={curr}
                 onChange={(e) => setCurr(e.target.value)}
                 fullWidth
@@ -102,7 +102,7 @@ export default function SettingsPage() {
             <Grid item xs={6}>
               <TextField
                 select
-                label="Number and date format"
+                label={t('fields.language')}
                 value={loc}
                 onChange={(e) => setLoc(e.target.value)}
                 fullWidth
@@ -117,7 +117,7 @@ export default function SettingsPage() {
           </Grid>
           <Box sx={{ mt: 2 }}>
             <Button variant="contained" onClick={save}>
-              Save changes
+              {t('saveChanges')}
             </Button>
           </Box>
         </CardContent>
@@ -127,22 +127,24 @@ export default function SettingsPage() {
         <CardContent>
           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
             <Typography variant="overline" color="text.secondary">
-              Recurring charges
+              {t('recurring.title')}
             </Typography>
             {recurring && recurring.items.length > 0 && (
               <Typography variant="caption" color="text.secondary">
-                ~<Money value={-recurring.monthlyEquivalentOut} currency={currency} locale={locale} /> a month
+                {t('recurring.perMonthPre')}
+                <Money value={-recurring.monthlyEquivalentOut} currency={currency} locale={locale} />{' '}
+                {t('recurring.perMonthPost')}
               </Typography>
             )}
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Found by spotting payments that repeat on a regular schedule for a steady amount.
+            {t('recurring.description')}
           </Typography>
 
-          {!recurring && <Typography variant="body2">Looking for patterns…</Typography>}
+          {!recurring && <Typography variant="body2">{t('recurring.loading')}</Typography>}
           {recurring && recurring.items.length === 0 && (
             <Alert severity="info">
-              No recurring payments detected yet. Import a few months of history and check back.
+              {t('recurring.empty')}
             </Alert>
           )}
 
@@ -156,10 +158,14 @@ export default function SettingsPage() {
                     noWrap
                   />
                   <Stack direction="row" spacing={0.75} sx={{ mt: 0.25 }}>
-                    <Chip size="small" label={r.cadence} variant="outlined" />
+                    <Chip
+                      size="small"
+                      label={t(`recurring.cadence.${r.cadence}`, { defaultValue: r.cadence })}
+                      variant="outlined"
+                    />
                     {r.categoryName && <Chip size="small" label={r.categoryName} variant="outlined" />}
                     <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                      next ~{formatDate(r.nextExpected, locale)}
+                      {t('recurring.nextExpected', { date: formatDate(r.nextExpected, locale) })}
                     </Typography>
                   </Stack>
                 </Box>

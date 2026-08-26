@@ -1,0 +1,83 @@
+{
+  "title": "Importa un estratto conto",
+  "subtitle": "Carica il CSV fornito dalla tua banca. Le tue regole categorizzano le righe prima che venga salvato qualsiasi cosa.",
+  "steps": { "chooseFile": "Scegli file", "matchColumns": "Abbina colonne", "reviewImport": "Rivedi e importa" },
+  "dropzone": {
+    "title": "Trascina qui il tuo CSV",
+    "subtitle": "Virgole, punto e virgola e tabulazioni funzionano tutte. Niente viene salvato finché non lo rivedi.",
+    "chooseFile": "Scegli un file"
+  },
+  "errors": {
+    "noHeaderRow": "Questo file non ha una riga di intestazione leggibile.",
+    "csvUnreadable": "Questo file non può essere letto come CSV.",
+    "previewFailed": "Anteprima non riuscita.",
+    "importFailed": "Importazione non riuscita."
+  },
+  "fileInfo": "{{fileName}} · {{count}} righe",
+  "fields": {
+    "importInto": "Importa nel conto",
+    "amountsStoredAs": "Come sono memorizzati gli importi?",
+    "singleColumn": "Una colonna, negativo per le uscite",
+    "separateColumns": "Colonne separate per uscite ed entrate",
+    "notInFile": "Non presente in questo file",
+    "dateOrder": "Ordine della data",
+    "detectAuto": "Rileva automaticamente",
+    "dmy": "Giorno / mese / anno",
+    "mdy": "Mese / giorno / anno",
+    "ymd": "Anno / mese / giorno",
+    "decimalMark": "Separatore decimale",
+    "detect": "Rileva",
+    "point": "Punto (1,234.56)",
+    "comma": "Virgola (1.234,56)",
+    "flipSign": "Inverti il segno (questo file elenca le spese come positive)",
+    "skipDuplicates": "Salta le righe già presenti in questo conto",
+    "startOver": "Ricomincia",
+    "reading": "Lettura…",
+    "previewRows": "Anteprima righe"
+  },
+  "columnLabels": {
+    "date": "Data",
+    "description": "Descrizione",
+    "amount": "Importo (colonna unica)",
+    "debit": "Uscita",
+    "credit": "Entrata",
+    "balance": "Saldo (opzionale, dall'estratto conto)",
+    "merchant": "Commerciante / beneficiario",
+    "reference": "Riferimento",
+    "notes": "Note"
+  },
+  "firstRows": "Prime righe nel file",
+  "summary": {
+    "importing": "In importazione",
+    "skipped": "Saltate",
+    "autoCategorised": "Categorizzate automaticamente",
+    "balanceIssues": "Problemi di saldo",
+    "moneyIn": "Entrate",
+    "moneyOut": "Uscite",
+    "back": "Indietro",
+    "saving": "Salvataggio…",
+    "importRows_one": "Importa {{count}} riga",
+    "importRows_other": "Importa {{count}} righe"
+  },
+  "table": {
+    "date": "Data",
+    "description": "Descrizione",
+    "category": "Categoria",
+    "amount": "Importo",
+    "status": "Stato",
+    "rule": "Regola: {{name}}",
+    "alreadyImported": "Già importata",
+    "categorised": "Categorizzata",
+    "needsCategory": "Serve una categoria",
+    "balanceMismatch": "Il saldo non corrisponde",
+    "balanceTooltip": {
+      "pre": "L'estratto conto mostra ",
+      "mid": " ma era atteso ",
+      "post": " dal totale progressivo."
+    }
+  },
+  "toast": {
+    "imported_one": "Importata {{count}} transazione.",
+    "imported_other": "Importate {{count}} transazioni."
+  }
+}

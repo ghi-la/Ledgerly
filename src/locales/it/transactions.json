@@ -1,0 +1,70 @@
+{
+  "title": "Transazioni",
+  "subtitle_one": "{{count}} voce corrispondente",
+  "subtitle_other": "{{count}} voci corrispondenti",
+  "transfer": "Trasferimento",
+  "add": "Aggiungi",
+  "filters": {
+    "search": "Cerca descrizione, note, riferimento",
+    "account": "Conto",
+    "allAccounts": "Tutti i conti",
+    "category": "Categoria",
+    "allCategories": "Tutte le categorie",
+    "from": "Da",
+    "to": "A"
+  },
+  "categoryGroups": { "spending": "Spese", "income": "Entrate" },
+  "bulk": {
+    "selected_one": "{{count}} selezionata",
+    "selected_other": "{{count}} selezionate",
+    "setCategory": "Imposta categoria",
+    "delete": "Elimina"
+  },
+  "empty": {
+    "title": "Ancora nessuna transazione",
+    "description": "Modifica i filtri, oppure importa un CSV per popolare questa pagina."
+  },
+  "table": {
+    "date": "Data",
+    "description": "Descrizione",
+    "account": "Conto",
+    "category": "Categoria",
+    "amount": "Importo",
+    "balance": "Saldo",
+    "transfer": "Trasferimento",
+    "edit": "Modifica",
+    "delete": "Elimina"
+  },
+  "toast": {
+    "updated_one": "Aggiornata {{count}} transazione.",
+    "updated_other": "Aggiornate {{count}} transazioni.",
+    "deleted_one": "Eliminata {{count}} transazione.",
+    "deleted_other": "Eliminate {{count}} transazioni.",
+    "added": "Transazione aggiunta.",
+    "transferRecorded": "Trasferimento registrato.",
+    "updatedOne": "Transazione aggiornata."
+  },
+  "dialog": {
+    "add": { "title": "Aggiungi una transazione" },
+    "edit": { "title": "Modifica transazione" },
+    "transfer": {
+      "title": "Sposta denaro tra conti",
+      "note": "I trasferimenti sono esclusi dai totali di entrate e spese.",
+      "record": "Registra trasferimento"
+    },
+    "fields": {
+      "account": "Conto",
+      "date": "Data",
+      "description": "Descrizione",
+      "direction": "Direzione",
+      "moneyOut": "Uscita",
+      "moneyIn": "Entrata",
+      "amount": "Importo",
+      "category": "Categoria",
+      "notes": "Note",
+      "from": "Da",
+      "to": "A"
+    },
+    "saveFailed": "Impossibile salvare."
+  }
+}

@@ -30,8 +30,10 @@ import {
   Typography,
 } from '@mui/material';
 import UploadIcon from '@mui/icons-material/UploadFileOutlined';
+import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
+import { translateApiError } from '@/i18n/translateApiError';
 
 interface Draft {
   index: number;
@@ -51,16 +53,16 @@ interface Draft {
   expectedBalance: number | null;
 }
 
-const FIELDS = [
-  { key: 'date', label: 'Date', required: true },
-  { key: 'description', label: 'Description', required: true },
-  { key: 'amount', label: 'Amount (single column)', mode: 'single', required: false },
-  { key: 'debit', label: 'Money out', mode: 'debit_credit', required: false },
-  { key: 'credit', label: 'Money in', mode: 'debit_credit', required: false },
-  { key: 'balance', label: 'Balance (optional, from statement)', required: false },
-  { key: 'merchant', label: 'Merchant / payee', required: false },
-  { key: 'reference', label: 'Reference', required: false },
-  { key: 'notes', label: 'Notes', required: false },
+const FIELD_KEYS = [
+  { key: 'date', required: true },
+  { key: 'description', required: true },
+  { key: 'amount', mode: 'single', required: false },
+  { key: 'debit', mode: 'debit_credit', required: false },
+  { key: 'credit', mode: 'debit_credit', required: false },
+  { key: 'balance', required: false },
+  { key: 'merchant', required: false },
+  { key: 'reference', required: false },
+  { key: 'notes', required: false },
 ] as const;
 
 /** Best-effort match of common bank export headers to our fields. */
@@ -77,6 +79,8 @@ const GUESSES: Record<string, RegExp> = {
 };
 
 export default function ImportPage() {
+  const { t, i18n } = useTranslation('import');
+  const FIELDS = FIELD_KEYS.map((f) => ({ ...f, label: t(`columnLabels.${f.key}`) }));
   const { currency, locale } = useSettings();
   const { data: accounts } = useSWR<{ _id: string; name: string }[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<{ _id: string; name: string; color: string }[]>(
@@ -115,7 +119,7 @@ export default function ImportPage() {
       complete: (result) => {
         const fields = (result.meta.fields ?? []).filter(Boolean);
         if (!fields.length) {
-          setError('That file has no header row we could read.');
+          setError(t('errors.noHeaderRow'));
           return;
         }
         setHeaders(fields);
@@ -137,7 +141,7 @@ export default function ImportPage() {
         setAmountMode(guessed.amount ? 'single' : guessed.debit || guessed.credit ? 'debit_credit' : 'single');
         setStep(1);
       },
-      error: () => setError('That file could not be read as CSV.'),
+      error: () => setError(t('errors.csvUnreadable')),
     });
   };
 
@@ -164,7 +168,7 @@ export default function ImportPage() {
       );
       setStep(2);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed.');
+      setError(e instanceof Error ? translateApiError(i18n, e.message) : t('errors.previewFailed'));
     } finally {
       setBusy(false);
     }
@@ -176,10 +180,10 @@ export default function ImportPage() {
     try {
       const chosen = drafts.filter((d) => !excluded.has(d.index) && !d.error);
       const res = await send('/api/import/commit', 'POST', { accountId, drafts: chosen });
-      setToast(`Imported ${res.imported} transactions.`);
+      setToast(t('toast.imported', { count: res.imported }));
       reset();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import failed.');
+      setError(e instanceof Error ? translateApiError(i18n, e.message) : t('errors.importFailed'));
     } finally {
       setBusy(false);
     }
@@ -235,19 +239,19 @@ export default function ImportPage() {
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
       <PageHeader
-        title="Import a statement"
-        subtitle="Upload the CSV your bank gives you. Your rules categorise the rows before anything is saved."
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
 
       <Stepper activeStep={step} sx={{ mb: 3 }} alternativeLabel>
         <Step>
-          <StepLabel>Choose file</StepLabel>
+          <StepLabel>{t('steps.chooseFile')}</StepLabel>
         </Step>
         <Step>
-          <StepLabel>Match columns</StepLabel>
+          <StepLabel>{t('steps.matchColumns')}</StepLabel>
         </Step>
         <Step>
-          <StepLabel>Review and import</StepLabel>
+          <StepLabel>{t('steps.reviewImport')}</StepLabel>
         </Step>
       </Stepper>
 
@@ -282,12 +286,12 @@ export default function ImportPage() {
               }}
             >
               <UploadIcon sx={{ fontSize: 44, color: 'primary.main', mb: 1 }} />
-              <Typography variant="h6">Drop your CSV here</Typography>
+              <Typography variant="h6">{t('dropzone.title')}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Commas, semicolons and tabs all work. Nothing is saved until you review it.
+                {t('dropzone.subtitle')}
               </Typography>
               <Button variant="contained" onClick={() => fileInput.current?.click()}>
-                Choose a file
+                {t('dropzone.chooseFile')}
               </Button>
             </Box>
           </CardContent>
@@ -300,12 +304,12 @@ export default function ImportPage() {
             <Card>
               <CardContent>
                 <Typography variant="overline" color="text.secondary">
-                  {fileName} · {rows.length} rows
+                  {t('fileInfo', { fileName, count: rows.length })}
                 </Typography>
                 <Stack spacing={2} sx={{ mt: 2 }}>
                   <TextField
                     select
-                    label="Import into account"
+                    label={t('fields.importInto')}
                     value={accountId}
                     onChange={(e) => setAccountId(e.target.value)}
                     required
@@ -319,12 +323,12 @@ export default function ImportPage() {
 
                   <TextField
                     select
-                    label="How are amounts stored?"
+                    label={t('fields.amountsStoredAs')}
                     value={amountMode}
                     onChange={(e) => setAmountMode(e.target.value as 'single' | 'debit_credit')}
                   >
-                    <MenuItem value="single">One column, negative for money out</MenuItem>
-                    <MenuItem value="debit_credit">Separate money-out and money-in columns</MenuItem>
+                    <MenuItem value="single">{t('fields.singleColumn')}</MenuItem>
+                    <MenuItem value="debit_credit">{t('fields.separateColumns')}</MenuItem>
                   </TextField>
 
                   {FIELDS.filter((f) => !('mode' in f) || f.mode === amountMode).map((f) => (
@@ -336,7 +340,7 @@ export default function ImportPage() {
                       value={mapping[f.key] ?? ''}
                       onChange={(e) => setMapping({ ...mapping, [f.key]: e.target.value })}
                     >
-                      <MenuItem value="">Not in this file</MenuItem>
+                      <MenuItem value="">{t('fields.notInFile')}</MenuItem>
                       {headers.map((h) => (
                         <MenuItem key={h} value={h}>
                           {h}
@@ -348,44 +352,44 @@ export default function ImportPage() {
                   <Stack direction="row" spacing={1}>
                     <TextField
                       select
-                      label="Date order"
+                      label={t('fields.dateOrder')}
                       value={dateFormat}
                       onChange={(e) => setDateFormat(e.target.value)}
                       fullWidth
                     >
-                      <MenuItem value="auto">Detect automatically</MenuItem>
-                      <MenuItem value="DMY">Day / month / year</MenuItem>
-                      <MenuItem value="MDY">Month / day / year</MenuItem>
-                      <MenuItem value="YMD">Year / month / day</MenuItem>
+                      <MenuItem value="auto">{t('fields.detectAuto')}</MenuItem>
+                      <MenuItem value="DMY">{t('fields.dmy')}</MenuItem>
+                      <MenuItem value="MDY">{t('fields.mdy')}</MenuItem>
+                      <MenuItem value="YMD">{t('fields.ymd')}</MenuItem>
                     </TextField>
                     <TextField
                       select
-                      label="Decimal mark"
+                      label={t('fields.decimalMark')}
                       value={decimalSeparator}
                       onChange={(e) => setDecimalSeparator(e.target.value)}
                       fullWidth
                     >
-                      <MenuItem value="auto">Detect</MenuItem>
-                      <MenuItem value=".">Point (1,234.56)</MenuItem>
-                      <MenuItem value=",">Comma (1.234,56)</MenuItem>
+                      <MenuItem value="auto">{t('fields.detect')}</MenuItem>
+                      <MenuItem value=".">{t('fields.point')}</MenuItem>
+                      <MenuItem value=",">{t('fields.comma')}</MenuItem>
                     </TextField>
                   </Stack>
 
                   <FormControlLabel
                     control={<Switch checked={invertSign} onChange={(e) => setInvertSign(e.target.checked)} />}
-                    label="Flip the sign (this file lists spending as positive)"
+                    label={t('fields.flipSign')}
                   />
                   <FormControlLabel
                     control={
                       <Switch checked={skipDuplicates} onChange={(e) => setSkipDuplicates(e.target.checked)} />
                     }
-                    label="Skip rows already in this account"
+                    label={t('fields.skipDuplicates')}
                   />
 
                   <Stack direction="row" spacing={1}>
-                    <Button onClick={reset}>Start over</Button>
+                    <Button onClick={reset}>{t('fields.startOver')}</Button>
                     <Button variant="contained" disabled={!mappingReady || busy} onClick={runPreview} fullWidth>
-                      {busy ? 'Reading…' : 'Preview rows'}
+                      {busy ? t('fields.reading') : t('fields.previewRows')}
                     </Button>
                   </Stack>
                 </Stack>
@@ -397,7 +401,7 @@ export default function ImportPage() {
             <Card>
               <CardContent>
                 <Typography variant="overline" color="text.secondary">
-                  First rows in the file
+                  {t('firstRows')}
                 </Typography>
                 <Box sx={{ overflowX: 'auto', mt: 1 }}>
                   <Table size="small">
@@ -435,25 +439,25 @@ export default function ImportPage() {
             <CardContent>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: 'center' }}>
                 <Stack direction="row" spacing={3} sx={{ flex: 1, flexWrap: 'wrap' }}>
-                  <Stat label="Importing" value={String(summary.included)} />
-                  <Stat label="Skipped" value={String(summary.skipped)} />
-                  <Stat label="Auto-categorised" value={String(summary.categorised)} />
+                  <Stat label={t('summary.importing')} value={String(summary.included)} />
+                  <Stat label={t('summary.skipped')} value={String(summary.skipped)} />
+                  <Stat label={t('summary.autoCategorised')} value={String(summary.categorised)} />
                   {summary.balanceIssues > 0 && (
-                    <Stat label="Balance issues" value={String(summary.balanceIssues)} />
+                    <Stat label={t('summary.balanceIssues')} value={String(summary.balanceIssues)} />
                   )}
                   <Stat
-                    label="Money in"
+                    label={t('summary.moneyIn')}
                     value={<Money value={summary.in} currency={currency} locale={locale} />}
                   />
                   <Stat
-                    label="Money out"
+                    label={t('summary.moneyOut')}
                     value={<Money value={summary.out} currency={currency} locale={locale} />}
                   />
                 </Stack>
                 <Stack direction="row" spacing={1}>
-                  <Button onClick={() => setStep(1)}>Back</Button>
+                  <Button onClick={() => setStep(1)}>{t('summary.back')}</Button>
                   <Button variant="contained" disabled={busy || !summary.included} onClick={commit}>
-                    {busy ? 'Saving…' : `Import ${summary.included} rows`}
+                    {busy ? t('summary.saving') : t('summary.importRows', { count: summary.included })}
                   </Button>
                 </Stack>
               </Stack>
@@ -474,11 +478,11 @@ export default function ImportPage() {
                         }
                       />
                     </TableCell>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell sx={{ minWidth: 200 }}>Category</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                    <TableCell>Status</TableCell>
+                    <TableCell>{t('table.date')}</TableCell>
+                    <TableCell>{t('table.description')}</TableCell>
+                    <TableCell sx={{ minWidth: 200 }}>{t('table.category')}</TableCell>
+                    <TableCell align="right">{t('table.amount')}</TableCell>
+                    <TableCell>{t('table.status')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -542,7 +546,7 @@ export default function ImportPage() {
                             )
                           }
                         >
-                          <MenuItem value="">Uncategorised</MenuItem>
+                          <MenuItem value="">{t('common:actions.uncategorised')}</MenuItem>
                           {(categories ?? []).map((c) => (
                             <MenuItem key={c._id} value={c._id}>
                               {c.name}
@@ -551,7 +555,7 @@ export default function ImportPage() {
                         </TextField>
                         {d.matchedRule && (
                           <Typography variant="caption" color="text.secondary">
-                            Rule: {d.matchedRule}
+                            {t('table.rule', { name: d.matchedRule })}
                           </Typography>
                         )}
                       </TableCell>
@@ -575,31 +579,32 @@ export default function ImportPage() {
                       <TableCell>
                         <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
                           {d.error ? (
-                            <Chip size="small" color="error" label={d.error} />
+                            <Chip size="small" color="error" label={translateApiError(i18n, d.error)} />
                           ) : d.duplicate ? (
-                            <Chip size="small" color="warning" variant="outlined" label="Already imported" />
+                            <Chip size="small" color="warning" variant="outlined" label={t('table.alreadyImported')} />
                           ) : d.categoryId ? (
                             <Chip
                               size="small"
                               variant="outlined"
-                              label={categoryById.get(d.categoryId)?.name ?? 'Categorised'}
+                              label={categoryById.get(d.categoryId)?.name ?? t('table.categorised')}
                               sx={{ borderColor: categoryById.get(d.categoryId)?.color }}
                             />
                           ) : (
-                            <Chip size="small" variant="outlined" label="Needs a category" />
+                            <Chip size="small" variant="outlined" label={t('table.needsCategory')} />
                           )}
                           {d.expectedBalance !== null && (
                             <Tooltip
                               title={
                                 <>
-                                  Statement shows{' '}
-                                  <Money value={d.statementBalance ?? 0} currency={currency} locale={locale} /> but{' '}
-                                  <Money value={d.expectedBalance} currency={currency} locale={locale} /> was expected
-                                  from the running total.
+                                  {t('table.balanceTooltip.pre')}
+                                  <Money value={d.statementBalance ?? 0} currency={currency} locale={locale} />
+                                  {t('table.balanceTooltip.mid')}
+                                  <Money value={d.expectedBalance} currency={currency} locale={locale} />
+                                  {t('table.balanceTooltip.post')}
                                 </>
                               }
                             >
-                              <Chip size="small" color="warning" label="Balance doesn't match" />
+                              <Chip size="small" color="warning" label={t('table.balanceMismatch')} />
                             </Tooltip>
                           )}
                         </Stack>

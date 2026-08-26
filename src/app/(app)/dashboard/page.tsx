@@ -23,6 +23,7 @@ import {
 import TuneIcon from '@mui/icons-material/TuneOutlined';
 import UpIcon from '@mui/icons-material/KeyboardArrowUp';
 import DownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { useTranslation } from 'react-i18next';
 import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
 import { PageHeader, useSettings } from '@/components/ui';
 import { WidgetRenderer, widgetTitle, type Stats } from '@/components/widgets';
@@ -43,8 +44,9 @@ function DashboardWidget({
   const range = (widget.config?.range as string) ?? DEFAULT_RANGE;
   const { from, to } = rangeToDates(range);
   const { data: stats, error } = useSWR<Stats>(`/api/stats?from=${from}&to=${to}`, fetcher);
+  const { t } = useTranslation('dashboard');
 
-  if (error) return <Alert severity="error">Could not load this widget.</Alert>;
+  if (error) return <Alert severity="error">{t('widgetLoadError')}</Alert>;
   if (!stats) return <Skeleton variant="rounded" height={220} />;
 
   return (
@@ -61,6 +63,7 @@ function DashboardWidget({
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation('dashboard');
   const [customising, setCustomising] = useState(false);
   const { settings, currency, locale, mutate: mutateSettings, isLoading: settingsLoading } = useSettings();
 
@@ -98,11 +101,11 @@ export default function DashboardPage() {
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
       <PageHeader
-        title="Dashboard"
-        subtitle="Each card has its own time range (3 months by default)."
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
-          <Tooltip title="Customise widgets">
-            <IconButton onClick={() => setCustomising(true)} aria-label="Customise widgets">
+          <Tooltip title={t('customiseWidgets')}>
+            <IconButton onClick={() => setCustomising(true)} aria-label={t('customiseWidgets')}>
               <TuneIcon />
             </IconButton>
           </Tooltip>
@@ -139,22 +142,21 @@ export default function DashboardPage() {
               severity="info"
               action={
                 <Button size="small" onClick={() => setCustomising(true)}>
-                  Choose widgets
+                  {t('chooseWidgets')}
                 </Button>
               }
             >
-              Every widget is hidden right now.
+              {t('allHidden')}
             </Alert>
           </Grid>
         )}
       </Grid>
 
       <Dialog open={customising} onClose={() => setCustomising(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Customise your dashboard</DialogTitle>
+        <DialogTitle>{t('dialog.title')}</DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Show what matters to you, set how wide each card sits, and reorder them. Changes save as
-            you make them.
+            {t('dialog.description')}
           </Typography>
           <Stack spacing={1}>
             {widgets.map((w, i) => (
@@ -172,20 +174,20 @@ export default function DashboardPage() {
                 }}
               >
                 <Stack>
-                  <IconButton size="small" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
+                  <IconButton size="small" onClick={() => move(i, -1)} disabled={i === 0} aria-label={t('dialog.moveUp')}>
                     <UpIcon fontSize="small" />
                   </IconButton>
                   <IconButton
                     size="small"
                     onClick={() => move(i, 1)}
                     disabled={i === widgets.length - 1}
-                    aria-label="Move down"
+                    aria-label={t('dialog.moveDown')}
                   >
                     <DownIcon fontSize="small" />
                   </IconButton>
                 </Stack>
                 <Typography sx={{ flex: 1, fontWeight: 600, fontSize: 14 }}>
-                  {w.title ?? widgetTitle(w.type)}
+                  {w.title ?? widgetTitle(w.type, t)}
                 </Typography>
                 <TextField
                   select
@@ -193,14 +195,14 @@ export default function DashboardPage() {
                   onChange={(e) => update(i, { size: e.target.value })}
                   sx={{ width: 110 }}
                 >
-                  <MenuItem value="third">Third</MenuItem>
-                  <MenuItem value="half">Half</MenuItem>
-                  <MenuItem value="full">Full</MenuItem>
+                  <MenuItem value="third">{t('dialog.size.third')}</MenuItem>
+                  <MenuItem value="half">{t('dialog.size.half')}</MenuItem>
+                  <MenuItem value="full">{t('dialog.size.full')}</MenuItem>
                 </TextField>
                 <Switch
                   checked={w.visible}
                   onChange={(e) => update(i, { visible: e.target.checked })}
-                  inputProps={{ 'aria-label': `Show ${widgetTitle(w.type)}` }}
+                  inputProps={{ 'aria-label': t('dialog.showWidget', { title: widgetTitle(w.type, t) }) }}
                 />
               </Stack>
             ))}
@@ -208,7 +210,7 @@ export default function DashboardPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCustomising(false)} variant="contained">
-            Done
+            {t('dialog.done')}
           </Button>
         </DialogActions>
       </Dialog>

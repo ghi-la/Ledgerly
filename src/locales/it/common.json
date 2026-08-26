@@ -1,0 +1,35 @@
+{
+  "actions": {
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "add": "Aggiungi",
+    "close": "Chiudi",
+    "confirm": "Conferma",
+    "back": "Indietro",
+    "loading": "Caricamento…",
+    "signOut": "Esci",
+    "search": "Cerca",
+    "export": "Esporta",
+    "import": "Importa",
+    "apply": "Applica",
+    "clear": "Cancella",
+    "update": "Aggiorna",
+    "create": "Crea",
+    "download": "Scarica",
+    "uncategorised": "Non categorizzato"
+  },
+  "apiErrors": {
+    "Registration is closed on this instance.": "La registrazione è chiusa su questa istanza.",
+    "Enter a valid email address.": "Inserisci un indirizzo email valido.",
+    "Passwords need at least 8 characters.": "La password deve avere almeno 8 caratteri.",
+    "That email is already registered. Sign in instead.": "Questa email è già registrata. Accedi invece.",
+    "Wait a minute before requesting another email.": "Attendi un minuto prima di richiedere un'altra email.",
+    "That email and password combination did not work.": "Questa combinazione di email e password non è corretta.",
+    "This verification link is invalid or has already been used.": "Questo link di verifica non è valido o è già stato utilizzato.",
+    "This verification link has expired. Request a new one from the sign-in page.": "Questo link di verifica è scaduto. Richiedine uno nuovo dalla pagina di accesso.",
+    "Date could not be read": "Data non leggibile",
+    "Amount could not be read": "Importo non leggibile"
+  }
+}

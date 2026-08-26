@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { fetcher, monthKey, monthLabel, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
 
@@ -40,6 +41,7 @@ interface Category {
 }
 
 export default function BudgetsPage() {
+  const { t } = useTranslation('budgets');
   const [month, setMonth] = useState(monthKey());
   const { currency, locale } = useSettings();
   const { data: categories, isLoading: categoriesLoading } = useSWR<Category[]>('/api/categories', fetcher);
@@ -72,12 +74,12 @@ export default function BudgetsPage() {
   return (
     <Box sx={{ maxWidth: 900, mx: 'auto' }}>
       <PageHeader
-        title="Budgets"
-        subtitle="Set a monthly limit per category. Amounts carry over to every month unless you change one."
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
           <DatePicker
             views={['year', 'month']}
-            label="Month"
+            label={t('monthPicker')}
             value={dayjs(`${month}-01`)}
             onChange={(value) => setMonth(value?.isValid() ? value.format('YYYY-MM') : monthKey())}
             slotProps={{ textField: { size: 'small', sx: { width: 165 } } }}
@@ -90,7 +92,7 @@ export default function BudgetsPage() {
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
-                Budgeted
+                {t('budgeted')}
               </Typography>
               <Box>
                 {categoriesLoading ? (
@@ -102,7 +104,7 @@ export default function BudgetsPage() {
             </Grid>
             <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
-                Spent · {monthLabel(month, locale)}
+                {t('spent', { month: monthLabel(month, locale) })}
               </Typography>
               <Box>
                 {statsLoading ? (
@@ -114,7 +116,7 @@ export default function BudgetsPage() {
             </Grid>
             <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
-                Remaining
+                {t('remaining')}
               </Typography>
               <Box>
                 {categoriesLoading || statsLoading ? (
@@ -143,7 +145,7 @@ export default function BudgetsPage() {
       </Card>
 
       {!categoriesLoading && expenseCats.length === 0 && (
-        <Alert severity="info">Add some spending categories first, then set budgets here.</Alert>
+        <Alert severity="info">{t('addCategoriesFirst')}</Alert>
       )}
 
       <Stack spacing={1.5}>
@@ -170,13 +172,13 @@ export default function BudgetsPage() {
                     <Money value={spent} currency={currency} locale={locale} />
                     <Typography component="span" variant="caption" color="text.secondary">
                       {' '}
-                      spent
+                      {t('spentSuffix')}
                     </Typography>
                   </Box>
                   <TextField
                     type="number"
                     size="small"
-                    label="Monthly budget"
+                    label={t('monthlyBudget')}
                     defaultValue={budget || ''}
                     onBlur={(e) => setBudget(c._id, e.target.value)}
                     sx={{ width: { xs: '100%', sm: 150 } }}

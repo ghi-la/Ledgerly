@@ -1,0 +1,70 @@
+{
+  "nav": { "signIn": "Accedi", "getStarted": "Inizia ora" },
+  "hero": {
+    "badge": "Privato per progettazione",
+    "title": "I tuoi soldi, organizzati - senza consegnarli a nessuno.",
+    "subtitle": "Ledgerly traccia i tuoi conti, categorizza automaticamente le spese e tiene i tuoi budget onesti, con i dettagli sensibili cifrati prima ancora di essere salvati.",
+    "cta": "Crea il tuo account gratuito",
+    "signIn": "Accedi",
+    "noCard": "Nessuna carta richiesta. Categorie e regole di partenza sono già pronte per te."
+  },
+  "features": {
+    "eyebrow": "Tutto in un unico registro",
+    "title": "Pensato per chi riconcilia davvero i propri estratti conto",
+    "items": {
+      "accounts": {
+        "title": "Tutti i tuoi conti, in un unico posto",
+        "description": "Corrente, risparmio, carta di credito, contanti e investimenti; ognuno con un saldo live calcolato da saldo iniziale più transazioni."
+      },
+      "import": {
+        "title": "Importazione CSV che funziona davvero",
+        "description": "Carica un estratto conto bancario e le colonne vengono mappate automaticamente. I duplicati vengono segnalati, formati numerici e delimitatori gestiti, prima di confermare."
+      },
+      "rules": {
+        "title": "Regole che categorizzano al posto tuo",
+        "description": "Confronta descrizione, commerciante, intervalli di importo o espressioni regolari. Le regole si applicano automaticamente all'importazione, o si possono rieseguire su tutto ciò che hai già."
+      },
+      "dashboard": {
+        "title": "Una dashboard che puoi riorganizzare",
+        "description": "Mostra, nascondi, ridimensiona e riordina i widget: patrimonio netto, spese per categoria, andamento mensile, budget, principali esercenti e altro."
+      },
+      "budgets": {
+        "title": "Budget, obiettivi e trasferimenti",
+        "description": "Limiti mensili per categoria, obiettivi di risparmio collegati a un conto, trasferimenti a due gambe esclusi dai totali di spesa."
+      },
+      "categories": {
+        "title": "Categorie su misura per te",
+        "description": "Colorate, divise in spese ed entrate, con sotto-categorie opzionali (più rilevamento automatico dei pagamenti ricorrenti)."
+      }
+    }
+  },
+  "privacy": {
+    "eyebrow": "La privacy non è un ripensamento",
+    "title": "Un'app di budget che non si basa sulla lettura del tuo budget",
+    "intro": "La maggior parte degli strumenti di budget salva i dettagli delle transazioni in chiaro. Ledgerly cifra i campi sensibili prima di salvarli, così una copia grezza del database da sola non li espone.",
+    "items": {
+      "encryptedAtRest": {
+        "title": "Cifrato a riposo",
+        "description": "Descrizioni, commercianti e note delle transazioni vengono cifrati prima ancora di essere scritti nel database."
+      },
+      "defenceInDepth": {
+        "title": "Difesa in profondità",
+        "description": "La chiave di cifratura è conservata separatamente dal database stesso, così una fuga di dati dal solo database non espone i dettagli delle tue transazioni."
+      },
+      "ownDatabase": {
+        "title": "I tuoi dati, il tuo database",
+        "description": "Ledgerly gira su infrastruttura che controlli tu, appoggiata sulla tua istanza MongoDB. Nessun archivio dati multi-tenant condiviso, nessuna rivendita di dati analitici."
+      }
+    }
+  },
+  "cta": {
+    "title": "Configura il tuo registro in un paio di minuti",
+    "subtitle": "Crea un account, importa un estratto conto, e guarda i tuoi budget e il tuo patrimonio netto aggiornarsi da soli.",
+    "button": "Crea il tuo account gratuito"
+  },
+  "footer": {
+    "copyright": "© {{year}} Ledgerly",
+    "signIn": "Accedi",
+    "createAccount": "Crea account"
+  }
+}

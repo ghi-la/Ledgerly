@@ -23,6 +23,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import { useTranslation } from 'react-i18next';
 import { fetcher, send } from '@/lib/client';
 import { CATEGORY_PALETTE } from '@/lib/theme';
 import { PageHeader } from '@/components/ui';
@@ -38,6 +39,7 @@ interface Category {
 const empty = { name: '', kind: 'expense' as const, color: CATEGORY_PALETTE[0], parentId: '' };
 
 export default function CategoriesPage() {
+  const { t } = useTranslation('categories');
   const { data, mutate, isLoading } = useSWR<Category[]>('/api/categories', fetcher);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -52,26 +54,26 @@ export default function CategoriesPage() {
       setOpen(false);
       mutate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('dialog.saveFailed'));
     }
   };
 
   const remove = async (c: Category) => {
-    if (!confirm(`Delete "${c.name}"? Transactions using it become uncategorised.`)) return;
+    if (!confirm(t('confirmDelete', { name: c.name }))) return;
     await send(`/api/categories/${c._id}`, 'DELETE');
     mutate();
   };
 
   const groups: { kind: 'expense' | 'income'; label: string }[] = [
-    { kind: 'expense', label: 'Spending' },
-    { kind: 'income', label: 'Income' },
+    { kind: 'expense', label: t('groups.spending') },
+    { kind: 'income', label: t('groups.income') },
   ];
 
   return (
     <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
       <PageHeader
-        title="Categories"
-        subtitle="Name them however you think about your money. Rules assign them on import."
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
           <Button
             startIcon={<AddIcon />}
@@ -82,7 +84,7 @@ export default function CategoriesPage() {
               setOpen(true);
             }}
           >
-            Add category
+            {t('addCategory')}
           </Button>
         }
       />
@@ -113,7 +115,7 @@ export default function CategoriesPage() {
                       </Typography>
                       <IconButton
                         size="small"
-                        aria-label="Edit category"
+                        aria-label={t('editCategory')}
                         onClick={() => {
                           setEditing(c);
                           setForm({
@@ -127,7 +129,7 @@ export default function CategoriesPage() {
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" onClick={() => remove(c)} aria-label="Delete category">
+                      <IconButton size="small" onClick={() => remove(c)} aria-label={t('deleteCategory')}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </CardContent>
@@ -137,7 +139,7 @@ export default function CategoriesPage() {
               {!isLoading && items.length === 0 && (
                 <Grid item xs={12}>
                   <Typography variant="body2" color="text.secondary">
-                    Nothing here yet.
+                    {t('nothingHere')}
                   </Typography>
                 </Grid>
               )}
@@ -147,31 +149,31 @@ export default function CategoriesPage() {
       })}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>{editing ? 'Edit category' : 'Add a category'}</DialogTitle>
+        <DialogTitle>{editing ? t('dialog.editTitle') : t('dialog.addTitle')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 0.5 }}>
             <TextField
-              label="Name"
+              label={t('dialog.fields.name')}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
             />
             <TextField
               select
-              label="Type"
+              label={t('dialog.fields.type')}
               value={form.kind}
               onChange={(e) => setForm({ ...form, kind: e.target.value as 'expense' | 'income' })}
             >
-              <MenuItem value="expense">Spending</MenuItem>
-              <MenuItem value="income">Income</MenuItem>
+              <MenuItem value="expense">{t('groups.spending')}</MenuItem>
+              <MenuItem value="income">{t('groups.income')}</MenuItem>
             </TextField>
             <TextField
               select
-              label="Sits under"
+              label={t('dialog.fields.sitsUnder')}
               value={form.parentId}
               onChange={(e) => setForm({ ...form, parentId: e.target.value })}
             >
-              <MenuItem value="">Top level</MenuItem>
+              <MenuItem value="">{t('dialog.fields.topLevel')}</MenuItem>
               {(data ?? [])
                 .filter((c) => c.kind === form.kind && c._id !== editing?._id && !c.parentId)
                 .map((c) => (
@@ -182,7 +184,7 @@ export default function CategoriesPage() {
             </TextField>
             <Box>
               <Typography variant="caption" color="text.secondary">
-                Colour
+                {t('dialog.fields.colour')}
               </Typography>
               <Stack direction="row" sx={{ flexWrap: 'wrap', mt: 0.5, gap: 0.75 }}>
                 {CATEGORY_PALETTE.map((c) => (
@@ -207,9 +209,9 @@ export default function CategoriesPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => setOpen(false)}>{t('common:actions.cancel')}</Button>
           <Button variant="contained" onClick={save}>
-            Save
+            {t('common:actions.save')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -29,6 +29,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { DEFAULT_RANGE, RANGE_PRESETS, formatDate, formatMoney, monthLabel } from '@/lib/client';
 import { Money } from './ui';
 
@@ -79,24 +81,7 @@ export interface WidgetProps {
   onRangeChange?: (range: string) => void;
 }
 
-const WIDGET_TITLES: Record<string, string> = {
-  'net-worth': 'Overview',
-  accounts: 'Accounts',
-  'spend-by-category': 'Where the money went',
-  'monthly-trend': 'Income and spending',
-  'budget-progress': 'Budgets',
-  'recent-transactions': 'Latest activity',
-  goals: 'Savings goals',
-  'income-vs-expense': 'Net by month',
-  'top-merchants': 'Most spent with',
-};
-
-export const widgetTitle = (type: string) => WIDGET_TITLES[type] ?? type;
-
-export const WIDGET_CATALOGUE = Object.entries(WIDGET_TITLES).map(([type, label]) => ({
-  type,
-  label,
-}));
+export const widgetTitle = (type: string, t: TFunction) => t(`widgets:titles.${type}`, { defaultValue: type });
 
 function Shell({
   title,
@@ -162,18 +147,19 @@ export function WidgetRenderer({
   range,
   onRangeChange,
 }: WidgetProps & { type: string }) {
+  const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
 
   switch (type) {
     case 'net-worth': {
       const items = [
-        { label: 'Net worth', value: stats.netWorth, colored: false },
-        { label: 'Money in', value: stats.totals.income, colored: true },
-        { label: 'Money out', value: -stats.totals.expense, colored: true },
-        { label: 'Left over', value: stats.totals.net, colored: true },
+        { label: t('netWorth.netWorth'), value: stats.netWorth, colored: false },
+        { label: t('netWorth.moneyIn'), value: stats.totals.income, colored: true },
+        { label: t('netWorth.moneyOut'), value: -stats.totals.expense, colored: true },
+        { label: t('netWorth.leftOver'), value: stats.totals.net, colored: true },
       ];
       return (
-        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
+        <Shell title={widgetTitle(type, t)} range={range} onRangeChange={onRangeChange}>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             divider={<Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />}
@@ -197,17 +183,17 @@ export function WidgetRenderer({
     case 'accounts':
       return (
         <Shell
-          title={widgetTitle(type)}
+          title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/accounts" variant="caption">
-              Manage
+              {t('links.manage')}
             </Link>
           }
         >
           {stats.accounts.length === 0 ? (
-            <Nothing>No accounts yet.</Nothing>
+            <Nothing>{t('empty.accounts')}</Nothing>
           ) : (
             <Stack spacing={1.25}>
               {stats.accounts
@@ -234,9 +220,9 @@ export function WidgetRenderer({
     case 'spend-by-category': {
       const data = stats.spendByCategory.slice(0, 8);
       return (
-        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
+        <Shell title={widgetTitle(type, t)} range={range} onRangeChange={onRangeChange}>
           {data.length === 0 ? (
-            <Nothing>Nothing spent in this period.</Nothing>
+            <Nothing>{t('empty.spendByCategory')}</Nothing>
           ) : (
             <Box sx={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -271,7 +257,7 @@ export function WidgetRenderer({
 
     case 'monthly-trend':
       return (
-        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
+        <Shell title={widgetTitle(type, t)} range={range} onRangeChange={onRangeChange}>
           <Box sx={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
@@ -292,8 +278,8 @@ export function WidgetRenderer({
                   formatter={(v: number) => money(v)}
                   labelFormatter={(m) => monthLabel(String(m), locale)}
                 />
-                <Area type="monotone" dataKey="income" name="In" stroke="#3F8F6A" fill="url(#gIn)" strokeWidth={2} />
-                <Area type="monotone" dataKey="expense" name="Out" stroke="#C05746" fill="url(#gOut)" strokeWidth={2} />
+                <Area type="monotone" dataKey="income" name={t('chart.in')} stroke="#3F8F6A" fill="url(#gIn)" strokeWidth={2} />
+                <Area type="monotone" dataKey="expense" name={t('chart.out')} stroke="#C05746" fill="url(#gOut)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </Box>
@@ -302,7 +288,7 @@ export function WidgetRenderer({
 
     case 'income-vs-expense':
       return (
-        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
+        <Shell title={widgetTitle(type, t)} range={range} onRangeChange={onRangeChange}>
           <Box sx={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
@@ -310,7 +296,7 @@ export function WidgetRenderer({
                 <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m, locale)} fontSize={11} />
                 <YAxis fontSize={11} width={64} />
                 <Tooltip formatter={(v: number) => money(v)} labelFormatter={(m) => monthLabel(String(m), locale)} />
-                <Bar dataKey="net" name="Left over" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="net" name={t('chart.leftOver')} radius={[4, 4, 0, 0]}>
                   {stats.series.map((s) => (
                     <Cell key={s.month} fill={s.net >= 0 ? '#3F8F6A' : '#C05746'} />
                   ))}
@@ -324,17 +310,17 @@ export function WidgetRenderer({
     case 'budget-progress':
       return (
         <Shell
-          title={widgetTitle(type)}
+          title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/budgets" variant="caption">
-              Edit
+              {t('common:actions.edit')}
             </Link>
           }
         >
           {stats.budgetProgress.length === 0 ? (
-            <Nothing>No budgets set. Add one to track a category.</Nothing>
+            <Nothing>{t('empty.budgetProgress')}</Nothing>
           ) : (
             <Stack spacing={1.75}>
               {stats.budgetProgress.slice(0, 6).map((b) => (
@@ -368,32 +354,32 @@ export function WidgetRenderer({
     case 'recent-transactions':
       return (
         <Shell
-          title={widgetTitle(type)}
+          title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/transactions" variant="caption">
-              See all
+              {t('links.seeAll')}
             </Link>
           }
         >
           {stats.recent.length === 0 ? (
-            <Nothing>Import a statement to get started.</Nothing>
+            <Nothing>{t('empty.recentTransactions')}</Nothing>
           ) : (
             <Stack divider={<Divider flexItem />} spacing={0}>
-              {stats.recent.map((t) => (
-                <Stack key={t._id} direction="row" sx={{ alignItems: 'center', gap: 1, py: 1 }}>
+              {stats.recent.map((tx) => (
+                <Stack key={tx._id} direction="row" sx={{ alignItems: 'center', gap: 1, py: 1 }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <DecryptedText
-                      value={t.description}
+                      value={tx.description}
                       noWrap
                       sx={{ fontSize: 14, fontWeight: 600 }}
                     />
                     <Typography variant="caption" color="text.secondary" noWrap>
-                      {formatDate(t.date, locale)} · {t.categoryName ?? 'Uncategorised'}
+                      {formatDate(tx.date, locale)} · {tx.categoryName ?? t('common:actions.uncategorised')}
                     </Typography>
                   </Box>
-                  <Money value={t.amount} currency={currency} locale={locale} colored />
+                  <Money value={tx.amount} currency={currency} locale={locale} colored />
                 </Stack>
               ))}
             </Stack>
@@ -404,17 +390,17 @@ export function WidgetRenderer({
     case 'goals':
       return (
         <Shell
-          title={widgetTitle(type)}
+          title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           action={
             <Link component={NextLink} href="/goals" variant="caption">
-              Edit
+              {t('common:actions.edit')}
             </Link>
           }
         >
           {stats.goals.length === 0 ? (
-            <Nothing>No goals yet.</Nothing>
+            <Nothing>{t('empty.goals')}</Nothing>
           ) : (
             <Stack spacing={1.75}>
               {stats.goals.slice(0, 5).map((g) => {
@@ -447,9 +433,9 @@ export function WidgetRenderer({
 
     case 'top-merchants':
       return (
-        <Shell title={widgetTitle(type)} range={range} onRangeChange={onRangeChange}>
+        <Shell title={widgetTitle(type, t)} range={range} onRangeChange={onRangeChange}>
           {stats.topMerchants.length === 0 ? (
-            <Nothing>Nothing to show for this period.</Nothing>
+            <Nothing>{t('empty.topMerchants')}</Nothing>
           ) : (
             <Stack spacing={1}>
               {stats.topMerchants.map((m) => (

@@ -1,0 +1,21 @@
+{
+  "title": "Dashboard",
+  "subtitle": "Each card has its own time range (3 months by default).",
+  "customiseWidgets": "Customise widgets",
+  "widgetLoadError": "Could not load this widget.",
+  "chooseWidgets": "Choose widgets",
+  "allHidden": "Every widget is hidden right now.",
+  "dialog": {
+    "title": "Customise your dashboard",
+    "description": "Show what matters to you, set how wide each card sits, and reorder them. Changes save as you make them.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "showWidget": "Show {{title}}",
+    "size": {
+      "third": "Third",
+      "half": "Half",
+      "full": "Full"
+    },
+    "done": "Done"
+  }
+}

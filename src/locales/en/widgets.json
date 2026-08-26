@@ -1,0 +1,36 @@
+{
+  "titles": {
+    "net-worth": "Overview",
+    "accounts": "Accounts",
+    "spend-by-category": "Where the money went",
+    "monthly-trend": "Income and spending",
+    "budget-progress": "Budgets",
+    "recent-transactions": "Latest activity",
+    "goals": "Savings goals",
+    "income-vs-expense": "Net by month",
+    "top-merchants": "Most spent with"
+  },
+  "netWorth": {
+    "netWorth": "Net worth",
+    "moneyIn": "Money in",
+    "moneyOut": "Money out",
+    "leftOver": "Left over"
+  },
+  "chart": {
+    "in": "In",
+    "out": "Out",
+    "leftOver": "Left over"
+  },
+  "links": {
+    "manage": "Manage",
+    "seeAll": "See all"
+  },
+  "empty": {
+    "accounts": "No accounts yet.",
+    "spendByCategory": "Nothing spent in this period.",
+    "budgetProgress": "No budgets set. Add one to track a category.",
+    "recentTransactions": "Import a statement to get started.",
+    "goals": "No goals yet.",
+    "topMerchants": "Nothing to show for this period."
+  }
+}

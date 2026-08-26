@@ -1,0 +1,28 @@
+{
+  "title": "Export",
+  "subtitle": "Download your transactions as a CSV file, filtered however you like.",
+  "filters": {
+    "search": "Search description, notes, reference",
+    "account": "Account",
+    "allAccounts": "All accounts",
+    "category": "Category",
+    "allCategories": "All categories",
+    "from": "From",
+    "to": "To"
+  },
+  "matching_one": "{{count}} matching transaction",
+  "matching_other": "{{count}} matching transactions",
+  "preparing": "Preparing…",
+  "exportCsv": "Export CSV",
+  "csvHeaders": {
+    "date": "Date",
+    "description": "Description",
+    "merchant": "Merchant",
+    "account": "Account",
+    "category": "Category",
+    "amount": "Amount",
+    "type": "Type",
+    "reference": "Reference",
+    "notes": "Notes"
+  }
+}

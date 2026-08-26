@@ -1,0 +1,29 @@
+{
+  "title": "Settings",
+  "subtitle": "Your profile, currency, and the recurring charges we spotted.",
+  "profile": "Profile",
+  "fields": {
+    "name": "Name",
+    "email": "Email",
+    "currency": "Currency",
+    "language": "Language & format"
+  },
+  "saveChanges": "Save changes",
+  "toast": { "saved": "Settings saved." },
+  "recurring": {
+    "title": "Recurring charges",
+    "perMonthPre": "~",
+    "perMonthPost": "a month",
+    "description": "Found by spotting payments that repeat on a regular schedule for a steady amount.",
+    "loading": "Looking for patterns…",
+    "empty": "No recurring payments detected yet. Import a few months of history and check back.",
+    "nextExpected": "next ~{{date}}",
+    "cadence": {
+      "weekly": "weekly",
+      "fortnightly": "fortnightly",
+      "monthly": "monthly",
+      "quarterly": "quarterly",
+      "twice a year": "twice a year"
+    }
+  }
+}

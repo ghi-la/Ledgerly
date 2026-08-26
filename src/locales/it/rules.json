@@ -1,0 +1,94 @@
+{
+  "title": "Regole di importazione",
+  "subtitle": "Le regole vengono eseguite dall'alto verso il basso. Vince la prima corrispondenza, a meno che tu non le lasci continuare.",
+  "runOnUncategorised": "Esegui sulle non categorizzate",
+  "newRule": "Nuova regola",
+  "banner": {
+    "pre": "Le regole si applicano automaticamente durante l'importazione. Usa",
+    "rerun": "riesegui su tutto",
+    "post": "per riclassificare le transazioni che hai già."
+  },
+  "empty": {
+    "title": "Ancora nessuna regola",
+    "description": "Una regola osserva parole chiave o importi e assegna le voci corrispondenti a una categoria.",
+    "action": "Crea la tua prima regola"
+  },
+  "card": {
+    "conditions_one": "{{count}} condizione",
+    "conditions_other": "{{count}} condizioni",
+    "matchAll": "corrispondenza tutte",
+    "matchAny": "corrispondenza una qualsiasi",
+    "enabled": "Attiva",
+    "disabled": "Disattiva",
+    "moveUp": "Sposta su",
+    "moveDown": "Sposta giù",
+    "edit": "Modifica regola",
+    "delete": "Elimina regola"
+  },
+  "confirmDelete": "Eliminare la regola \"{{name}}\"?",
+  "toast": {
+    "applied": "Regole applicate a {{updated}} transazioni su {{scanned}}.",
+    "noChanges": "Nessuna modifica; analizzate {{scanned}} transazioni.",
+    "runFailed": "Impossibile eseguire le regole."
+  },
+  "errors": {
+    "nameRequired": "Assegna un nome alla regola.",
+    "conditionRequired": "Aggiungi almeno una condizione.",
+    "saveFailed": "Impossibile salvare."
+  },
+  "fields": {
+    "description": "Descrizione",
+    "merchant": "Commerciante",
+    "reference": "Riferimento",
+    "notes": "Note",
+    "any": "Qualsiasi campo di testo",
+    "amount": "Importo (con segno)",
+    "absAmount": "Importo (valore assoluto)",
+    "type": "Direzione",
+    "account": "Nome conto",
+    "date": "Data"
+  },
+  "textOps": {
+    "contains": "contiene",
+    "not_contains": "non contiene",
+    "equals": "è esattamente",
+    "starts_with": "inizia con",
+    "ends_with": "finisce con",
+    "regex": "corrisponde al pattern",
+    "is_empty": "è vuoto"
+  },
+  "numOps": {
+    "gt": "maggiore di",
+    "gte": "almeno",
+    "lt": "minore di",
+    "lte": "al massimo",
+    "equals": "uguale a",
+    "between": "tra"
+  },
+  "dialog": {
+    "editTitle": "Modifica regola",
+    "newTitle": "Nuova regola",
+    "ruleName": "Nome regola",
+    "match": "Corrispondenza",
+    "allConditions": "Tutte le condizioni",
+    "anyCondition": "Una qualsiasi condizione",
+    "whenTransaction": "Quando una transazione…",
+    "field": "Campo",
+    "is": "È",
+    "valueDirection": "expense / income",
+    "value": "Valore",
+    "and": "e",
+    "removeCondition": "Rimuovi condizione",
+    "addCondition": "Aggiungi condizione",
+    "thenDo": "…allora fai questo",
+    "setCategory": "Imposta categoria",
+    "leaveUnchanged": "Lascia invariato",
+    "setDirection": "Imposta direzione",
+    "expense": "Uscita",
+    "income": "Entrata",
+    "transfer": "Trasferimento",
+    "addTags": "Aggiungi etichette (separate da virgola)",
+    "stopProcessing": "Interrompi dopo che questa regola corrisponde (deseleziona per lasciare applicare anche le regole successive)",
+    "saveRule": "Salva regola"
+  }
+}

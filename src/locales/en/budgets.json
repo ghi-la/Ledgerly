@@ -1,0 +1,11 @@
+{
+  "title": "Budgets",
+  "subtitle": "Set a monthly limit per category. Amounts carry over to every month unless you change one.",
+  "monthPicker": "Month",
+  "budgeted": "Budgeted",
+  "spent": "Spent · {{month}}",
+  "remaining": "Remaining",
+  "addCategoriesFirst": "Add some spending categories first, then set budgets here.",
+  "spentSuffix": "spent",
+  "monthlyBudget": "Monthly budget"
+}

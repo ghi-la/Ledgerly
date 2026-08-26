@@ -32,6 +32,7 @@ import DeleteIcon from '@mui/icons-material/DeleteOutline';
 import PlayIcon from '@mui/icons-material/PlayArrowOutlined';
 import UpIcon from '@mui/icons-material/KeyboardArrowUp';
 import DownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { useTranslation } from 'react-i18next';
 import { fetcher, send } from '@/lib/client';
 import { EmptyState, PageHeader } from '@/components/ui';
 
@@ -58,39 +59,7 @@ interface Category {
   color: string;
 }
 
-const FIELDS = [
-  { value: 'description', label: 'Description' },
-  { value: 'merchant', label: 'Merchant' },
-  { value: 'reference', label: 'Reference' },
-  { value: 'notes', label: 'Notes' },
-  { value: 'any', label: 'Any text field' },
-  { value: 'amount', label: 'Amount (signed)' },
-  { value: 'absAmount', label: 'Amount (size)' },
-  { value: 'type', label: 'Direction' },
-  { value: 'account', label: 'Account name' },
-  { value: 'date', label: 'Date' },
-];
-
-const TEXT_OPS = [
-  { value: 'contains', label: 'contains' },
-  { value: 'not_contains', label: 'does not contain' },
-  { value: 'equals', label: 'is exactly' },
-  { value: 'starts_with', label: 'starts with' },
-  { value: 'ends_with', label: 'ends with' },
-  { value: 'regex', label: 'matches pattern' },
-  { value: 'is_empty', label: 'is empty' },
-];
-const NUM_OPS = [
-  { value: 'gt', label: 'greater than' },
-  { value: 'gte', label: 'at least' },
-  { value: 'lt', label: 'less than' },
-  { value: 'lte', label: 'at most' },
-  { value: 'equals', label: 'equals' },
-  { value: 'between', label: 'between' },
-];
-
 const isNumeric = (field: string) => field === 'amount' || field === 'absAmount';
-const opsFor = (field: string) => (isNumeric(field) ? NUM_OPS : TEXT_OPS);
 
 const blankCondition: Condition = { field: 'description', operator: 'contains', value: '' };
 const blankRule: {
@@ -110,6 +79,39 @@ const blankRule: {
 };
 
 export default function RulesPage() {
+  const { t } = useTranslation('rules');
+
+  const FIELDS = [
+    { value: 'description', label: t('fields.description') },
+    { value: 'merchant', label: t('fields.merchant') },
+    { value: 'reference', label: t('fields.reference') },
+    { value: 'notes', label: t('fields.notes') },
+    { value: 'any', label: t('fields.any') },
+    { value: 'amount', label: t('fields.amount') },
+    { value: 'absAmount', label: t('fields.absAmount') },
+    { value: 'type', label: t('fields.type') },
+    { value: 'account', label: t('fields.account') },
+    { value: 'date', label: t('fields.date') },
+  ];
+  const TEXT_OPS = [
+    { value: 'contains', label: t('textOps.contains') },
+    { value: 'not_contains', label: t('textOps.not_contains') },
+    { value: 'equals', label: t('textOps.equals') },
+    { value: 'starts_with', label: t('textOps.starts_with') },
+    { value: 'ends_with', label: t('textOps.ends_with') },
+    { value: 'regex', label: t('textOps.regex') },
+    { value: 'is_empty', label: t('textOps.is_empty') },
+  ];
+  const NUM_OPS = [
+    { value: 'gt', label: t('numOps.gt') },
+    { value: 'gte', label: t('numOps.gte') },
+    { value: 'lt', label: t('numOps.lt') },
+    { value: 'lte', label: t('numOps.lte') },
+    { value: 'equals', label: t('numOps.equals') },
+    { value: 'between', label: t('numOps.between') },
+  ];
+  const opsFor = (field: string) => (isNumeric(field) ? NUM_OPS : TEXT_OPS);
+
   const { data: rules, mutate, isLoading } = useSWR<Rule[]>('/api/rules', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
   const [open, setOpen] = useState(false);
@@ -149,8 +151,8 @@ export default function RulesPage() {
   const save = async () => {
     try {
       setError('');
-      if (!draft.name.trim()) throw new Error('Give the rule a name.');
-      if (!draft.conditions.length) throw new Error('Add at least one condition.');
+      if (!draft.name.trim()) throw new Error(t('errors.nameRequired'));
+      if (!draft.conditions.length) throw new Error(t('errors.conditionRequired'));
       const payload = {
         ...draft,
         actions: {
@@ -164,7 +166,7 @@ export default function RulesPage() {
       setOpen(false);
       mutate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('errors.saveFailed'));
     }
   };
 
@@ -174,7 +176,7 @@ export default function RulesPage() {
   };
 
   const remove = async (r: Rule) => {
-    if (!confirm(`Delete rule "${r.name}"?`)) return;
+    if (!confirm(t('confirmDelete', { name: r.name }))) return;
     await send(`/api/rules/${r._id}`, 'DELETE');
     mutate();
   };
@@ -198,11 +200,11 @@ export default function RulesPage() {
       const res = await send('/api/rules/apply', 'POST', { onlyUncategorised });
       setToast(
         res.updated
-          ? `Applied rules to ${res.updated} of ${res.scanned} transactions.`
-          : `No changes; scanned ${res.scanned} transactions.`,
+          ? t('toast.applied', { updated: res.updated, scanned: res.scanned })
+          : t('toast.noChanges', { scanned: res.scanned }),
       );
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Could not run rules.');
+      setToast(e instanceof Error ? e.message : t('toast.runFailed'));
     } finally {
       setRunning(false);
     }
@@ -217,8 +219,8 @@ export default function RulesPage() {
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
       <PageHeader
-        title="Import rules"
-        subtitle="Rules run top to bottom. The first match wins unless you let it keep going."
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
           <Stack direction="row" spacing={1}>
             <Button
@@ -227,29 +229,29 @@ export default function RulesPage() {
               disabled={running}
               onClick={() => runAll(true)}
             >
-              Run on uncategorised
+              {t('runOnUncategorised')}
             </Button>
             <Button startIcon={<AddIcon />} variant="contained" onClick={openNew}>
-              New rule
+              {t('newRule')}
             </Button>
           </Stack>
         }
       />
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        Rules apply automatically while you import. Use{' '}
+        {t('banner.pre')}{' '}
         <Button size="small" onClick={() => runAll(false)} disabled={running} sx={{ mx: 0.5 }}>
-          re-run on everything
+          {t('banner.rerun')}
         </Button>{' '}
-        to reclassify transactions you already have.
+        {t('banner.post')}
       </Alert>
 
       {!isLoading && rules?.length === 0 && (
         <Card>
           <EmptyState
-            title="No rules yet"
-            description="A rule watches for keywords or amounts and drops matching entries into a category."
-            actionLabel="Create your first rule"
+            title={t('empty.title')}
+            description={t('empty.description')}
+            actionLabel={t('empty.action')}
             onAction={openNew}
           />
         </Card>
@@ -264,14 +266,14 @@ export default function RulesPage() {
               <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                   <Stack sx={{ mr: -0.5 }}>
-                    <IconButton size="small" disabled={i === 0} onClick={() => reorder(i, -1)} aria-label="Move up">
+                    <IconButton size="small" disabled={i === 0} onClick={() => reorder(i, -1)} aria-label={t('card.moveUp')}>
                       <UpIcon fontSize="small" />
                     </IconButton>
                     <IconButton
                       size="small"
                       disabled={i === (rules?.length ?? 0) - 1}
                       onClick={() => reorder(i, 1)}
-                      aria-label="Move down"
+                      aria-label={t('card.moveDown')}
                     >
                       <DownIcon fontSize="small" />
                     </IconButton>
@@ -279,8 +281,8 @@ export default function RulesPage() {
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 700 }}>{r.name}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {r.conditions.length} condition{r.conditions.length > 1 ? 's' : ''} · match{' '}
-                      {r.matchType === 'all' ? 'all' : 'any'}
+                      {t('card.conditions', { count: r.conditions.length })} ·{' '}
+                      {r.matchType === 'all' ? t('card.matchAll') : t('card.matchAny')}
                     </Typography>
                   </Box>
                   {cat && (
@@ -290,13 +292,13 @@ export default function RulesPage() {
                       sx={{ bgcolor: cat.color, color: '#fff', fontWeight: 600 }}
                     />
                   )}
-                  <Tooltip title={r.enabled ? 'Enabled' : 'Disabled'}>
+                  <Tooltip title={r.enabled ? t('card.enabled') : t('card.disabled')}>
                     <Switch size="small" checked={r.enabled} onChange={() => toggle(r)} />
                   </Tooltip>
-                  <IconButton size="small" onClick={() => openEdit(r)} aria-label="Edit rule">
+                  <IconButton size="small" onClick={() => openEdit(r)} aria-label={t('card.edit')}>
                     <EditIcon fontSize="small" />
                   </IconButton>
-                  <IconButton size="small" onClick={() => remove(r)} aria-label="Delete rule">
+                  <IconButton size="small" onClick={() => remove(r)} aria-label={t('card.delete')}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Stack>
@@ -307,12 +309,12 @@ export default function RulesPage() {
       </Stack>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>{editing ? 'Edit rule' : 'New rule'}</DialogTitle>
+        <DialogTitle>{editing ? t('dialog.editTitle') : t('dialog.newTitle')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ pt: 0.5 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
-                label="Rule name"
+                label={t('dialog.ruleName')}
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 fullWidth
@@ -320,19 +322,19 @@ export default function RulesPage() {
               />
               <TextField
                 select
-                label="Match"
+                label={t('dialog.match')}
                 value={draft.matchType}
                 onChange={(e) => setDraft({ ...draft, matchType: e.target.value as 'all' | 'any' })}
                 sx={{ minWidth: 180 }}
               >
-                <MenuItem value="all">All conditions</MenuItem>
-                <MenuItem value="any">Any condition</MenuItem>
+                <MenuItem value="all">{t('dialog.allConditions')}</MenuItem>
+                <MenuItem value="any">{t('dialog.anyCondition')}</MenuItem>
               </TextField>
             </Stack>
 
             <Box>
               <Typography variant="overline" color="text.secondary">
-                When a transaction…
+                {t('dialog.whenTransaction')}
               </Typography>
               <Stack spacing={1.5} sx={{ mt: 1 }}>
                 {draft.conditions.map((c, i) => (
@@ -340,7 +342,7 @@ export default function RulesPage() {
                     <Grid item xs={12} sm={3}>
                       <TextField
                         select
-                        label="Field"
+                        label={t('dialog.field')}
                         value={c.field}
                         onChange={(e) => {
                           const field = e.target.value;
@@ -362,7 +364,7 @@ export default function RulesPage() {
                     <Grid item xs={12} sm={3}>
                       <TextField
                         select
-                        label="Is"
+                        label={t('dialog.is')}
                         value={c.operator}
                         onChange={(e) => setCondition(i, { operator: e.target.value })}
                         fullWidth
@@ -377,7 +379,7 @@ export default function RulesPage() {
                     <Grid item xs={c.operator === 'between' ? 6 : 12} sm={c.operator === 'between' ? 2.5 : 5}>
                       {c.operator !== 'is_empty' && (
                         <TextField
-                          label={c.field === 'type' ? 'expense / income' : 'Value'}
+                          label={c.field === 'type' ? t('dialog.valueDirection') : t('dialog.value')}
                           value={c.value}
                           onChange={(e) => setCondition(i, { value: e.target.value })}
                           fullWidth
@@ -389,7 +391,7 @@ export default function RulesPage() {
                     {c.operator === 'between' && (
                       <Grid item xs={5} sm={2.5}>
                         <TextField
-                          label="and"
+                          label={t('dialog.and')}
                           value={c.value2 ?? ''}
                           onChange={(e) => setCondition(i, { value2: e.target.value })}
                           fullWidth
@@ -404,7 +406,7 @@ export default function RulesPage() {
                         onClick={() =>
                           setDraft({ ...draft, conditions: draft.conditions.filter((_, idx) => idx !== i) })
                         }
-                        aria-label="Remove condition"
+                        aria-label={t('dialog.removeCondition')}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -418,7 +420,7 @@ export default function RulesPage() {
                 sx={{ mt: 1 }}
                 onClick={() => setDraft({ ...draft, conditions: [...draft.conditions, { ...blankCondition }] })}
               >
-                Add condition
+                {t('dialog.addCondition')}
               </Button>
             </Box>
 
@@ -426,19 +428,19 @@ export default function RulesPage() {
 
             <Box>
               <Typography variant="overline" color="text.secondary">
-                …then do this
+                {t('dialog.thenDo')}
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1 }}>
                 <TextField
                   select
-                  label="Set category"
+                  label={t('dialog.setCategory')}
                   value={draft.actions.categoryId}
                   onChange={(e) =>
                     setDraft({ ...draft, actions: { ...draft.actions, categoryId: e.target.value } })
                   }
                   fullWidth
                 >
-                  <MenuItem value="">Leave unchanged</MenuItem>
+                  <MenuItem value="">{t('dialog.leaveUnchanged')}</MenuItem>
                   {(categories ?? []).map((c) => (
                     <MenuItem key={c._id} value={c._id}>
                       {c.name}
@@ -447,21 +449,21 @@ export default function RulesPage() {
                 </TextField>
                 <TextField
                   select
-                  label="Set direction"
+                  label={t('dialog.setDirection')}
                   value={draft.actions.setType}
                   onChange={(e) =>
                     setDraft({ ...draft, actions: { ...draft.actions, setType: e.target.value } })
                   }
                   fullWidth
                 >
-                  <MenuItem value="">Leave unchanged</MenuItem>
-                  <MenuItem value="expense">Expense</MenuItem>
-                  <MenuItem value="income">Income</MenuItem>
-                  <MenuItem value="transfer">Transfer</MenuItem>
+                  <MenuItem value="">{t('dialog.leaveUnchanged')}</MenuItem>
+                  <MenuItem value="expense">{t('dialog.expense')}</MenuItem>
+                  <MenuItem value="income">{t('dialog.income')}</MenuItem>
+                  <MenuItem value="transfer">{t('dialog.transfer')}</MenuItem>
                 </TextField>
               </Stack>
               <TextField
-                label="Add tags (comma separated)"
+                label={t('dialog.addTags')}
                 value={draft.actions.addTags.join(', ')}
                 onChange={(e) =>
                   setDraft({
@@ -470,7 +472,7 @@ export default function RulesPage() {
                       ...draft.actions,
                       addTags: e.target.value
                         .split(',')
-                        .map((t) => t.trim())
+                        .map((tag) => tag.trim())
                         .filter(Boolean),
                     },
                   })
@@ -487,16 +489,16 @@ export default function RulesPage() {
                   onChange={(e) => setDraft({ ...draft, stopProcessing: e.target.checked })}
                 />
               }
-              label="Stop after this rule matches (uncheck to let later rules also apply)"
+              label={t('dialog.stopProcessing')}
             />
 
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => setOpen(false)}>{t('common:actions.cancel')}</Button>
           <Button variant="contained" onClick={save}>
-            Save rule
+            {t('dialog.saveRule')}
           </Button>
         </DialogActions>
       </Dialog>

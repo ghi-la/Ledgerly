@@ -38,6 +38,8 @@ import DeleteIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import TrendingDownIcon from '@mui/icons-material/TrendingDownRounded';
 import TrendingUpIcon from '@mui/icons-material/TrendingUpRounded';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
 
@@ -70,19 +72,18 @@ interface Category {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const CATEGORY_GROUPS: {
-  kind: string;
-  label: string;
-  color: 'error' | 'success';
-  icon: React.ReactNode;
-}[] = [
-  { kind: 'expense', label: 'Spending', color: 'error', icon: <TrendingDownIcon sx={{ fontSize: 16 }} /> },
-  { kind: 'income', label: 'Income', color: 'success', icon: <TrendingUpIcon sx={{ fontSize: 16 }} /> },
-];
-
 /** Renders category MenuItems split into "Spending" / "Income" sections, so
  * it's obvious which side of the ledger a category belongs to. */
-function categoryMenuItems(categories: Category[]) {
+function categoryMenuItems(categories: Category[], t: TFunction) {
+  const CATEGORY_GROUPS: {
+    kind: string;
+    label: string;
+    color: 'error' | 'success';
+    icon: React.ReactNode;
+  }[] = [
+    { kind: 'expense', label: t('categoryGroups.spending'), color: 'error', icon: <TrendingDownIcon sx={{ fontSize: 16 }} /> },
+    { kind: 'income', label: t('categoryGroups.income'), color: 'success', icon: <TrendingUpIcon sx={{ fontSize: 16 }} /> },
+  ];
   return CATEGORY_GROUPS.flatMap((g) => {
     const items = categories.filter((c) => c.kind === g.kind);
     if (items.length === 0) return [];
@@ -117,6 +118,7 @@ function categoryMenuItems(categories: Category[]) {
 }
 
 export default function TransactionsPage() {
+  const { t } = useTranslation('transactions');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { currency, locale } = useSettings();
@@ -184,14 +186,14 @@ export default function TransactionsPage() {
     await Promise.all(
       selected.map((id) => send(`/api/transactions/${id}`, 'PATCH', { categoryId: value || null })),
     );
-    setToast(`Updated ${selected.length} transactions.`);
+    setToast(t('toast.updated', { count: selected.length }));
     setSelected([]);
     refresh();
   };
 
   const removeSelected = async () => {
     await send('/api/transactions', 'DELETE', { ids: selected });
-    setToast(`Deleted ${selected.length} transactions.`);
+    setToast(t('toast.deleted', { count: selected.length }));
     setSelected([]);
     refresh();
   };
@@ -199,15 +201,15 @@ export default function TransactionsPage() {
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
       <PageHeader
-        title="Transactions"
-        subtitle={effectiveLoading ? 'Loading…' : `${total} matching entries`}
+        title={t('title')}
+        subtitle={effectiveLoading ? t('common:actions.loading') : t('subtitle', { count: total })}
         action={
           <Stack direction="row" spacing={1}>
             <Button startIcon={<SwapIcon />} variant="outlined" onClick={() => setTransferOpen(true)}>
-              Transfer
+              {t('transfer')}
             </Button>
             <Button startIcon={<AddIcon />} variant="contained" onClick={() => setAddOpen(true)}>
-              Add
+              {t('add')}
             </Button>
           </Stack>
         }
@@ -217,7 +219,7 @@ export default function TransactionsPage() {
         <Grid container spacing={1.5}>
           <Grid item xs={12} md={4}>
             <TextField
-              label="Search description, notes, reference"
+              label={t('filters.search')}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -229,7 +231,7 @@ export default function TransactionsPage() {
           <Grid item xs={6} md={2}>
             <TextField
               select
-              label="Account"
+              label={t('filters.account')}
               value={accountId}
               onChange={(e) => {
                 setAccountId(e.target.value);
@@ -237,7 +239,7 @@ export default function TransactionsPage() {
               }}
               fullWidth
             >
-              <MenuItem value="">All accounts</MenuItem>
+              <MenuItem value="">{t('filters.allAccounts')}</MenuItem>
               {(accounts ?? []).map((a) => (
                 <MenuItem key={a._id} value={a._id}>
                   {a.name}
@@ -248,7 +250,7 @@ export default function TransactionsPage() {
           <Grid item xs={6} md={2}>
             <TextField
               select
-              label="Category"
+              label={t('filters.category')}
               value={categoryId}
               onChange={(e) => {
                 setCategoryId(e.target.value);
@@ -256,15 +258,15 @@ export default function TransactionsPage() {
               }}
               fullWidth
             >
-              <MenuItem value="">All categories</MenuItem>
-              <MenuItem value="none">Uncategorised</MenuItem>
-              {categoryMenuItems(categories ?? [])}
+              <MenuItem value="">{t('filters.allCategories')}</MenuItem>
+              <MenuItem value="none">{t('common:actions.uncategorised')}</MenuItem>
+              {categoryMenuItems(categories ?? [], t)}
             </TextField>
           </Grid>
           <Grid item xs={6} md={2}>
             <TextField
               type="date"
-              label="From"
+              label={t('filters.from')}
               InputLabelProps={{ shrink: true }}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
@@ -274,7 +276,7 @@ export default function TransactionsPage() {
           <Grid item xs={6} md={2}>
             <TextField
               type="date"
-              label="To"
+              label={t('filters.to')}
               InputLabelProps={{ shrink: true }}
               value={to}
               onChange={(e) => setTo(e.target.value)}
@@ -287,19 +289,19 @@ export default function TransactionsPage() {
       {selected.length > 0 && (
         <Card sx={{ p: 1.5, mb: 2, bgcolor: 'action.hover' }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Typography sx={{ flex: 1, fontWeight: 600 }}>{selected.length} selected</Typography>
+            <Typography sx={{ flex: 1, fontWeight: 600 }}>{t('bulk.selected', { count: selected.length })}</Typography>
             <TextField
               select
-              label="Set category"
+              label={t('bulk.setCategory')}
               defaultValue=""
               onChange={(e) => bulkCategorise(e.target.value)}
               sx={{ minWidth: 200 }}
             >
-              <MenuItem value="">Uncategorised</MenuItem>
-              {categoryMenuItems(categories ?? [])}
+              <MenuItem value="">{t('common:actions.uncategorised')}</MenuItem>
+              {categoryMenuItems(categories ?? [], t)}
             </TextField>
             <Button color="error" startIcon={<DeleteIcon />} onClick={removeSelected}>
-              Delete
+              {t('bulk.delete')}
             </Button>
           </Stack>
         </Card>
@@ -308,32 +310,32 @@ export default function TransactionsPage() {
       <Card>
         {!effectiveLoading && rows.length === 0 ? (
           <EmptyState
-            title="No transactions here"
-            description="Adjust the filters, or import a CSV to fill this in."
+            title={t('empty.title')}
+            description={t('empty.description')}
           />
         ) : isMobile ? (
           <Stack divider={<Box sx={{ borderBottom: 1, borderColor: 'divider' }} />}>
-            {rows.map((t) => (
-              <Box key={t._id} sx={{ p: 1.75 }}>
+            {rows.map((tx) => (
+              <Box key={tx._id} sx={{ p: 1.75 }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
                   <Checkbox
                     size="small"
                     sx={{ mt: -0.5, ml: -1 }}
-                    checked={selected.includes(t._id)}
+                    checked={selected.includes(tx._id)}
                     onChange={(e) =>
-                      setSelected((s) => (e.target.checked ? [...s, t._id] : s.filter((x) => x !== t._id)))
+                      setSelected((s) => (e.target.checked ? [...s, tx._id] : s.filter((x) => x !== tx._id)))
                     }
                   />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 600, fontSize: 15 }} noWrap>
-                      {t.description}
+                      {tx.description}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {formatDate(t.date, locale)} · {accountById.get(t.accountId)?.name ?? '-'}
+                      {formatDate(tx.date, locale)} · {accountById.get(tx.accountId)?.name ?? '-'}
                     </Typography>
                   </Box>
-                  <Money value={t.amount} currency={currency} locale={locale} colored bold />
-                  <IconButton size="small" sx={{ mt: -0.5 }} onClick={() => setEditing(t)}>
+                  <Money value={tx.amount} currency={currency} locale={locale} colored bold />
+                  <IconButton size="small" sx={{ mt: -0.5 }} onClick={() => setEditing(tx)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                 </Stack>
@@ -342,11 +344,11 @@ export default function TransactionsPage() {
                   size="small"
                   fullWidth
                   sx={{ mt: 1.25 }}
-                  value={t.categoryId ?? ''}
-                  onChange={(e) => setCategory(t._id, e.target.value)}
+                  value={tx.categoryId ?? ''}
+                  onChange={(e) => setCategory(tx._id, e.target.value)}
                 >
-                  <MenuItem value="">Uncategorised</MenuItem>
-                  {categoryMenuItems(categories ?? [])}
+                  <MenuItem value="">{t('common:actions.uncategorised')}</MenuItem>
+                  {categoryMenuItems(categories ?? [], t)}
                 </TextField>
               </Box>
             ))}
@@ -369,7 +371,7 @@ export default function TransactionsPage() {
                       direction={sortBy === 'date' ? sortDir : 'asc'}
                       onClick={() => toggleSort('date')}
                     >
-                      Date
+                      {t('table.date')}
                     </TableSortLabel>
                   </TableCell>
                   <TableCell sortDirection={sortBy === 'description' ? sortDir : false}>
@@ -378,7 +380,7 @@ export default function TransactionsPage() {
                       direction={sortBy === 'description' ? sortDir : 'asc'}
                       onClick={() => toggleSort('description')}
                     >
-                      Description
+                      {t('table.description')}
                     </TableSortLabel>
                   </TableCell>
                   <TableCell sortDirection={sortBy === 'account' ? sortDir : false}>
@@ -387,7 +389,7 @@ export default function TransactionsPage() {
                       direction={sortBy === 'account' ? sortDir : 'asc'}
                       onClick={() => toggleSort('account')}
                     >
-                      Account
+                      {t('table.account')}
                     </TableSortLabel>
                   </TableCell>
                   <TableCell sx={{ minWidth: 190 }} sortDirection={sortBy === 'category' ? sortDir : false}>
@@ -396,7 +398,7 @@ export default function TransactionsPage() {
                       direction={sortBy === 'category' ? sortDir : 'asc'}
                       onClick={() => toggleSort('category')}
                     >
-                      Category
+                      {t('table.category')}
                     </TableSortLabel>
                   </TableCell>
                   <TableCell align="right" sortDirection={sortBy === 'amount' ? sortDir : false}>
@@ -405,45 +407,45 @@ export default function TransactionsPage() {
                       direction={sortBy === 'amount' ? sortDir : 'asc'}
                       onClick={() => toggleSort('amount')}
                     >
-                      Amount
+                      {t('table.amount')}
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell align="right">Balance</TableCell>
+                  <TableCell align="right">{t('table.balance')}</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((t) => (
-                  <TableRow key={t._id} hover>
+                {rows.map((tx) => (
+                  <TableRow key={tx._id} hover>
                     <TableCell padding="checkbox">
                       <Checkbox
-                        checked={selected.includes(t._id)}
+                        checked={selected.includes(tx._id)}
                         onChange={(e) =>
                           setSelected((s) =>
-                            e.target.checked ? [...s, t._id] : s.filter((x) => x !== t._id),
+                            e.target.checked ? [...s, tx._id] : s.filter((x) => x !== tx._id),
                           )
                         }
                       />
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                      {formatDate(t.date, locale)}
+                      {formatDate(tx.date, locale)}
                     </TableCell>
                     <TableCell sx={{ maxWidth: 380 }}>
                       <Typography noWrap sx={{ fontSize: 14, fontWeight: 500 }}>
-                        {t.description}
+                        {tx.description}
                       </Typography>
-                      {t.transferId && <Chip size="small" label="Transfer" sx={{ mt: 0.5 }} />}
+                      {tx.transferId && <Chip size="small" label={t('table.transfer')} sx={{ mt: 0.5 }} />}
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 13 }}>
-                      {accountById.get(t.accountId)?.name ?? '-'}
+                      {accountById.get(tx.accountId)?.name ?? '-'}
                     </TableCell>
                     <TableCell>
                       <TextField
                         select
                         size="small"
                         fullWidth
-                        value={t.categoryId ?? ''}
-                        onChange={(e) => setCategory(t._id, e.target.value)}
+                        value={tx.categoryId ?? ''}
+                        onChange={(e) => setCategory(tx._id, e.target.value)}
                         SelectProps={{
                           renderValue: (v) => {
                             const c = categoryById.get(String(v));
@@ -454,38 +456,38 @@ export default function TransactionsPage() {
                               </Stack>
                             ) : (
                               <Typography component="span" variant="body2" color="text.secondary">
-                                Uncategorised
+                                {t('common:actions.uncategorised')}
                               </Typography>
                             );
                           },
                           displayEmpty: true,
                         }}
                       >
-                        <MenuItem value="">Uncategorised</MenuItem>
-                        {categoryMenuItems(categories ?? [])}
+                        <MenuItem value="">{t('common:actions.uncategorised')}</MenuItem>
+                        {categoryMenuItems(categories ?? [], t)}
                       </TextField>
                     </TableCell>
                     <TableCell align="right">
-                      <Money value={t.amount} currency={currency} locale={locale} colored bold />
+                      <Money value={tx.amount} currency={currency} locale={locale} colored bold />
                     </TableCell>
                     <TableCell align="right">
-                      {t.balance !== undefined ? (
-                        <Money value={t.balance} currency={currency} locale={locale} />
+                      {tx.balance !== undefined ? (
+                        <Money value={tx.balance} currency={currency} locale={locale} />
                       ) : (
                         '-'
                       )}
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Edit">
-                        <IconButton size="small" onClick={() => setEditing(t)}>
+                      <Tooltip title={t('table.edit')}>
+                        <IconButton size="small" onClick={() => setEditing(tx)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete">
+                      <Tooltip title={t('table.delete')}>
                         <IconButton
                           size="small"
                           onClick={async () => {
-                            await send(`/api/transactions/${t._id}`, 'DELETE');
+                            await send(`/api/transactions/${tx._id}`, 'DELETE');
                             refresh();
                           }}
                         >
@@ -521,7 +523,7 @@ export default function TransactionsPage() {
         categories={categories ?? []}
         onSaved={() => {
           refresh();
-          setToast('Transaction added.');
+          setToast(t('toast.added'));
         }}
       />
       <TransferDialog
@@ -530,7 +532,7 @@ export default function TransactionsPage() {
         accounts={accounts ?? []}
         onSaved={() => {
           refresh();
-          setToast('Transfer recorded.');
+          setToast(t('toast.transferRecorded'));
         }}
       />
       <EditDialog
@@ -541,7 +543,7 @@ export default function TransactionsPage() {
         categories={categories ?? []}
         onSaved={() => {
           refresh();
-          setToast('Transaction updated.');
+          setToast(t('toast.updatedOne'));
         }}
       />
 
@@ -563,6 +565,7 @@ function AddDialog({
   categories: Category[];
   onSaved: () => void;
 }) {
+  const { t } = useTranslation('transactions');
   const [form, setForm] = useState({
     accountId: '',
     date: today(),
@@ -590,18 +593,18 @@ function AddDialog({
       onClose();
       setForm({ ...form, description: '', amount: '', notes: '' });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('dialog.saveFailed'));
     }
   };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Add a transaction</DialogTitle>
+      <DialogTitle>{t('dialog.add.title')}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 0.5 }}>
           <TextField
             select
-            label="Account"
+            label={t('dialog.fields.account')}
             value={form.accountId || accounts[0]?._id || ''}
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
@@ -613,29 +616,29 @@ function AddDialog({
           </TextField>
           <TextField
             type="date"
-            label="Date"
+            label={t('dialog.fields.date')}
             InputLabelProps={{ shrink: true }}
             value={form.date}
             onChange={(e) => setForm({ ...form, date: e.target.value })}
           />
           <TextField
-            label="Description"
+            label={t('dialog.fields.description')}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
           <Stack direction="row" spacing={1}>
             <TextField
               select
-              label="Direction"
+              label={t('dialog.fields.direction')}
               value={form.direction}
               onChange={(e) => setForm({ ...form, direction: e.target.value })}
               sx={{ width: 140 }}
             >
-              <MenuItem value="out">Money out</MenuItem>
-              <MenuItem value="in">Money in</MenuItem>
+              <MenuItem value="out">{t('dialog.fields.moneyOut')}</MenuItem>
+              <MenuItem value="in">{t('dialog.fields.moneyIn')}</MenuItem>
             </TextField>
             <TextField
-              label="Amount"
+              label={t('dialog.fields.amount')}
               type="number"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -644,15 +647,15 @@ function AddDialog({
           </Stack>
           <TextField
             select
-            label="Category"
+            label={t('dialog.fields.category')}
             value={form.categoryId}
             onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
           >
-            <MenuItem value="">Uncategorised</MenuItem>
-            {categoryMenuItems(categories)}
+            <MenuItem value="">{t('common:actions.uncategorised')}</MenuItem>
+            {categoryMenuItems(categories, t)}
           </TextField>
           <TextField
-            label="Notes"
+            label={t('dialog.fields.notes')}
             multiline
             minRows={2}
             value={form.notes}
@@ -662,9 +665,9 @@ function AddDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:actions.cancel')}</Button>
         <Button variant="contained" onClick={save}>
-          Save
+          {t('common:actions.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -684,6 +687,7 @@ function EditDialog({
   categories: Category[];
   onSaved: () => void;
 }) {
+  const { t } = useTranslation('transactions');
   const [form, setForm] = useState({
     accountId: transaction?.accountId ?? '',
     date: transaction?.date.slice(0, 10) ?? today(),
@@ -710,18 +714,18 @@ function EditDialog({
       onSaved();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('dialog.saveFailed'));
     }
   };
 
   return (
     <Dialog open={!!transaction} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Edit transaction</DialogTitle>
+      <DialogTitle>{t('dialog.edit.title')}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 0.5 }}>
           <TextField
             select
-            label="Account"
+            label={t('dialog.fields.account')}
             value={form.accountId}
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
@@ -733,29 +737,29 @@ function EditDialog({
           </TextField>
           <TextField
             type="date"
-            label="Date"
+            label={t('dialog.fields.date')}
             InputLabelProps={{ shrink: true }}
             value={form.date}
             onChange={(e) => setForm({ ...form, date: e.target.value })}
           />
           <TextField
-            label="Description"
+            label={t('dialog.fields.description')}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
           <Stack direction="row" spacing={1}>
             <TextField
               select
-              label="Direction"
+              label={t('dialog.fields.direction')}
               value={form.direction}
               onChange={(e) => setForm({ ...form, direction: e.target.value })}
               sx={{ width: 140 }}
             >
-              <MenuItem value="out">Money out</MenuItem>
-              <MenuItem value="in">Money in</MenuItem>
+              <MenuItem value="out">{t('dialog.fields.moneyOut')}</MenuItem>
+              <MenuItem value="in">{t('dialog.fields.moneyIn')}</MenuItem>
             </TextField>
             <TextField
-              label="Amount"
+              label={t('dialog.fields.amount')}
               type="number"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -764,15 +768,15 @@ function EditDialog({
           </Stack>
           <TextField
             select
-            label="Category"
+            label={t('dialog.fields.category')}
             value={form.categoryId}
             onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
           >
-            <MenuItem value="">Uncategorised</MenuItem>
-            {categoryMenuItems(categories)}
+            <MenuItem value="">{t('common:actions.uncategorised')}</MenuItem>
+            {categoryMenuItems(categories, t)}
           </TextField>
           <TextField
-            label="Notes"
+            label={t('dialog.fields.notes')}
             multiline
             minRows={2}
             value={form.notes}
@@ -782,9 +786,9 @@ function EditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:actions.cancel')}</Button>
         <Button variant="contained" onClick={save}>
-          Save
+          {t('common:actions.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -802,6 +806,7 @@ function TransferDialog({
   accounts: Account[];
   onSaved: () => void;
 }) {
+  const { t } = useTranslation('transactions');
   const [form, setForm] = useState({ fromAccountId: '', toAccountId: '', amount: '', date: today() });
   const [error, setError] = useState('');
 
@@ -812,18 +817,18 @@ function TransferDialog({
       onSaved();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('dialog.saveFailed'));
     }
   };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Move money between accounts</DialogTitle>
+      <DialogTitle>{t('dialog.transfer.title')}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 0.5 }}>
           <TextField
             select
-            label="From"
+            label={t('dialog.fields.from')}
             value={form.fromAccountId}
             onChange={(e) => setForm({ ...form, fromAccountId: e.target.value })}
           >
@@ -835,7 +840,7 @@ function TransferDialog({
           </TextField>
           <TextField
             select
-            label="To"
+            label={t('dialog.fields.to')}
             value={form.toAccountId}
             onChange={(e) => setForm({ ...form, toAccountId: e.target.value })}
           >
@@ -846,28 +851,28 @@ function TransferDialog({
             ))}
           </TextField>
           <TextField
-            label="Amount"
+            label={t('dialog.fields.amount')}
             type="number"
             value={form.amount}
             onChange={(e) => setForm({ ...form, amount: e.target.value })}
           />
           <TextField
             type="date"
-            label="Date"
+            label={t('dialog.fields.date')}
             InputLabelProps={{ shrink: true }}
             value={form.date}
             onChange={(e) => setForm({ ...form, date: e.target.value })}
           />
           <Typography variant="caption" color="text.secondary">
-            Transfers are excluded from income and spending totals.
+            {t('dialog.transfer.note')}
           </Typography>
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:actions.cancel')}</Button>
         <Button variant="contained" onClick={save}>
-          Record transfer
+          {t('dialog.transfer.record')}
         </Button>
       </DialogActions>
     </Dialog>

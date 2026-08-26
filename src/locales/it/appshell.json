@@ -1,0 +1,19 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "transactions": "Transazioni",
+    "import": "Importa",
+    "export": "Esporta",
+    "accounts": "Conti",
+    "categories": "Categorie",
+    "rules": "Regole",
+    "budgets": "Budget",
+    "goals": "Obiettivi",
+    "settings": "Impostazioni"
+  },
+  "openMenu": "Apri menu",
+  "accountMenu": "Menu account",
+  "switchTheme": "Cambia tema",
+  "darkTheme": "Tema scuro",
+  "lightTheme": "Tema chiaro"
+}

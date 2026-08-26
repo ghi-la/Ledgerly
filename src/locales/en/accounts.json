@@ -1,0 +1,37 @@
+{
+  "title": "Accounts",
+  "subtitle": "Every account you track, and what each holds right now.",
+  "addAccount": "Add account",
+  "combinedBalance": "Combined balance",
+  "empty": {
+    "title": "No accounts yet",
+    "description": "Add the accounts you want to track, then import their statements."
+  },
+  "types": {
+    "checking": "Current account",
+    "savings": "Savings",
+    "credit": "Credit card",
+    "cash": "Cash",
+    "investment": "Investments"
+  },
+  "editAccount": "Edit account",
+  "deleteAccount": "Delete account",
+  "entries_one": "{{count}} entry",
+  "entries_other": "{{count}} entries",
+  "archived": "Archived",
+  "confirmDelete_one": "Delete \"{{name}}\" and its {{count}} transaction? This cannot be undone.",
+  "confirmDelete_other": "Delete \"{{name}}\" and its {{count}} transactions? This cannot be undone.",
+  "dialog": {
+    "editTitle": "Edit account",
+    "addTitle": "Add an account",
+    "fields": {
+      "name": "Name",
+      "kind": "Kind",
+      "institution": "Bank or provider",
+      "startingBalance": "Starting balance",
+      "startingBalanceHelper": "The balance before your first imported transaction.",
+      "colour": "Colour"
+    },
+    "saveFailed": "Could not save."
+  }
+}

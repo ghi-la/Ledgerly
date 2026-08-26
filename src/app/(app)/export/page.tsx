@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import Papa from 'papaparse';
 import { Box, Button, Card, CardContent, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/FileDownloadOutlined';
+import { useTranslation } from 'react-i18next';
 import { fetcher } from '@/lib/client';
 import { PageHeader } from '@/components/ui';
 
@@ -30,6 +31,7 @@ interface ExportTx {
 }
 
 export default function ExportPage() {
+  const { t } = useTranslation('export');
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
 
@@ -65,17 +67,27 @@ export default function ExportPage() {
       const categoryName = new Map((categories ?? []).map((c) => [c._id, c.name]));
 
       const csv = Papa.unparse({
-        fields: ['Date', 'Description', 'Merchant', 'Account', 'Category', 'Amount', 'Type', 'Reference', 'Notes'],
-        data: items.map((t) => [
-          new Date(t.date).toISOString().slice(0, 10),
-          t.description ?? '',
-          t.merchant ?? '',
-          accountName.get(t.accountId) ?? '',
-          t.categoryId ? (categoryName.get(t.categoryId) ?? '') : '',
-          t.amount,
-          t.type,
-          t.reference ?? '',
-          t.notes ?? '',
+        fields: [
+          t('csvHeaders.date'),
+          t('csvHeaders.description'),
+          t('csvHeaders.merchant'),
+          t('csvHeaders.account'),
+          t('csvHeaders.category'),
+          t('csvHeaders.amount'),
+          t('csvHeaders.type'),
+          t('csvHeaders.reference'),
+          t('csvHeaders.notes'),
+        ],
+        data: items.map((tx) => [
+          new Date(tx.date).toISOString().slice(0, 10),
+          tx.description ?? '',
+          tx.merchant ?? '',
+          accountName.get(tx.accountId) ?? '',
+          tx.categoryId ? (categoryName.get(tx.categoryId) ?? '') : '',
+          tx.amount,
+          tx.type,
+          tx.reference ?? '',
+          tx.notes ?? '',
         ]),
       });
 
@@ -96,8 +108,8 @@ export default function ExportPage() {
   return (
     <Box sx={{ maxWidth: 720, mx: 'auto' }}>
       <PageHeader
-        title="Export"
-        subtitle="Download your transactions as a CSV file, filtered however you like."
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
 
       <Card>
@@ -105,7 +117,7 @@ export default function ExportPage() {
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
-                label="Search description, notes, reference"
+                label={t('filters.search')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 fullWidth
@@ -114,12 +126,12 @@ export default function ExportPage() {
             <Grid item xs={12} sm={6}>
               <TextField
                 select
-                label="Account"
+                label={t('filters.account')}
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 fullWidth
               >
-                <MenuItem value="">All accounts</MenuItem>
+                <MenuItem value="">{t('filters.allAccounts')}</MenuItem>
                 {(accounts ?? []).map((a) => (
                   <MenuItem key={a._id} value={a._id}>
                     {a.name}
@@ -130,13 +142,13 @@ export default function ExportPage() {
             <Grid item xs={12} sm={6}>
               <TextField
                 select
-                label="Category"
+                label={t('filters.category')}
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 fullWidth
               >
-                <MenuItem value="">All categories</MenuItem>
-                <MenuItem value="none">Uncategorised</MenuItem>
+                <MenuItem value="">{t('filters.allCategories')}</MenuItem>
+                <MenuItem value="none">{t('common:actions.uncategorised')}</MenuItem>
                 {(categories ?? []).map((c) => (
                   <MenuItem key={c._id} value={c._id}>
                     {c.name}
@@ -147,7 +159,7 @@ export default function ExportPage() {
             <Grid item xs={12} sm={6}>
               <TextField
                 type="date"
-                label="From"
+                label={t('filters.from')}
                 InputLabelProps={{ shrink: true }}
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
@@ -157,7 +169,7 @@ export default function ExportPage() {
             <Grid item xs={12} sm={6}>
               <TextField
                 type="date"
-                label="To"
+                label={t('filters.to')}
                 InputLabelProps={{ shrink: true }}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
@@ -168,7 +180,7 @@ export default function ExportPage() {
 
           <Stack direction="row" spacing={2} sx={{ mt: 3, alignItems: 'center' }}>
             <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-              {preview ? `${preview.total} matching transactions` : 'Loading…'}
+              {preview ? t('matching', { count: preview.total }) : t('common:actions.loading')}
             </Typography>
             <Button
               variant="contained"
@@ -176,7 +188,7 @@ export default function ExportPage() {
               disabled={!preview?.total || busy}
               onClick={downloadCsv}
             >
-              {busy ? 'Preparing…' : 'Export CSV'}
+              {busy ? t('preparing') : t('exportCsv')}
             </Button>
           </Stack>
         </CardContent>

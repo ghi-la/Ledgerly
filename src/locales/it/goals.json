@@ -1,0 +1,33 @@
+{
+  "title": "Obiettivi di risparmio",
+  "subtitle": "Tieni traccia di quanto stai mettendo da parte. Collega un conto per aggiornare i progressi automaticamente.",
+  "newGoal": "Nuovo obiettivo",
+  "empty": {
+    "title": "Ancora nessun obiettivo",
+    "description": "Imposta un traguardo (un viaggio, un deposito, un fondo di emergenza) e guardalo riempirsi.",
+    "action": "Crea un obiettivo"
+  },
+  "editGoal": "Modifica obiettivo",
+  "deleteGoal": "Elimina obiettivo",
+  "targetBy": "Traguardo entro {{date}}",
+  "of": "su {{amount}}",
+  "percentThere": "{{percent}}% raggiunto",
+  "trackingAccount": "· collegato a {{account}}",
+  "anAccount": "un conto",
+  "confirmDelete": "Eliminare l'obiettivo \"{{name}}\"?",
+  "dialog": {
+    "editTitle": "Modifica obiettivo",
+    "newTitle": "Nuovo obiettivo",
+    "fields": {
+      "name": "Nome",
+      "targetAmount": "Importo obiettivo",
+      "trackAccount": "Collega un conto (opzionale)",
+      "trackAccountHelper": "Gli obiettivi collegati usano il saldo live di quel conto.",
+      "trackManually": "Traccia manualmente",
+      "savedSoFar": "Risparmiato finora",
+      "targetDate": "Data obiettivo (opzionale)",
+      "colour": "Colore"
+    },
+    "saveFailed": "Impossibile salvare."
+  }
+}

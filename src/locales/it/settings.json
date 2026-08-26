@@ -1,0 +1,29 @@
+{
+  "title": "Impostazioni",
+  "subtitle": "Il tuo profilo, la valuta e gli addebiti ricorrenti che abbiamo individuato.",
+  "profile": "Profilo",
+  "fields": {
+    "name": "Nome",
+    "email": "Email",
+    "currency": "Valuta",
+    "language": "Lingua e formato"
+  },
+  "saveChanges": "Salva modifiche",
+  "toast": { "saved": "Impostazioni salvate." },
+  "recurring": {
+    "title": "Addebiti ricorrenti",
+    "perMonthPre": "~",
+    "perMonthPost": "al mese",
+    "description": "Individuati cercando pagamenti che si ripetono a intervalli regolari per un importo costante.",
+    "loading": "Ricerca di pattern in corso…",
+    "empty": "Nessun pagamento ricorrente rilevato ancora. Importa qualche mese di storico e ricontrolla.",
+    "nextExpected": "prossimo ~{{date}}",
+    "cadence": {
+      "weekly": "settimanale",
+      "fortnightly": "quindicinale",
+      "monthly": "mensile",
+      "quarterly": "trimestrale",
+      "twice a year": "semestrale"
+    }
+  }
+}

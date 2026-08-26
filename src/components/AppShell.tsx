@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import NextLink from 'next/link';
 import { signOut } from 'next-auth/react';
@@ -38,26 +38,16 @@ import SettingsIcon from '@mui/icons-material/TuneOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import DarkIcon from '@mui/icons-material/DarkModeOutlined';
 import LightIcon from '@mui/icons-material/LightModeOutlined';
+import { useTranslation } from 'react-i18next';
 import { useColorMode } from '@/app/providers';
+import { useSettings } from './ui';
+import { toI18nLang } from '@/i18n/languageMap';
+import { LANG_STORAGE_KEY } from '@/i18n/languageDetector';
 import RouteProgress from './RouteProgress';
 
 const DRAWER = 248;
 
-const NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { href: '/transactions', label: 'Transactions', icon: <ReceiptIcon /> },
-  { href: '/import', label: 'Import', icon: <ImportIcon /> },
-  { href: '/export', label: 'Export', icon: <ExportIcon /> },
-  { href: '/accounts', label: 'Accounts', icon: <AccountsIcon /> },
-  { href: '/categories', label: 'Categories', icon: <CategoryIcon /> },
-  { href: '/rules', label: 'Rules', icon: <RulesIcon /> },
-  { href: '/budgets', label: 'Budgets', icon: <BudgetIcon /> },
-  { href: '/goals', label: 'Goals', icon: <GoalIcon /> },
-  { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
-];
-
 const MOBILE_NAV_HREFS = ['/dashboard', '/transactions', '/goals', '/budgets'];
-const MOBILE_NAV = MOBILE_NAV_HREFS.map((href) => NAV.find((n) => n.href === href)!);
 
 export default function AppShell({
   children,
@@ -71,8 +61,35 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const { mode, toggle } = useColorMode();
+  const { t, i18n } = useTranslation('appshell');
+  const { locale } = useSettings();
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+
+  // Authoritative language sync for signed-in users - this component only
+  // ever mounts after the server-side auth() redirect-guard, so `locale` is
+  // always a real, settled account setting, not a guess.
+  useEffect(() => {
+    const lang = toI18nLang(locale);
+    if (i18n.language !== lang) {
+      void i18n.changeLanguage(lang);
+      window.localStorage.setItem(LANG_STORAGE_KEY, lang);
+    }
+  }, [locale, i18n]);
+
+  const NAV = [
+    { href: '/dashboard', label: t('nav.dashboard'), icon: <DashboardIcon /> },
+    { href: '/transactions', label: t('nav.transactions'), icon: <ReceiptIcon /> },
+    { href: '/import', label: t('nav.import'), icon: <ImportIcon /> },
+    { href: '/export', label: t('nav.export'), icon: <ExportIcon /> },
+    { href: '/accounts', label: t('nav.accounts'), icon: <AccountsIcon /> },
+    { href: '/categories', label: t('nav.categories'), icon: <CategoryIcon /> },
+    { href: '/rules', label: t('nav.rules'), icon: <RulesIcon /> },
+    { href: '/budgets', label: t('nav.budgets'), icon: <BudgetIcon /> },
+    { href: '/goals', label: t('nav.goals'), icon: <GoalIcon /> },
+    { href: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> },
+  ];
+  const MOBILE_NAV = MOBILE_NAV_HREFS.map((href) => NAV.find((n) => n.href === href)!);
 
   const nav = (
     <Box sx={{ px: 1.5, py: 2 }}>
@@ -144,19 +161,19 @@ export default function AppShell({
       >
         <Toolbar sx={{ gap: 1 }}>
           {!isDesktop && (
-            <IconButton edge="start" onClick={() => setOpen(true)} aria-label="Open menu">
+            <IconButton edge="start" onClick={() => setOpen(true)} aria-label={t('openMenu')}>
               <MenuIcon />
             </IconButton>
           )}
           <Typography sx={{ flex: 1, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
             {NAV.find((n) => pathname.startsWith(n.href))?.label ?? 'Ledgerly'}
           </Typography>
-          <Tooltip title={mode === 'light' ? 'Dark theme' : 'Light theme'}>
-            <IconButton onClick={toggle} aria-label="Switch theme">
+          <Tooltip title={mode === 'light' ? t('darkTheme') : t('lightTheme')}>
+            <IconButton onClick={toggle} aria-label={t('switchTheme')}>
               {mode === 'light' ? <DarkIcon /> : <LightIcon />}
             </IconButton>
           </Tooltip>
-          <IconButton onClick={(e) => setAnchor(e.currentTarget)} aria-label="Account menu">
+          <IconButton onClick={(e) => setAnchor(e.currentTarget)} aria-label={t('accountMenu')}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14 }}>
               {userName.slice(0, 1).toUpperCase()}
             </Avatar>
@@ -170,10 +187,10 @@ export default function AppShell({
                 router.push('/settings');
               }}
             >
-              Settings
+              {t('nav.settings')}
             </MenuItem>
             <MenuItem onClick={() => signOut({ callbackUrl: '/login' })}>
-              Sign out
+              {t('common:actions.signOut')}
             </MenuItem>
           </Menu>
         </Toolbar>

@@ -1,0 +1,94 @@
+{
+  "title": "Import rules",
+  "subtitle": "Rules run top to bottom. The first match wins unless you let it keep going.",
+  "runOnUncategorised": "Run on uncategorised",
+  "newRule": "New rule",
+  "banner": {
+    "pre": "Rules apply automatically while you import. Use",
+    "rerun": "re-run on everything",
+    "post": "to reclassify transactions you already have."
+  },
+  "empty": {
+    "title": "No rules yet",
+    "description": "A rule watches for keywords or amounts and drops matching entries into a category.",
+    "action": "Create your first rule"
+  },
+  "card": {
+    "conditions_one": "{{count}} condition",
+    "conditions_other": "{{count}} conditions",
+    "matchAll": "match all",
+    "matchAny": "match any",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "edit": "Edit rule",
+    "delete": "Delete rule"
+  },
+  "confirmDelete": "Delete rule \"{{name}}\"?",
+  "toast": {
+    "applied": "Applied rules to {{updated}} of {{scanned}} transactions.",
+    "noChanges": "No changes; scanned {{scanned}} transactions.",
+    "runFailed": "Could not run rules."
+  },
+  "errors": {
+    "nameRequired": "Give the rule a name.",
+    "conditionRequired": "Add at least one condition.",
+    "saveFailed": "Could not save."
+  },
+  "fields": {
+    "description": "Description",
+    "merchant": "Merchant",
+    "reference": "Reference",
+    "notes": "Notes",
+    "any": "Any text field",
+    "amount": "Amount (signed)",
+    "absAmount": "Amount (size)",
+    "type": "Direction",
+    "account": "Account name",
+    "date": "Date"
+  },
+  "textOps": {
+    "contains": "contains",
+    "not_contains": "does not contain",
+    "equals": "is exactly",
+    "starts_with": "starts with",
+    "ends_with": "ends with",
+    "regex": "matches pattern",
+    "is_empty": "is empty"
+  },
+  "numOps": {
+    "gt": "greater than",
+    "gte": "at least",
+    "lt": "less than",
+    "lte": "at most",
+    "equals": "equals",
+    "between": "between"
+  },
+  "dialog": {
+    "editTitle": "Edit rule",
+    "newTitle": "New rule",
+    "ruleName": "Rule name",
+    "match": "Match",
+    "allConditions": "All conditions",
+    "anyCondition": "Any condition",
+    "whenTransaction": "When a transaction…",
+    "field": "Field",
+    "is": "Is",
+    "valueDirection": "expense / income",
+    "value": "Value",
+    "and": "and",
+    "removeCondition": "Remove condition",
+    "addCondition": "Add condition",
+    "thenDo": "…then do this",
+    "setCategory": "Set category",
+    "leaveUnchanged": "Leave unchanged",
+    "setDirection": "Set direction",
+    "expense": "Expense",
+    "income": "Income",
+    "transfer": "Transfer",
+    "addTags": "Add tags (comma separated)",
+    "stopProcessing": "Stop after this rule matches (uncheck to let later rules also apply)",
+    "saveRule": "Save rule"
+  }
+}

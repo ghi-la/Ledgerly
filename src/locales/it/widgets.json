@@ -1,0 +1,36 @@
+{
+  "titles": {
+    "net-worth": "Panoramica",
+    "accounts": "Conti",
+    "spend-by-category": "Dove sono finiti i soldi",
+    "monthly-trend": "Entrate e uscite",
+    "budget-progress": "Budget",
+    "recent-transactions": "Ultima attività",
+    "goals": "Obiettivi di risparmio",
+    "income-vs-expense": "Saldo mensile",
+    "top-merchants": "Dove hai speso di più"
+  },
+  "netWorth": {
+    "netWorth": "Patrimonio netto",
+    "moneyIn": "Entrate",
+    "moneyOut": "Uscite",
+    "leftOver": "Rimanenza"
+  },
+  "chart": {
+    "in": "Entrate",
+    "out": "Uscite",
+    "leftOver": "Rimanenza"
+  },
+  "links": {
+    "manage": "Gestisci",
+    "seeAll": "Vedi tutte"
+  },
+  "empty": {
+    "accounts": "Ancora nessun conto.",
+    "spendByCategory": "Nessuna spesa in questo periodo.",
+    "budgetProgress": "Nessun budget impostato. Aggiungine uno per tracciare una categoria.",
+    "recentTransactions": "Importa un estratto conto per iniziare.",
+    "goals": "Ancora nessun obiettivo.",
+    "topMerchants": "Niente da mostrare per questo periodo."
+  }
+}

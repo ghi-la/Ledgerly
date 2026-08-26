@@ -1,0 +1,11 @@
+{
+  "title": "Budget",
+  "subtitle": "Imposta un limite mensile per categoria. Gli importi si riportano ogni mese finché non ne modifichi uno.",
+  "monthPicker": "Mese",
+  "budgeted": "Preventivato",
+  "spent": "Speso · {{month}}",
+  "remaining": "Rimanente",
+  "addCategoriesFirst": "Aggiungi prima alcune categorie di spesa, poi imposta i budget qui.",
+  "spentSuffix": "speso",
+  "monthlyBudget": "Budget mensile"
+}

@@ -24,6 +24,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import { useTranslation } from 'react-i18next';
 import { fetcher, send } from '@/lib/client';
 import { CATEGORY_PALETTE } from '@/lib/theme';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
@@ -40,17 +41,17 @@ interface Account {
   transactionCount: number;
 }
 
-const TYPES = [
-  { value: 'checking', label: 'Current account' },
-  { value: 'savings', label: 'Savings' },
-  { value: 'credit', label: 'Credit card' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'investment', label: 'Investments' },
-];
-
 const empty = { name: '', type: 'checking', institution: '', openingBalance: '0', color: CATEGORY_PALETTE[0] };
 
 export default function AccountsPage() {
+  const { t } = useTranslation('accounts');
+  const TYPES = [
+    { value: 'checking', label: t('types.checking') },
+    { value: 'savings', label: t('types.savings') },
+    { value: 'credit', label: t('types.credit') },
+    { value: 'cash', label: t('types.cash') },
+    { value: 'investment', label: t('types.investment') },
+  ];
   const { data, mutate, isLoading } = useSWR<Account[]>('/api/accounts', fetcher);
   const { currency, locale } = useSettings();
   const [editing, setEditing] = useState<Account | null>(null);
@@ -85,17 +86,12 @@ export default function AccountsPage() {
       setOpen(false);
       mutate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('dialog.saveFailed'));
     }
   };
 
   const remove = async (a: Account) => {
-    if (
-      !confirm(
-        `Delete "${a.name}" and its ${a.transactionCount} transactions? This cannot be undone.`,
-      )
-    )
-      return;
+    if (!confirm(t('confirmDelete', { name: a.name, count: a.transactionCount }))) return;
     await send(`/api/accounts/${a._id}`, 'DELETE');
     mutate();
   };
@@ -105,11 +101,11 @@ export default function AccountsPage() {
   return (
     <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
       <PageHeader
-        title="Accounts"
-        subtitle="Every account you track, and what each holds right now."
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
           <Button startIcon={<AddIcon />} variant="contained" onClick={openNew}>
-            Add account
+            {t('addAccount')}
           </Button>
         }
       />
@@ -118,7 +114,7 @@ export default function AccountsPage() {
         <Card sx={{ mb: 2 }}>
           <CardContent>
             <Typography variant="caption" color="text.secondary">
-              Combined balance
+              {t('combinedBalance')}
             </Typography>
             <Box>
               <Money value={total} currency={currency} locale={locale} bold size={30} />
@@ -130,9 +126,9 @@ export default function AccountsPage() {
       {!isLoading && data?.length === 0 && (
         <Card>
           <EmptyState
-            title="No accounts yet"
-            description="Add the accounts you want to track, then import their statements."
-            actionLabel="Add account"
+            title={t('empty.title')}
+            description={t('empty.description')}
+            actionLabel={t('addAccount')}
             onAction={openNew}
           />
         </Card>
@@ -156,14 +152,14 @@ export default function AccountsPage() {
                       {a.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {TYPES.find((t) => t.value === a.type)?.label ?? a.type}
+                      {TYPES.find((ty) => ty.value === a.type)?.label ?? a.type}
                       {a.institution ? ` · ${a.institution}` : ''}
                     </Typography>
                   </Box>
-                  <IconButton size="small" onClick={() => openEdit(a)} aria-label="Edit account">
+                  <IconButton size="small" onClick={() => openEdit(a)} aria-label={t('editAccount')}>
                     <EditIcon fontSize="small" />
                   </IconButton>
-                  <IconButton size="small" onClick={() => remove(a)} aria-label="Delete account">
+                  <IconButton size="small" onClick={() => remove(a)} aria-label={t('deleteAccount')}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Stack>
@@ -171,8 +167,8 @@ export default function AccountsPage() {
                   <Money value={a.balance} currency={currency} locale={locale} bold size={24} />
                 </Box>
                 <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-                  <Chip size="small" variant="outlined" label={`${a.transactionCount} entries`} />
-                  {a.archived && <Chip size="small" label="Archived" />}
+                  <Chip size="small" variant="outlined" label={t('entries', { count: a.transactionCount })} />
+                  {a.archived && <Chip size="small" label={t('archived')} />}
                 </Stack>
               </CardContent>
             </Card>
@@ -181,42 +177,42 @@ export default function AccountsPage() {
       </Grid>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>{editing ? 'Edit account' : 'Add an account'}</DialogTitle>
+        <DialogTitle>{editing ? t('dialog.editTitle') : t('dialog.addTitle')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 0.5 }}>
             <TextField
-              label="Name"
+              label={t('dialog.fields.name')}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
             />
             <TextField
               select
-              label="Kind"
+              label={t('dialog.fields.kind')}
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
             >
-              {TYPES.map((t) => (
-                <MenuItem key={t.value} value={t.value}>
-                  {t.label}
+              {TYPES.map((ty) => (
+                <MenuItem key={ty.value} value={ty.value}>
+                  {ty.label}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
-              label="Bank or provider"
+              label={t('dialog.fields.institution')}
               value={form.institution}
               onChange={(e) => setForm({ ...form, institution: e.target.value })}
             />
             <TextField
-              label="Starting balance"
+              label={t('dialog.fields.startingBalance')}
               type="number"
               value={form.openingBalance}
               onChange={(e) => setForm({ ...form, openingBalance: e.target.value })}
-              helperText="The balance before your first imported transaction."
+              helperText={t('dialog.fields.startingBalanceHelper')}
             />
             <Box>
               <Typography variant="caption" color="text.secondary">
-                Colour
+                {t('dialog.fields.colour')}
               </Typography>
               <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', mt: 0.5, gap: 0.75 }}>
                 {CATEGORY_PALETTE.map((c) => (
@@ -241,9 +237,9 @@ export default function AccountsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => setOpen(false)}>{t('common:actions.cancel')}</Button>
           <Button variant="contained" onClick={save}>
-            Save
+            {t('common:actions.save')}
           </Button>
         </DialogActions>
       </Dialog>

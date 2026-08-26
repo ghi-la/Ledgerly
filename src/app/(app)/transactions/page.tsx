@@ -15,7 +15,6 @@ import {
   DialogTitle,
   Grid,
   IconButton,
-  ListSubheader,
   MenuItem,
   Snackbar,
   Stack,
@@ -36,12 +35,10 @@ import AddIcon from '@mui/icons-material/Add';
 import SwapIcon from '@mui/icons-material/SwapHorizOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/EditOutlined';
-import TrendingDownIcon from '@mui/icons-material/TrendingDownRounded';
-import TrendingUpIcon from '@mui/icons-material/TrendingUpRounded';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
+import { categoryMenuItems } from '@/components/categoryMenuItems';
 
 interface Tx {
   _id: string;
@@ -71,51 +68,6 @@ interface Category {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
-
-/** Renders category MenuItems split into "Spending" / "Income" sections, so
- * it's obvious which side of the ledger a category belongs to. */
-function categoryMenuItems(categories: Category[], t: TFunction) {
-  const CATEGORY_GROUPS: {
-    kind: string;
-    label: string;
-    color: 'error' | 'success';
-    icon: React.ReactNode;
-  }[] = [
-    { kind: 'expense', label: t('categoryGroups.spending'), color: 'error', icon: <TrendingDownIcon sx={{ fontSize: 16 }} /> },
-    { kind: 'income', label: t('categoryGroups.income'), color: 'success', icon: <TrendingUpIcon sx={{ fontSize: 16 }} /> },
-  ];
-  return CATEGORY_GROUPS.flatMap((g) => {
-    const items = categories.filter((c) => c.kind === g.kind);
-    if (items.length === 0) return [];
-    return [
-      <ListSubheader
-        key={`h-${g.kind}`}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.6,
-          fontWeight: 700,
-          fontSize: 11,
-          lineHeight: '30px',
-          letterSpacing: '0.07em',
-          textTransform: 'uppercase',
-          color: `${g.color}.main`,
-          bgcolor: 'action.hover',
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        {g.icon}
-        {g.label}
-      </ListSubheader>,
-      ...items.map((c) => (
-        <MenuItem key={c._id} value={c._id}>
-          {c.name}
-        </MenuItem>
-      )),
-    ];
-  });
-}
 
 export default function TransactionsPage() {
   const { t } = useTranslation('transactions');

@@ -35,6 +35,7 @@ import DownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useTranslation } from 'react-i18next';
 import { fetcher, send } from '@/lib/client';
 import { EmptyState, PageHeader } from '@/components/ui';
+import { categoryMenuItems } from '@/components/categoryMenuItems';
 
 interface Condition {
   field: string;
@@ -57,6 +58,7 @@ interface Category {
   _id: string;
   name: string;
   color: string;
+  kind: string;
 }
 
 const isNumeric = (field: string) => field === 'amount' || field === 'absAmount';
@@ -441,11 +443,7 @@ export default function RulesPage() {
                   fullWidth
                 >
                   <MenuItem value="">{t('dialog.leaveUnchanged')}</MenuItem>
-                  {(categories ?? []).map((c) => (
-                    <MenuItem key={c._id} value={c._id}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
+                  {categoryMenuItems(categories ?? [], t)}
                 </TextField>
                 <TextField
                   select

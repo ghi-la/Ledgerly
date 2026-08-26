@@ -20,6 +20,7 @@
     "download": "Scarica",
     "uncategorised": "Non categorizzato"
   },
+  "categoryGroups": { "spending": "Spese", "income": "Entrate" },
   "apiErrors": {
     "Registration is closed on this instance.": "La registrazione è chiusa su questa istanza.",
     "Enter a valid email address.": "Inserisci un indirizzo email valido.",

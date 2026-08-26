@@ -13,7 +13,6 @@
     "from": "From",
     "to": "To"
   },
-  "categoryGroups": { "spending": "Spending", "income": "Income" },
   "bulk": {
     "selected_one": "{{count}} selected",
     "selected_other": "{{count}} selected",

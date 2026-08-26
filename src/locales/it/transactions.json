@@ -13,7 +13,6 @@
     "from": "Da",
     "to": "A"
   },
-  "categoryGroups": { "spending": "Spese", "income": "Entrate" },
   "bulk": {
     "selected_one": "{{count}} selezionata",
     "selected_other": "{{count}} selezionate",

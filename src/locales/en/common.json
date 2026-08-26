@@ -20,6 +20,7 @@
     "download": "Download",
     "uncategorised": "Uncategorised"
   },
+  "categoryGroups": { "spending": "Spending", "income": "Income" },
   "apiErrors": {
     "Registration is closed on this instance.": "Registration is closed on this instance.",
     "Enter a valid email address.": "Enter a valid email address.",

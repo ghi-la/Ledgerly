@@ -7,11 +7,11 @@ import {
   Box,
   Button,
   Card,
-  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid,
   IconButton,
   MenuItem,
@@ -23,9 +23,11 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import { useTranslation } from 'react-i18next';
 import { fetcher, send } from '@/lib/client';
 import { CATEGORY_PALETTE } from '@/lib/theme';
+import { groupCategoriesByParent } from '@/lib/categoryTree';
 import { PageHeader, useSettings } from '@/components/ui';
 import { CategoryExpensesDialog } from '@/components/CategoryExpensesDialog';
 
@@ -38,6 +40,57 @@ interface Category {
 }
 
 const empty = { name: '', kind: 'expense' as const, color: CATEGORY_PALETTE[0], parentId: '' };
+
+function CategoryRow({
+  category,
+  indented,
+  onView,
+  onEdit,
+  onDelete,
+  editLabel,
+  deleteLabel,
+}: {
+  category: Category;
+  indented: boolean;
+  onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  editLabel: string;
+  deleteLabel: string;
+}) {
+  return (
+    <Stack
+      direction="row"
+      sx={{ alignItems: 'center', gap: 1.5, py: 1.25, pl: indented ? 3.5 : 1.75, pr: 1.75 }}
+    >
+      {indented && (
+        <SubdirectoryArrowRightIcon sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0, ml: -1.5 }} />
+      )}
+      <Box
+        sx={{
+          width: indented ? 10 : 14,
+          height: indented ? 10 : 14,
+          borderRadius: '50%',
+          bgcolor: category.color,
+          flexShrink: 0,
+        }}
+      />
+      <Typography
+        sx={{ flex: 1, fontWeight: indented ? 500 : 600, fontSize: indented ? 14 : undefined, cursor: 'pointer', minWidth: 0 }}
+        noWrap
+        onClick={onView}
+      >
+        {category.name}
+      </Typography>
+      <IconButton size="small" aria-label={editLabel} onClick={onEdit}>
+        <EditIcon fontSize="small" />
+      </IconButton>
+      <IconButton size="small" onClick={onDelete} aria-label={deleteLabel}>
+        <DeleteIcon fontSize="small" />
+      </IconButton>
+    </Stack>
+  );
+}
 
 export default function CategoriesPage() {
   const { t } = useTranslation('categories');
@@ -94,6 +147,12 @@ export default function CategoriesPage() {
 
       {groups.map((g) => {
         const items = (data ?? []).filter((c) => c.kind === g.kind);
+        const categoryGroups = groupCategoriesByParent(items);
+        const startEdit = (c: Category) => {
+          setEditing(c);
+          setForm({ name: c.name, kind: c.kind, color: c.color, parentId: c.parentId ?? '' });
+          setOpen(true);
+        };
         return (
           <Box key={g.kind} sx={{ mb: 3 }}>
             <Typography variant="overline" color="text.secondary">
@@ -106,40 +165,32 @@ export default function CategoriesPage() {
                     <Skeleton variant="rounded" height={56} />
                   </Grid>
                 ))}
-              {!isLoading && items.map((c) => (
-                <Grid item xs={12} sm={6} md={4} key={c._id}>
+              {!isLoading && categoryGroups.map(({ parent, children }) => (
+                <Grid item xs={12} sm={6} md={4} key={parent._id}>
                   <Card>
-                    <CardContent
-                      sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5, '&:last-child': { pb: 1.5 } }}
-                    >
-                      <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: c.color, flexShrink: 0 }} />
-                      <Typography
-                        sx={{ flex: 1, fontWeight: 600, cursor: 'pointer', minWidth: 0 }}
-                        noWrap
-                        onClick={() => setViewing(c)}
-                      >
-                        {c.name}
-                      </Typography>
-                      <IconButton
-                        size="small"
-                        aria-label={t('editCategory')}
-                        onClick={() => {
-                          setEditing(c);
-                          setForm({
-                            name: c.name,
-                            kind: c.kind,
-                            color: c.color,
-                            parentId: c.parentId ?? '',
-                          });
-                          setOpen(true);
-                        }}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => remove(c)} aria-label={t('deleteCategory')}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </CardContent>
+                    <Stack divider={<Divider />}>
+                      <CategoryRow
+                        category={parent}
+                        indented={false}
+                        onView={() => setViewing(parent)}
+                        onEdit={() => startEdit(parent)}
+                        onDelete={() => remove(parent)}
+                        editLabel={t('editCategory')}
+                        deleteLabel={t('deleteCategory')}
+                      />
+                      {children.map((c) => (
+                        <CategoryRow
+                          key={c._id}
+                          category={c}
+                          indented
+                          onView={() => setViewing(c)}
+                          onEdit={() => startEdit(c)}
+                          onDelete={() => remove(c)}
+                          editLabel={t('editCategory')}
+                          deleteLabel={t('deleteCategory')}
+                        />
+                      ))}
+                    </Stack>
                   </Card>
                 </Grid>
               ))}

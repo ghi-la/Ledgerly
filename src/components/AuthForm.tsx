@@ -10,6 +10,8 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
+  FormControlLabel,
   Link,
   Stack,
   TextField,
@@ -27,6 +29,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -77,7 +80,12 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         return;
       }
 
-      const res = await signIn('credentials', { email: cleanEmail, password, redirect: false });
+      const res = await signIn('credentials', {
+        email: cleanEmail,
+        password,
+        remember: rememberMe ? 'true' : 'false',
+        redirect: false,
+      });
       if (res?.error) {
         if (res.code === 'email-not-verified') {
           // The inline warning banner below already explains this and offers
@@ -190,6 +198,18 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                       required
                       fullWidth
                       autoComplete="new-password"
+                    />
+                  )}
+                  {mode === 'login' && (
+                    <FormControlLabel
+                      sx={{ mr: 0 }}
+                      control={
+                        <Checkbox
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                        />
+                      }
+                      label={t('rememberMe')}
                     />
                   )}
                   {mode === 'login' && unverifiedEmail !== '' && unverifiedEmail === email.trim().toLowerCase() && (

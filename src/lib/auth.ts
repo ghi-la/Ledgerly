@@ -15,7 +15,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { email: {}, password: {}, remember: {} },
       async authorize(credentials) {
         const email = String(credentials?.email ?? '')
           .toLowerCase()
@@ -43,7 +43,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
 
-        return { id: String(user._id), email: user.email, name: user.name ?? user.email };
+        return {
+          id: String(user._id),
+          email: user.email,
+          name: user.name ?? user.email,
+          remember: credentials?.remember === 'true',
+        };
       },
     }),
   ],

@@ -8,4 +8,9 @@ declare module 'next-auth' {
       email?: string | null;
     };
   }
+
+  interface User {
+    /** Whether "remember me" was checked at sign-in; controls the JWT's lifetime. */
+    remember?: boolean;
+  }
 }

@@ -46,6 +46,10 @@
     "onClick": "Sottocategorie: al clic",
     "always": "Sottocategorie: sempre visibili"
   },
+  "settings": {
+    "title": "Impostazioni widget",
+    "visible": "Visibile in dashboard"
+  },
   "empty": {
     "accounts": "Ancora nessun conto.",
     "spendByCategory": "Nessuna spesa in questo periodo.",

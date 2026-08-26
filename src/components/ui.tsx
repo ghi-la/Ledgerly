@@ -106,6 +106,7 @@ export interface UserSettings {
     size: 'third' | 'half' | 'two-thirds' | 'full';
     visible: boolean;
     config?: Record<string, unknown>;
+    layout?: { x: number; y: number; w: number; h: number };
   }[];
 }
 

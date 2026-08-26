@@ -6,42 +6,44 @@ import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Grid,
-  IconButton,
-  MenuItem,
+  GlobalStyles,
   Skeleton,
   Stack,
-  Switch,
-  TextField,
   Tooltip,
-  Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
-import TuneIcon from '@mui/icons-material/TuneOutlined';
-import UpIcon from '@mui/icons-material/KeyboardArrowUp';
-import DownIcon from '@mui/icons-material/KeyboardArrowDown';
+import EditIcon from '@mui/icons-material/EditOutlined';
+import CheckIcon from '@mui/icons-material/CheckOutlined';
+import GridLayout, { WidthProvider } from 'react-grid-layout/legacy';
+import 'react-grid-layout/css/styles.css';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
+import { GRID_COLS, GRID_MARGIN, ROW_HEIGHT, ensureLayouts } from '@/lib/dashboardLayout';
 import { PageHeader, useSettings } from '@/components/ui';
-import { WidgetRenderer, widgetTitle, type Stats } from '@/components/widgets';
+import { WidgetRenderer, type Stats } from '@/components/widgets';
 
-const SPAN = { third: 4, half: 6, 'two-thirds': 8, full: 12 } as const;
+const GridLayoutWithWidth = WidthProvider(GridLayout);
+
+type LayoutItem = { i: string; x: number; y: number; w: number; h: number };
+type ReadonlyLayout = readonly Readonly<LayoutItem>[];
 
 function DashboardWidget({
   widget,
   currency,
   locale,
+  editMode,
   onRangeChange,
   onConfigChange,
+  onVisibleChange,
 }: {
-  widget: { id: string; type: string; config?: Record<string, unknown> };
+  widget: { id: string; type: string; visible: boolean; config?: Record<string, unknown> };
   currency: string;
   locale: string;
+  editMode: boolean;
   onRangeChange: (range: string) => void;
   onConfigChange: (patch: Record<string, unknown>) => void;
+  onVisibleChange: (visible: boolean) => void;
 }) {
   const range = (widget.config?.range as string) ?? DEFAULT_RANGE;
   const { from, to } = rangeToDates(range);
@@ -61,18 +63,24 @@ function DashboardWidget({
       range={range}
       onRangeChange={onRangeChange}
       onConfigChange={onConfigChange}
+      editMode={editMode}
+      visible={widget.visible}
+      onVisibleChange={onVisibleChange}
     />
   );
 }
 
 export default function DashboardPage() {
   const { t } = useTranslation('dashboard');
-  const [customising, setCustomising] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const { settings, currency, locale, mutate: mutateSettings, isLoading: settingsLoading } = useSettings();
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('md'));
 
   const widgets = settings?.dashboard ?? [];
+  const widgetsWithLayout = ensureLayouts(widgets);
+  const gridWidgets = editMode ? widgetsWithLayout : widgetsWithLayout.filter((w) => w.visible);
 
-  const saveWidgets = async (next: typeof widgets) => {
+  const saveWidgets = async (next: typeof widgetsWithLayout) => {
     await mutateSettings(
       async () => {
         const res = await send('/api/settings', 'PATCH', { dashboard: next });
@@ -88,142 +96,171 @@ export default function DashboardPage() {
     );
   };
 
-  const move = (index: number, delta: number) => {
-    const next = [...widgets];
-    const target = index + delta;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
+  const update = (index: number, patch: Record<string, unknown>) => {
+    const next = widgetsWithLayout.map((w, i) => (i === index ? { ...w, ...patch } : w));
     saveWidgets(next);
   };
 
-  const update = (index: number, patch: Record<string, unknown>) => {
-    const next = widgets.map((w, i) => (i === index ? { ...w, ...patch } : w));
+  const handleLayoutStop = (layout: ReadonlyLayout) => {
+    const next = widgetsWithLayout.map((w) => {
+      const l = layout.find((li) => li.i === w.id);
+      return l ? { ...w, layout: { x: l.x, y: l.y, w: l.w, h: l.h } } : w;
+    });
     saveWidgets(next);
   };
 
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
+      <GlobalStyles
+        styles={(theme) => ({
+          '.react-resizable-handle': {
+            width: '22px !important',
+            height: '22px !important',
+            opacity: '0.6 !important',
+            zIndex: 5,
+          },
+          '.react-resizable-handle::after': {
+            width: '10px !important',
+            height: '10px !important',
+            right: '6px !important',
+            bottom: '6px !important',
+            borderRightWidth: '3px !important',
+            borderBottomWidth: '3px !important',
+            borderRightColor: `${theme.palette.primary.main} !important`,
+            borderBottomColor: `${theme.palette.primary.main} !important`,
+            borderRadius: 2,
+          },
+          '.react-grid-item:hover > .react-resizable-handle': {
+            opacity: '1 !important',
+          },
+          '.react-grid-item.resizing': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2,
+          },
+          '.react-grid-item.react-draggable-dragging': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2,
+            cursor: 'grabbing',
+          },
+          '.drag-handle:active': { cursor: 'grabbing' },
+        })}
+      />
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
         action={
-          <Tooltip title={t('customiseWidgets')}>
-            <IconButton onClick={() => setCustomising(true)} aria-label={t('customiseWidgets')}>
-              <TuneIcon />
-            </IconButton>
+          <Tooltip title={editMode ? t('doneEditing') : t('customiseWidgets')}>
+            <Button
+              variant={editMode ? 'contained' : 'outlined'}
+              startIcon={editMode ? <CheckIcon /> : <EditIcon />}
+              onClick={() => setEditMode((v) => !v)}
+              sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+            >
+              {editMode ? t('doneEditing') : t('customiseWidgets')}
+            </Button>
           </Tooltip>
         }
       />
 
-      <Grid container spacing={2}>
-        {settingsLoading
-          ? [0, 1, 2, 3].map((i) => (
-              <Grid item xs={12} md={6} key={i}>
-                <Skeleton variant="rounded" height={220} />
-              </Grid>
-            ))
-          : widgets
-              .filter((w) => w.visible)
-              .map((w) => (
-                <Grid item xs={12} md={SPAN[w.size] ?? 6} key={w.id}>
-                  <DashboardWidget
-                    widget={w}
-                    currency={currency}
-                    locale={locale}
-                    onRangeChange={(range) =>
-                      update(
-                        widgets.findIndex((x) => x.id === w.id),
-                        { config: { ...w.config, range } },
-                      )
-                    }
-                    onConfigChange={(patch) =>
-                      update(
-                        widgets.findIndex((x) => x.id === w.id),
-                        { config: { ...w.config, ...patch } },
-                      )
-                    }
-                  />
-                </Grid>
-              ))}
-        {!settingsLoading && widgets.filter((w) => w.visible).length === 0 && (
-          <Grid item xs={12}>
-            <Alert
-              severity="info"
-              action={
-                <Button size="small" onClick={() => setCustomising(true)}>
-                  {t('chooseWidgets')}
-                </Button>
-              }
-            >
-              {t('allHidden')}
-            </Alert>
-          </Grid>
-        )}
-      </Grid>
+      {settingsLoading ? (
+        <Stack spacing={2}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} variant="rounded" height={220} />
+          ))}
+        </Stack>
+      ) : isMobile ? (
+        <Stack spacing={2}>
+          {gridWidgets.map((w) => (
+            <Box key={w.id}>
+              <DashboardWidget
+                widget={w}
+                currency={currency}
+                locale={locale}
+                editMode={false}
+                onRangeChange={(range) =>
+                  update(
+                    widgetsWithLayout.findIndex((x) => x.id === w.id),
+                    { config: { ...w.config, range } },
+                  )
+                }
+                onConfigChange={(patch) =>
+                  update(
+                    widgetsWithLayout.findIndex((x) => x.id === w.id),
+                    { config: { ...w.config, ...patch } },
+                  )
+                }
+                onVisibleChange={(v) =>
+                  update(widgetsWithLayout.findIndex((x) => x.id === w.id), { visible: v })
+                }
+              />
+            </Box>
+          ))}
+        </Stack>
+      ) : (
+        <GridLayoutWithWidth
+          layout={gridWidgets.map((w) => ({
+            i: w.id,
+            x: w.layout.x,
+            y: w.layout.y,
+            w: w.layout.w,
+            h: w.layout.h,
+            minW: 3,
+            minH: 4,
+          }))}
+          cols={GRID_COLS}
+          rowHeight={ROW_HEIGHT}
+          margin={GRID_MARGIN}
+          isDraggable={editMode}
+          isResizable={editMode}
+          draggableHandle=".drag-handle"
+          draggableCancel=".no-drag"
+          resizeHandles={['se']}
+          onDragStop={handleLayoutStop}
+          onResizeStop={handleLayoutStop}
+        >
+          {gridWidgets.map((w) => (
+            <div key={w.id} style={{ opacity: w.visible ? 1 : 0.5 }}>
+              <DashboardWidget
+                widget={w}
+                currency={currency}
+                locale={locale}
+                editMode={editMode}
+                onRangeChange={(range) =>
+                  update(
+                    widgetsWithLayout.findIndex((x) => x.id === w.id),
+                    { config: { ...w.config, range } },
+                  )
+                }
+                onConfigChange={(patch) =>
+                  update(
+                    widgetsWithLayout.findIndex((x) => x.id === w.id),
+                    { config: { ...w.config, ...patch } },
+                  )
+                }
+                onVisibleChange={(v) =>
+                  update(widgetsWithLayout.findIndex((x) => x.id === w.id), { visible: v })
+                }
+              />
+            </div>
+          ))}
+        </GridLayoutWithWidth>
+      )}
 
-      <Dialog open={customising} onClose={() => setCustomising(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t('dialog.title')}</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t('dialog.description')}
-          </Typography>
-          <Stack spacing={1}>
-            {widgets.map((w, i) => (
-              <Stack
-                key={w.id}
-                direction="row"
-                spacing={1}
-                sx={{
-                  alignItems: 'center',
-                  border: 1,
-                  borderColor: 'divider',
-                  borderRadius: 2,
-                  px: 1,
-                  py: 0.75,
-                }}
-              >
-                <Stack>
-                  <IconButton size="small" onClick={() => move(i, -1)} disabled={i === 0} aria-label={t('dialog.moveUp')}>
-                    <UpIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => move(i, 1)}
-                    disabled={i === widgets.length - 1}
-                    aria-label={t('dialog.moveDown')}
-                  >
-                    <DownIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
-                <Typography sx={{ flex: 1, fontWeight: 600, fontSize: 14 }}>
-                  {w.title ?? widgetTitle(w.type, t)}
-                </Typography>
-                <TextField
-                  select
-                  value={w.size}
-                  onChange={(e) => update(i, { size: e.target.value })}
-                  sx={{ width: 130 }}
-                >
-                  <MenuItem value="third">{t('dialog.size.third')}</MenuItem>
-                  <MenuItem value="half">{t('dialog.size.half')}</MenuItem>
-                  <MenuItem value="two-thirds">{t('dialog.size.twoThirds')}</MenuItem>
-                  <MenuItem value="full">{t('dialog.size.full')}</MenuItem>
-                </TextField>
-                <Switch
-                  checked={w.visible}
-                  onChange={(e) => update(i, { visible: e.target.checked })}
-                  inputProps={{ 'aria-label': t('dialog.showWidget', { title: widgetTitle(w.type, t) }) }}
-                />
-              </Stack>
-            ))}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCustomising(false)} variant="contained">
-            {t('dialog.done')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {!settingsLoading && gridWidgets.filter((w) => w.visible).length === 0 && (
+        <Alert
+          severity="info"
+          sx={{ mt: 2 }}
+          action={
+            !editMode && (
+              <Button size="small" onClick={() => setEditMode(true)}>
+                {t('chooseWidgets')}
+              </Button>
+            )
+          }
+        >
+          {t('allHidden')}
+        </Alert>
+      )}
     </Box>
   );
 }

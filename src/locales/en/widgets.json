@@ -46,6 +46,10 @@
     "onClick": "Show: on click",
     "always": "Subcategories: always shown"
   },
+  "settings": {
+    "title": "Widget settings",
+    "visible": "Visible on dashboard"
+  },
   "empty": {
     "accounts": "No accounts yet.",
     "spendByCategory": "Nothing spent in this period.",

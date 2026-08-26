@@ -15,6 +15,13 @@ export type WidgetType =
 
 export type WidgetSize = 'third' | 'half' | 'two-thirds' | 'full';
 
+export interface WidgetLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface Widget {
   id: string;
   type: WidgetType;
@@ -22,18 +29,19 @@ export interface Widget {
   size: WidgetSize;
   visible: boolean;
   config?: Record<string, unknown>;
+  layout?: WidgetLayout;
 }
 
 export const DEFAULT_WIDGETS: Widget[] = [
-  { id: 'w-networth', type: 'net-worth', size: 'full', visible: true },
-  { id: 'w-accounts', type: 'accounts', size: 'half', visible: true },
-  { id: 'w-spend', type: 'spend-by-category', size: 'half', visible: true },
-  { id: 'w-trend', type: 'monthly-trend', size: 'full', visible: true },
-  { id: 'w-budget', type: 'budget-progress', size: 'half', visible: true },
-  { id: 'w-recent', type: 'recent-transactions', size: 'half', visible: true },
-  { id: 'w-goals', type: 'goals', size: 'half', visible: true },
-  { id: 'w-inc-exp', type: 'income-vs-expense', size: 'half', visible: false },
-  { id: 'w-merchants', type: 'top-merchants', size: 'half', visible: false },
+  { id: 'w-networth', type: 'net-worth', size: 'full', visible: true, layout: { x: 0, y: 0, w: 12, h: 5 } },
+  { id: 'w-accounts', type: 'accounts', size: 'half', visible: true, layout: { x: 0, y: 5, w: 6, h: 8 } },
+  { id: 'w-spend', type: 'spend-by-category', size: 'half', visible: true, layout: { x: 6, y: 5, w: 6, h: 8 } },
+  { id: 'w-trend', type: 'monthly-trend', size: 'full', visible: true, layout: { x: 0, y: 13, w: 12, h: 10 } },
+  { id: 'w-budget', type: 'budget-progress', size: 'half', visible: true, layout: { x: 0, y: 23, w: 6, h: 8 } },
+  { id: 'w-recent', type: 'recent-transactions', size: 'half', visible: true, layout: { x: 6, y: 23, w: 6, h: 8 } },
+  { id: 'w-goals', type: 'goals', size: 'half', visible: true, layout: { x: 0, y: 31, w: 6, h: 8 } },
+  { id: 'w-inc-exp', type: 'income-vs-expense', size: 'half', visible: false, layout: { x: 6, y: 31, w: 6, h: 8 } },
+  { id: 'w-merchants', type: 'top-merchants', size: 'half', visible: false, layout: { x: 0, y: 39, w: 6, h: 8 } },
 ];
 
 export type ConditionField =
@@ -72,6 +80,11 @@ export interface RuleCondition {
 
 /* ----------------------------------------------------------------- schemas */
 
+const WidgetLayoutSchema = new Schema<WidgetLayout>(
+  { x: Number, y: Number, w: Number, h: Number },
+  { _id: false },
+);
+
 const WidgetSchema = new Schema<Widget>(
   {
     id: String,
@@ -80,6 +93,7 @@ const WidgetSchema = new Schema<Widget>(
     size: { type: String, default: 'half' },
     visible: { type: Boolean, default: true },
     config: { type: Schema.Types.Mixed, default: {} },
+    layout: { type: WidgetLayoutSchema, default: undefined },
   },
   { _id: false },
 );

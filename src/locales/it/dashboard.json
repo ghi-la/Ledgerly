@@ -2,21 +2,8 @@
   "title": "Dashboard",
   "subtitle": "Ogni scheda ha il proprio intervallo di tempo (3 mesi predefiniti).",
   "customiseWidgets": "Personalizza widget",
+  "doneEditing": "Fatto",
   "widgetLoadError": "Impossibile caricare questo widget.",
   "chooseWidgets": "Scegli i widget",
-  "allHidden": "Al momento tutti i widget sono nascosti.",
-  "dialog": {
-    "title": "Personalizza la tua dashboard",
-    "description": "Mostra ciò che conta per te, imposta la larghezza di ogni scheda e riordinale. Le modifiche si salvano automaticamente.",
-    "moveUp": "Sposta su",
-    "moveDown": "Sposta giù",
-    "showWidget": "Mostra {{title}}",
-    "size": {
-      "third": "Un terzo",
-      "half": "Metà",
-      "twoThirds": "Due terzi",
-      "full": "Intera"
-    },
-    "done": "Fatto"
-  }
+  "allHidden": "Al momento tutti i widget sono nascosti."
 }

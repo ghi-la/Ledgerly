@@ -4,16 +4,21 @@ import { useState } from 'react';
 import NextLink from 'next/link';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
+import SettingsIcon from '@mui/icons-material/SettingsOutlined';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import {
   Box,
   Card,
   CardContent,
   Chip,
   Divider,
+  IconButton,
   LinearProgress,
   Link,
   MenuItem,
+  Popover,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -94,6 +99,9 @@ export interface WidgetProps {
   range?: string;
   onRangeChange?: (range: string) => void;
   onConfigChange?: (patch: Record<string, unknown>) => void;
+  editMode?: boolean;
+  visible?: boolean;
+  onVisibleChange?: (visible: boolean) => void;
 }
 
 export const widgetTitle = (type: string, t: TFunction) => t(`widgets:titles.${type}`, { defaultValue: type });
@@ -103,14 +111,25 @@ function Shell({
   action,
   range,
   onRangeChange,
+  editMode,
+  visible,
+  onVisibleChange,
+  settingsContent,
   children,
 }: {
   title: string;
   action?: React.ReactNode;
   range?: string;
   onRangeChange?: (range: string) => void;
+  editMode?: boolean;
+  visible?: boolean;
+  onVisibleChange?: (visible: boolean) => void;
+  settingsContent?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation('widgets');
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardContent
@@ -124,13 +143,22 @@ function Shell({
         }}
       >
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5, gap: 1 }}>
-          <Typography
-            variant="overline"
-            sx={{ color: 'text.secondary', fontSize: 11, lineHeight: 1.6 }}
-          >
-            {title}
-          </Typography>
-          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
+            {editMode && (
+              <DragIndicatorIcon
+                className="drag-handle"
+                fontSize="small"
+                sx={{ color: 'text.disabled', cursor: 'grab', flexShrink: 0, ml: -0.5 }}
+              />
+            )}
+            <Typography
+              variant="overline"
+              sx={{ color: 'text.secondary', fontSize: 11, lineHeight: 1.6 }}
+            >
+              {title}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }} className="no-drag">
             {onRangeChange && (
               <TextField
                 select
@@ -149,6 +177,43 @@ function Shell({
               </TextField>
             )}
             {action}
+            {editMode && (
+              <>
+                <IconButton
+                  size="small"
+                  onClick={(e) => setAnchorEl(e.currentTarget)}
+                  aria-label={t('settings.title')}
+                >
+                  <SettingsIcon fontSize="small" />
+                </IconButton>
+                <Popover
+                  open={!!anchorEl}
+                  anchorEl={anchorEl}
+                  onClose={() => setAnchorEl(null)}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                  <Stack spacing={1.5} sx={{ p: 2, minWidth: 220 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1 }}>
+                      {t('settings.title')}
+                    </Typography>
+                    {settingsContent}
+                    {settingsContent && <Divider />}
+                    <Stack
+                      direction="row"
+                      sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                    >
+                      <Typography sx={{ fontSize: 14 }}>{t('settings.visible')}</Typography>
+                      <Switch
+                        size="small"
+                        checked={visible ?? true}
+                        onChange={(e) => onVisibleChange?.(e.target.checked)}
+                      />
+                    </Stack>
+                  </Stack>
+                </Popover>
+              </>
+            )}
           </Stack>
         </Stack>
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
@@ -204,7 +269,18 @@ type FlatCategoryRow = {
 };
 
 /** Extracted (rather than a switch case) since it needs its own local state for the expand panel and drill-down dialog. */
-function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, config, onConfigChange }: WidgetProps) {
+function SpendByCategoryWidget({
+  stats,
+  currency,
+  locale,
+  range,
+  onRangeChange,
+  config,
+  onConfigChange,
+  editMode,
+  visible,
+  onVisibleChange,
+}: WidgetProps) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
   const chartType = (config?.chartType as string) ?? 'donut';
@@ -263,16 +339,11 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
       title={widgetTitle('spend-by-category', t)}
       range={range}
       onRangeChange={onRangeChange}
-      action={
-        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: 0.5 }}>
-          <ConfigSelect
-            value={subcategoryDisplay}
-            onChange={(v) => onConfigChange?.({ subcategoryDisplay: v })}
-            options={[
-              { value: 'click', label: t('subcategories.onClick') },
-              { value: 'always', label: t('subcategories.always') },
-            ]}
-          />
+      editMode={editMode}
+      visible={visible}
+      onVisibleChange={onVisibleChange}
+      settingsContent={
+        <Stack spacing={1.25}>
           <ConfigSelect
             value={chartType}
             onChange={(v) => onConfigChange?.({ chartType: v })}
@@ -280,6 +351,14 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
               { value: 'donut', label: t('chartTypes.donut') },
               { value: 'bar', label: t('chartTypes.bar') },
               { value: 'list', label: t('chartTypes.list') },
+            ]}
+          />
+          <ConfigSelect
+            value={subcategoryDisplay}
+            onChange={(v) => onConfigChange?.({ subcategoryDisplay: v })}
+            options={[
+              { value: 'click', label: t('subcategories.onClick') },
+              { value: 'always', label: t('subcategories.always') },
             ]}
           />
         </Stack>
@@ -464,6 +543,9 @@ export function WidgetRenderer({
   range,
   onRangeChange,
   onConfigChange,
+  editMode,
+  visible,
+  onVisibleChange,
 }: WidgetProps & { type: string }) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
@@ -477,7 +559,14 @@ export function WidgetRenderer({
         { label: t('netWorth.leftOver'), value: stats.totals.net, colored: true },
       ];
       return (
-        <Shell title={widgetTitle(type, t)} range={range} onRangeChange={onRangeChange}>
+        <Shell
+          title={widgetTitle(type, t)}
+          range={range}
+          onRangeChange={onRangeChange}
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
+        >
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             divider={<Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />}
@@ -504,6 +593,9 @@ export function WidgetRenderer({
           title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
           action={
             <Link component={NextLink} href="/accounts" variant="caption">
               {t('links.manage')}
@@ -545,6 +637,9 @@ export function WidgetRenderer({
           onRangeChange={onRangeChange}
           config={config}
           onConfigChange={onConfigChange}
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
         />
       );
 
@@ -568,8 +663,20 @@ export function WidgetRenderer({
           title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
-          action={
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: 0.5 }}>
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
+          settingsContent={
+            <Stack spacing={1.25}>
+              <ConfigSelect
+                value={chartType}
+                onChange={(v) => onConfigChange?.({ chartType: v })}
+                options={[
+                  { value: 'area', label: t('chartTypes.area') },
+                  { value: 'line', label: t('chartTypes.line') },
+                  { value: 'bar', label: t('chartTypes.bar') },
+                ]}
+              />
               <ConfigSelect
                 value={metric}
                 onChange={(v) => onConfigChange?.({ metric: v })}
@@ -578,15 +685,6 @@ export function WidgetRenderer({
                   { value: 'income', label: t('metrics.income') },
                   { value: 'expense', label: t('metrics.expense') },
                   { value: 'net', label: t('metrics.net') },
-                ]}
-              />
-              <ConfigSelect
-                value={chartType}
-                onChange={(v) => onConfigChange?.({ chartType: v })}
-                options={[
-                  { value: 'area', label: t('chartTypes.area') },
-                  { value: 'line', label: t('chartTypes.line') },
-                  { value: 'bar', label: t('chartTypes.bar') },
                 ]}
               />
             </Stack>
@@ -646,7 +744,10 @@ export function WidgetRenderer({
           title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
-          action={
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
+          settingsContent={
             <ConfigSelect
               value={chartType}
               onChange={(v) => onConfigChange?.({ chartType: v })}
@@ -708,6 +809,9 @@ export function WidgetRenderer({
           title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
           action={
             <Link component={NextLink} href="/budgets" variant="caption">
               {t('common:actions.edit')}
@@ -752,6 +856,9 @@ export function WidgetRenderer({
           title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
           action={
             <Link component={NextLink} href="/transactions" variant="caption">
               {t('links.seeAll')}
@@ -788,6 +895,9 @@ export function WidgetRenderer({
           title={widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
           action={
             <Link component={NextLink} href="/goals" variant="caption">
               {t('common:actions.edit')}
@@ -828,7 +938,14 @@ export function WidgetRenderer({
 
     case 'top-merchants':
       return (
-        <Shell title={widgetTitle(type, t)} range={range} onRangeChange={onRangeChange}>
+        <Shell
+          title={widgetTitle(type, t)}
+          range={range}
+          onRangeChange={onRangeChange}
+          editMode={editMode}
+          visible={visible}
+          onVisibleChange={onVisibleChange}
+        >
           {stats.topMerchants.length === 0 ? (
             <Nothing>{t('empty.topMerchants')}</Nothing>
           ) : (

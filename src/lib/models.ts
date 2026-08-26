@@ -13,7 +13,7 @@ export type WidgetType =
   | 'income-vs-expense'
   | 'top-merchants';
 
-export type WidgetSize = 'third' | 'half' | 'full';
+export type WidgetSize = 'third' | 'half' | 'two-thirds' | 'full';
 
 export interface Widget {
   id: string;

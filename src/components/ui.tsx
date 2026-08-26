@@ -103,7 +103,7 @@ export interface UserSettings {
     id: string;
     type: string;
     title?: string;
-    size: 'third' | 'half' | 'full';
+    size: 'third' | 'half' | 'two-thirds' | 'full';
     visible: boolean;
     config?: Record<string, unknown>;
   }[];

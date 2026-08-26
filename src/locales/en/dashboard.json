@@ -14,6 +14,7 @@
     "size": {
       "third": "Third",
       "half": "Half",
+      "twoThirds": "Two-thirds",
       "full": "Full"
     },
     "done": "Done"

@@ -28,7 +28,7 @@ import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
 import { PageHeader, useSettings } from '@/components/ui';
 import { WidgetRenderer, widgetTitle, type Stats } from '@/components/widgets';
 
-const SPAN = { third: 4, half: 6, full: 12 } as const;
+const SPAN = { third: 4, half: 6, 'two-thirds': 8, full: 12 } as const;
 
 function DashboardWidget({
   widget,
@@ -202,10 +202,11 @@ export default function DashboardPage() {
                   select
                   value={w.size}
                   onChange={(e) => update(i, { size: e.target.value })}
-                  sx={{ width: 110 }}
+                  sx={{ width: 130 }}
                 >
                   <MenuItem value="third">{t('dialog.size.third')}</MenuItem>
                   <MenuItem value="half">{t('dialog.size.half')}</MenuItem>
+                  <MenuItem value="two-thirds">{t('dialog.size.twoThirds')}</MenuItem>
                   <MenuItem value="full">{t('dialog.size.full')}</MenuItem>
                 </TextField>
                 <Switch

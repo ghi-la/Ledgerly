@@ -15,15 +15,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { fetcher, send } from '@/lib/client';
+import { send } from '@/lib/client';
 import { isValidEmail } from '@/lib/validation';
-import { generateDek, generateSaltB64, unwrapDek, wrapDek } from '@/lib/cryptoField';
-import { useEncryption } from '@/components/EncryptionProvider';
-import { migrateEncryption } from '@/lib/migrateEncryption';
 
 export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
-  const { setDek } = useEncryption();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,22 +66,9 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     setNotice('');
     try {
       if (mode === 'register') {
-        // The description/merchant/notes encryption key is generated here,
-        // wrapped with a key derived from the password, and only the wrapped
-        // form ever reaches the server; it can't derive the key itself.
-        const dek = await generateDek();
-        const salt = generateSaltB64();
-        const { wrapped, iv } = await wrapDek(dek, password, salt);
-        await send('/api/register', 'POST', {
-          name,
-          email: cleanEmail,
-          password,
-          encSalt: salt,
-          encDekWrapped: wrapped,
-          encDekIv: iv,
-        });
+        await send('/api/register', 'POST', { name, email: cleanEmail, password });
         // Account is created but locked out of sign-in until the email link
-        // is followed, so there's nothing to unlock the DEK with yet.
+        // is followed.
         setUnverifiedEmail(cleanEmail);
         setBusy(false);
         return;
@@ -102,21 +85,6 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         }
         throw new Error('That email and password combination did not work.');
       }
-
-      let dek: CryptoKey;
-      const key = await fetcher('/api/encryption/key');
-      if (key.encDekWrapped && key.encDekIv && key.encSalt) {
-        dek = await unwrapDek(key.encDekWrapped, key.encDekIv, password, key.encSalt);
-      } else {
-        // Account predates this feature; bootstrap it now, on this login.
-        dek = await generateDek();
-        const salt = generateSaltB64();
-        const { wrapped, iv } = await wrapDek(dek, password, salt);
-        await send('/api/encryption/key', 'PATCH', { encSalt: salt, encDekWrapped: wrapped, encDekIv: iv });
-      }
-
-      setDek(dek);
-      migrateEncryption(dek).catch(() => {});
 
       router.push('/dashboard');
       router.refresh();

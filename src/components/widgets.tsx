@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import NextLink from 'next/link';
 import {
   Box,
@@ -15,8 +14,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useEncryption } from './EncryptionProvider';
-import { decryptField } from '@/lib/cryptoField';
 import {
   Area,
   AreaChart,
@@ -58,7 +55,6 @@ export interface Stats {
     _id: string;
     date: string;
     description: string;
-    encVersion?: number;
     amount: number;
     categoryName: string | null;
     categoryColor: string | null;
@@ -66,30 +62,12 @@ export interface Stats {
   }[];
 }
 
-/** Decrypts `value` client-side when `encVersion` says it's ciphertext, otherwise renders it as-is. */
+/** Renders decrypted text from the API - kept as a named component since call sites already pass a `value`. */
 export function DecryptedText({
   value,
-  encVersion,
   ...typographyProps
-}: { value: string; encVersion?: number } & Omit<React.ComponentProps<typeof Typography>, 'children'>) {
-  const { dek } = useEncryption();
-  const [text, setText] = useState(value);
-
-  useEffect(() => {
-    if (encVersion !== 1 || !dek) {
-      setText(value);
-      return;
-    }
-    let cancelled = false;
-    decryptField(dek, value).then((decrypted) => {
-      if (!cancelled) setText(decrypted);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [value, encVersion, dek]);
-
-  return <Typography {...typographyProps}>{text}</Typography>;
+}: { value: string } & Omit<React.ComponentProps<typeof Typography>, 'children'>) {
+  return <Typography {...typographyProps}>{value}</Typography>;
 }
 
 export interface WidgetProps {
@@ -408,7 +386,6 @@ export function WidgetRenderer({
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <DecryptedText
                       value={t.description}
-                      encVersion={t.encVersion}
                       noWrap
                       sx={{ fontSize: 14, fontWeight: 600 }}
                     />

@@ -6,13 +6,14 @@ import { CATEGORY_PALETTE, STARTER_CATEGORIES, STARTER_RULES } from '@/lib/start
 import { isValidEmail } from '@/lib/validation';
 import { sendVerificationEmail } from '@/lib/email';
 import { createVerificationToken, VERIFICATION_TOKEN_TTL_MS } from '@/lib/verification';
+import { generateDekWrappedForNewUser } from '@/lib/serverCrypto';
 
 export const POST = route(async (req: Request) => {
   if (process.env.ALLOW_REGISTRATION === 'false') {
     throw new HttpError(403, 'Registration is closed on this instance.');
   }
 
-  const { name, email, password, encSalt, encDekWrapped, encDekIv } = await req.json();
+  const { name, email, password } = await req.json();
   const cleanEmail = String(email ?? '')
     .toLowerCase()
     .trim();
@@ -30,14 +31,14 @@ export const POST = route(async (req: Request) => {
   }
 
   const { token, tokenHash } = createVerificationToken();
+  const { encDekMaster, encDekMasterIv } = await generateDekWrappedForNewUser();
 
   const user = await User.create({
     name: String(name ?? '').trim() || cleanEmail.split('@')[0],
     email: cleanEmail,
     passwordHash: await bcrypt.hash(String(password), 10),
-    encSalt: encSalt ? String(encSalt) : null,
-    encDekWrapped: encDekWrapped ? String(encDekWrapped) : null,
-    encDekIv: encDekIv ? String(encDekIv) : null,
+    encDekMaster,
+    encDekMasterIv,
     emailVerified: false,
     emailVerificationTokenHash: tokenHash,
     emailVerificationExpires: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),

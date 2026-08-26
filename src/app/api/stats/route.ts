@@ -1,5 +1,6 @@
 import { Account, Budget, Category, Goal, Transaction } from '@/lib/models';
 import { ok, requireUser, route } from '@/lib/api';
+import { decryptTxFields, getUserDek } from '@/lib/serverCrypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +71,7 @@ export const GET = route(async (req: Request) => {
 
   const monthKeys = monthsBetween(from, to);
 
-  const [balanceAgg, totalsAgg, byCategoryAgg, seriesAgg, merchantsAgg, recent] = await Promise.all([
+  const [balanceAgg, totalsAgg, byCategoryAgg, seriesAgg, expenseRows, recentRaw] = await Promise.all([
     Transaction.aggregate([
       { $match: { userId } },
       { $group: { _id: '$accountId', total: { $sum: '$amount' } } },
@@ -102,35 +103,37 @@ export const GET = route(async (req: Request) => {
       },
       { $sort: { _id: 1 } },
     ]),
-    // Grouping by merchant text only makes sense for plaintext rows — once a
-    // transaction's merchant is encrypted, every write produces different
-    // ciphertext even for the same merchant, so it can never group with
-    // anything. Encrypted rows are excluded here rather than polluting the
-    // "top merchants" list with meaningless single-transaction ciphertext
-    // groups.
-    Transaction.aggregate([
-      {
-        $match: {
-          userId,
-          date: { $gte: from, $lte: to },
-          type: { $ne: 'transfer' },
-          amount: { $lt: 0 },
-          encVersion: { $ne: 1 },
-        },
-      },
-      {
-        $group: {
-          _id: { $toLower: { $ifNull: ['$merchant', ''] } },
-          total: { $sum: '$amount' },
-          count: { $sum: 1 },
-          label: { $first: '$description' },
-        },
-      },
-      { $sort: { total: 1 } },
-      { $limit: 8 },
-    ]),
+    // merchant/description are encrypted, so grouping by merchant text can't
+    // happen in the database - fetch the candidate rows and group them in
+    // application code below, after decrypting.
+    Transaction.find(
+      { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 } },
+      { merchant: 1, description: 1, amount: 1, encVersion: 1 },
+    ).lean(),
     Transaction.find({ userId, date: { $gte: from, $lte: to } }).sort({ date: -1, _id: -1 }).limit(8).lean(),
   ]);
+
+  const dek = await getUserDek(userId);
+  const decryptedExpenses = await Promise.all(expenseRows.map((t) => decryptTxFields(t, dek)));
+  const recent = await Promise.all(recentRaw.map((t) => decryptTxFields(t, dek)));
+
+  const merchantGroups = new Map<string, { total: number; count: number; merchantKey: string; firstDescription: string }>();
+  for (const t of decryptedExpenses) {
+    const merchant = (t.merchant as string) ?? '';
+    const amount = t.amount as number;
+    const merchantKey = merchant.toLowerCase();
+    const existing = merchantGroups.get(merchantKey);
+    if (existing) {
+      existing.total += amount;
+      existing.count += 1;
+    } else {
+      merchantGroups.set(merchantKey, { total: amount, count: 1, merchantKey, firstDescription: (t.description as string) ?? '' });
+    }
+  }
+  const merchantsAgg = [...merchantGroups.values()]
+    .sort((a, b) => a.total - b.total)
+    .slice(0, 8)
+    .map((g) => ({ _id: g.merchantKey, label: g.firstDescription, total: g.total, count: g.count }));
 
   const balanceByAccount = new Map(balanceAgg.map((b) => [String(b._id), b.total]));
   const accountRows = accounts.map((a) => ({
@@ -219,7 +222,6 @@ export const GET = route(async (req: Request) => {
       _id: String(t._id),
       date: t.date,
       description: t.description,
-      encVersion: t.encVersion ?? 0,
       amount: t.amount,
       type: t.type,
       categoryId: t.categoryId ? String(t.categoryId) : null,

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "encrypt-legacy-transactions": "tsx scripts/encrypt-legacy-transactions.ts"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.7.4",

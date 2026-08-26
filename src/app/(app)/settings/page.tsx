@@ -35,7 +35,6 @@ interface Recurring {
   items: {
     key: string;
     label: string;
-    labelEncVersion?: number;
     cadence: string;
     averageAmount: number;
     direction: string;
@@ -153,7 +152,6 @@ export default function SettingsPage() {
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <DecryptedText
                     value={r.label}
-                    encVersion={r.labelEncVersion}
                     sx={{ fontWeight: 600 }}
                     noWrap
                   />

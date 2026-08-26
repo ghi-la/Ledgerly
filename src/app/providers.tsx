@@ -9,7 +9,6 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SessionProvider } from 'next-auth/react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { EncryptionProvider } from '@/components/EncryptionProvider';
 
 type Mode = 'light' | 'dark';
 const ColorModeContext = createContext<{ mode: Mode; toggle: () => void }>({
@@ -50,9 +49,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <Analytics />
           <SpeedInsights />
           <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <SessionProvider>
-              <EncryptionProvider>{children}</EncryptionProvider>
-            </SessionProvider>
+            <SessionProvider>{children}</SessionProvider>
           </LocalizationProvider>
         </ThemeProvider>
       </ColorModeContext.Provider>

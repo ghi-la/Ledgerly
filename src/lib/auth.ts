@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { connectDB } from './db';
 import { User } from './models';
 import { authConfig } from './auth.config';
+import { migrateLegacyDek } from './serverCrypto';
 
 /** Thrown by `authorize` so the client can tell this apart from a wrong password. */
 class EmailNotVerifiedSignin extends CredentialsSignin {
@@ -30,6 +31,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!ok) return null;
 
         if (!user.emailVerified) throw new EmailNotVerifiedSignin();
+
+        // One-time migration off the old password-derived encryption key:
+        // this is the only moment the server ever sees the plaintext
+        // password, so it's the only place that can unwrap a legacy DEK.
+        if (!user.encDekMaster && user.encDekWrapped && user.encSalt && user.encDekIv) {
+          try {
+            await migrateLegacyDek(user._id, password, user.encSalt, user.encDekWrapped, user.encDekIv);
+          } catch (err) {
+            console.error('[auth] Legacy DEK migration failed:', err);
+          }
+        }
 
         return { id: String(user._id), email: user.email, name: user.name ?? user.email };
       },

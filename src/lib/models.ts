@@ -89,10 +89,15 @@ const UserSchema = new Schema(
     name: String,
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
-    // Envelope encryption for description/merchant/notes: encSalt derives a
-    // password-based key that unwraps encDekWrapped into the actual
-    // per-account data key. The server stores these but can never derive the
-    // key itself — only the browser, after the user's password, can.
+    // Envelope encryption for description/merchant/notes: encDekMaster is the
+    // per-account data key, wrapped with the server's ENCRYPTION_MASTER_KEY
+    // (see src/lib/serverCrypto.ts) so the server can always decrypt.
+    encDekMaster: { type: String, default: null },
+    encDekMasterIv: { type: String, default: null },
+    // Legacy password-wrapped DEK (field names unchanged from before, since
+    // existing documents already store data under these keys), kept only
+    // until migrateLegacyDek() runs on next login for accounts created before
+    // the server-managed key existed.
     encSalt: { type: String, default: null },
     encDekWrapped: { type: String, default: null },
     encDekIv: { type: String, default: null },

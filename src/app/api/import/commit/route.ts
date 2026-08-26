@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Account, Transaction } from '@/lib/models';
 import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
 import { dedupeKey, recurringKey } from '@/lib/parse';
+import { encryptTxFields, getUserDek } from '@/lib/serverCrypto';
 
 /** Writes the drafts the user approved in the preview step. */
 export const POST = route(async (req: Request) => {
@@ -18,38 +19,37 @@ export const POST = route(async (req: Request) => {
   if (!drafts.length) throw new HttpError(400, 'Nothing selected to import.');
 
   const importBatchId = crypto.randomUUID();
+  const dek = await getUserDek(userId);
 
-  const docs = drafts
-    .filter((d) => d.date && !d.error)
-    .map((d) => {
-      const date = new Date(String(d.date));
-      const amount = Number(d.amount);
-      // `description` may already be ciphertext (encVersion 1); `plainDescription`
-      // carries the plaintext just for this request, used only to compute the
-      // dedupe fingerprint below (a one-way hash, never persisted as-is).
-      // Once encrypted, `recurringKey` stays null rather than storing a
-      // readable snippet of the description in the clear.
-      const description = String(d.description ?? '').trim();
-      const plainDescription = String(d.plainDescription ?? d.description ?? '').trim();
-      const encVersion = d.encVersion === 1 ? 1 : 0;
-      return {
-        userId,
-        accountId,
-        categoryId: oid(d.categoryId),
-        date,
-        amount,
-        description,
-        merchant: String(d.merchant ?? ''),
-        reference: String(d.reference ?? ''),
-        notes: String(d.notes ?? ''),
-        tags: Array.isArray(d.tags) ? d.tags : [],
-        type: d.type ?? (amount >= 0 ? 'income' : 'expense'),
-        encVersion,
-        importBatchId,
-        dedupeKey: dedupeKey(String(accountId), date, amount, plainDescription),
-        recurringKey: encVersion === 1 ? null : recurringKey(plainDescription),
-      };
-    });
+  const docs = await Promise.all(
+    drafts
+      .filter((d) => d.date && !d.error)
+      .map(async (d) => {
+        const date = new Date(String(d.date));
+        const amount = Number(d.amount);
+        const description = String(d.description ?? '').trim();
+        const merchant = String(d.merchant ?? '').trim();
+        const notes = String(d.notes ?? '').trim();
+        const encrypted = await encryptTxFields({ description, merchant, notes }, dek);
+        return {
+          userId,
+          accountId,
+          categoryId: oid(d.categoryId),
+          date,
+          amount,
+          description: encrypted.description,
+          merchant: encrypted.merchant,
+          reference: String(d.reference ?? ''),
+          notes: encrypted.notes,
+          tags: Array.isArray(d.tags) ? d.tags : [],
+          type: d.type ?? (amount >= 0 ? 'income' : 'expense'),
+          encVersion: 1,
+          importBatchId,
+          dedupeKey: dedupeKey(String(accountId), date, amount, description),
+          recurringKey: recurringKey(description),
+        };
+      }),
+  );
 
   if (!docs.length) throw new HttpError(400, 'None of the selected rows could be read.');
 

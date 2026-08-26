@@ -7,8 +7,6 @@ import { Box, Button, Card, CardContent, Grid, MenuItem, Stack, TextField, Typog
 import DownloadIcon from '@mui/icons-material/FileDownloadOutlined';
 import { fetcher } from '@/lib/client';
 import { PageHeader } from '@/components/ui';
-import { useEncryption } from '@/components/EncryptionProvider';
-import { decryptTxFields, type EncryptableTx } from '@/lib/cryptoField';
 
 interface Account {
   _id: string;
@@ -18,10 +16,12 @@ interface Category {
   _id: string;
   name: string;
 }
-interface ExportTx extends EncryptableTx {
+interface ExportTx {
   _id: string;
+  description?: string;
   date: string;
   merchant?: string;
+  notes?: string;
   accountId: string;
   categoryId: string | null;
   amount: number;
@@ -32,7 +32,6 @@ interface ExportTx extends EncryptableTx {
 export default function ExportPage() {
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
-  const { dek } = useEncryption();
 
   const [search, setSearch] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -41,17 +40,15 @@ export default function ExportPage() {
   const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Account/category/date filters only — text search can no longer be
-  // matched server-side once description/merchant/notes are encrypted, so
-  // it's applied client-side (see downloadCsv) after decrypting.
   const filterQuery = useMemo(() => {
     const p = new URLSearchParams();
     if (accountId) p.set('accountId', accountId);
     if (categoryId) p.set('categoryId', categoryId);
     if (from) p.set('from', from);
     if (to) p.set('to', to);
+    if (search.trim()) p.set('search', search.trim());
     return p.toString();
-  }, [accountId, categoryId, from, to]);
+  }, [accountId, categoryId, from, to, search]);
 
   const { data: preview } = useSWR<{ total: number }>(
     `/api/transactions?${filterQuery}&limit=1&skip=0`,
@@ -62,17 +59,7 @@ export default function ExportPage() {
     setBusy(true);
     try {
       const res = await fetcher(`/api/transactions?${filterQuery}&limit=50000&skip=0`);
-      let items: ExportTx[] = await Promise.all(
-        (res.items as ExportTx[]).map((t) => decryptTxFields(t, dek)),
-      );
-      const term = search.trim().toLowerCase();
-      if (term) {
-        items = items.filter((t) =>
-          [t.description, t.merchant, t.notes, t.reference].some((f) =>
-            (f ?? '').toLowerCase().includes(term),
-          ),
-        );
-      }
+      const items = res.items as ExportTx[];
 
       const accountName = new Map((accounts ?? []).map((a) => [a._id, a.name]));
       const categoryName = new Map((categories ?? []).map((c) => [c._id, c.name]));

@@ -1,6 +1,13 @@
 import { oid } from '@/lib/api';
 
-/** Builds the Mongo filter shared by the transactions list and CSV export. */
+/**
+ * Builds the Mongo filter shared by the transactions list and CSV export.
+ * Deliberately excludes text search: description/merchant/notes are
+ * encrypted with a random IV per write, so they can never match a Mongo
+ * regex. Callers that need text search fetch this filter's results, decrypt
+ * them server-side, and filter in application code instead (see
+ * `src/app/api/transactions/route.ts`).
+ */
 export function buildTransactionFilter(userId: unknown, q: URLSearchParams) {
   const filter: Record<string, unknown> = { userId };
 
@@ -20,12 +27,6 @@ export function buildTransactionFilter(userId: unknown, q: URLSearchParams) {
       ...(from && { $gte: new Date(from) }),
       ...(to && { $lte: new Date(`${to}T23:59:59.999Z`) }),
     };
-  }
-
-  const search = q.get('search')?.trim();
-  if (search) {
-    const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    filter.$or = [{ description: rx }, { merchant: rx }, { notes: rx }, { reference: rx }];
   }
 
   return filter;

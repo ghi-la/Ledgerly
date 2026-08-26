@@ -1,6 +1,7 @@
 import { Category, Transaction } from '@/lib/models';
 import { ok, requireUser, route } from '@/lib/api';
 import { recurringKey } from '@/lib/parse';
+import { decryptField, getUserDek } from '@/lib/serverCrypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,24 +15,39 @@ const DAY = 86_400_000;
 export const GET = route(async () => {
   const userId = await requireUser();
 
+  interface RecurringTx {
+    _id: unknown;
+    description: string;
+    recurringKey: string | null;
+    amount: number;
+    date: Date;
+    categoryId: unknown;
+    encVersion?: number;
+  }
+
   const since = new Date(Date.now() - 400 * DAY);
-  const [transactions, categories] = await Promise.all([
+  const [rawTransactions, categories] = await Promise.all([
     Transaction.find({ userId, date: { $gte: since }, type: { $ne: 'transfer' } })
       .sort({ date: 1 })
-      .lean(),
+      .lean() as unknown as Promise<RecurringTx[]>,
     Category.find({ userId }).lean(),
   ]);
+
+  const dek = await getUserDek(userId);
+  const transactions = await Promise.all(
+    rawTransactions.map(async (tx) => ({
+      ...tx,
+      description: tx.encVersion === 1 ? await decryptField(dek, tx.description ?? '') : tx.description,
+    })),
+  );
 
   const categoryById = new Map(categories.map((c) => [String(c._id), c]));
   const groups = new Map<string, typeof transactions>();
 
   for (const tx of transactions) {
-    // Encrypted transactions never carry a recurringKey (see the write
-    // routes), and tx.description is ciphertext for them too, so the
-    // fallback below must not run on those rows: recurring detection simply
-    // doesn't group encrypted transactions, the same trade-off already made
-    // for "top merchants" in the stats route.
-    const k = tx.recurringKey || (tx.encVersion === 1 ? null : recurringKey(tx.description ?? ''));
+    // recurringKey is written on every create/update (see the write routes);
+    // this fallback only ever fires for rows written before that existed.
+    const k = tx.recurringKey || recurringKey(tx.description ?? '');
     if (!k || k.length < 3) continue;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k)!.push(tx);
@@ -66,7 +82,6 @@ export const GET = route(async () => {
     results.push({
       key: k,
       label: last.description,
-      labelEncVersion: last.encVersion ?? 0,
       cadence,
       averageGapDays: Math.round(avgGap),
       averageAmount: Math.round(avgAmount * 100) / 100,

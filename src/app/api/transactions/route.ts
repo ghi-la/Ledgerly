@@ -2,10 +2,13 @@ import { Account, Category, Transaction } from '@/lib/models';
 import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
 import { dedupeKey, recurringKey } from '@/lib/parse';
 import { buildTransactionFilter } from '@/lib/transactionFilter';
+import { decryptTxFields, encryptTxFields, getUserDek } from '@/lib/serverCrypto';
 
 export const dynamic = 'force-dynamic';
 
 const SORTABLE_FIELDS = new Set(['date', 'description', 'amount', 'account', 'category']);
+// Bounds how many rows a text search decrypts+scans server-side per request.
+const SEARCH_SCAN_CAP = 20000;
 
 function fetchSorted(
   filter: Record<string, unknown>,
@@ -66,6 +69,36 @@ async function attachBalances(userId: unknown, items: Record<string, unknown>[])
   }
 }
 
+/**
+ * Sorts already-decrypted, in-memory transactions the same way `fetchSorted`
+ * orders a Mongo query - used for the text-search path, where pagination
+ * happens after decrypting rather than in the database.
+ */
+async function sortDecrypted(items: Record<string, unknown>[], sortBy: string, sortDir: 1 | -1) {
+  if (sortBy === 'account' || sortBy === 'category') {
+    const idField = sortBy === 'account' ? 'accountId' : 'categoryId';
+    const ids = [...new Set(items.map((i) => String(i[idField])))].filter((id) => id !== 'null');
+    const docs = (
+      sortBy === 'account'
+        ? await Account.find({ _id: { $in: ids } }, { name: 1 }).lean()
+        : await Category.find({ _id: { $in: ids } }, { name: 1 }).lean()
+    ) as unknown as { _id: unknown; name: string }[];
+    const nameById = new Map(docs.map((d) => [String(d._id), d.name]));
+    items.sort((a, b) => sortDir * (nameById.get(String(a[idField])) ?? '').localeCompare(nameById.get(String(b[idField])) ?? ''));
+    return;
+  }
+  items.sort((a, b) => {
+    const av = a[sortBy] as string | number | Date | null;
+    const bv = b[sortBy] as string | number | Date | null;
+    if (av == null && bv == null) return 0;
+    if (av == null) return -sortDir;
+    if (bv == null) return sortDir;
+    if (av < bv) return -sortDir;
+    if (av > bv) return sortDir;
+    return 0;
+  });
+}
+
 export const GET = route(async (req: Request) => {
   const userId = await requireUser();
   const url = new URL(req.url);
@@ -80,10 +113,34 @@ export const GET = route(async (req: Request) => {
   const sortBy = SORTABLE_FIELDS.has(sortByParam) ? sortByParam : 'date';
   const sortDir = q.get('sortDir') === 'asc' ? 1 : -1;
 
-  const [items, total] = await Promise.all([
-    fetchSorted(filter, sortBy, sortDir, skip, limit),
-    Transaction.countDocuments(filter),
-  ]);
+  const dek = await getUserDek(userId);
+  const search = q.get('search')?.trim();
+
+  let items: Record<string, unknown>[];
+  let total: number;
+
+  if (search) {
+    // description/merchant/notes are encrypted with a random IV per write, so
+    // they can never match a Mongo query - decrypt every structurally-filtered
+    // candidate and filter/sort/paginate in application code instead.
+    const candidates = await Transaction.find(filter).limit(SEARCH_SCAN_CAP).lean();
+    const decrypted = await Promise.all(candidates.map((tx) => decryptTxFields(tx, dek)));
+    const needle = search.toLowerCase();
+    const matched = decrypted.filter((t) =>
+      [t.description, t.merchant, t.notes, t.reference].some((f) => String(f ?? '').toLowerCase().includes(needle)),
+    );
+    await sortDecrypted(matched, sortBy, sortDir);
+    total = matched.length;
+    items = matched.slice(skip, skip + limit);
+  } else {
+    const [page, count] = await Promise.all([
+      fetchSorted(filter, sortBy, sortDir, skip, limit),
+      Transaction.countDocuments(filter),
+    ]);
+    items = await Promise.all(page.map((tx) => decryptTxFields(tx, dek)));
+    total = count;
+  }
+
   await attachBalances(userId, items);
 
   return ok({ items, total, limit, skip });
@@ -100,16 +157,12 @@ export const POST = route(async (req: Request) => {
   const date = new Date(body.date);
   if (isNaN(date.getTime())) throw new HttpError(400, 'Enter a valid date.');
 
-  // `description` may already be ciphertext (encVersion 1); `plainDescription`
-  // carries the plaintext just for this request, used only to compute the
-  // dedupe fingerprint below (a one-way hash, never persisted as-is). Once
-  // encrypted, `recurringKey` stays null rather than storing a readable
-  // snippet of the description in the clear: same trade-off already made for
-  // "top merchants" in the stats route, which excludes encrypted rows from
-  // its plaintext-grouping instead of leaking a fragment to enable it.
   const description = String(body.description ?? '').trim();
-  const plainDescription = String(body.plainDescription ?? body.description ?? '').trim();
-  const encVersion = body.encVersion === 1 ? 1 : 0;
+  const merchant = String(body.merchant ?? '').trim();
+  const notes = String(body.notes ?? '').trim();
+
+  const dek = await getUserDek(userId);
+  const encrypted = await encryptTxFields({ description, merchant, notes }, dek);
 
   const tx = await Transaction.create({
     userId,
@@ -117,18 +170,18 @@ export const POST = route(async (req: Request) => {
     categoryId: oid(body.categoryId),
     date,
     amount,
-    description,
-    merchant: body.merchant ?? '',
+    description: encrypted.description,
+    merchant: encrypted.merchant,
     reference: body.reference ?? '',
-    notes: body.notes ?? '',
+    notes: encrypted.notes,
     tags: body.tags ?? [],
     type: body.type ?? (amount >= 0 ? 'income' : 'expense'),
-    encVersion,
-    dedupeKey: dedupeKey(String(accountId), date, amount, plainDescription),
-    recurringKey: encVersion === 1 ? null : recurringKey(plainDescription),
+    encVersion: 1,
+    dedupeKey: dedupeKey(String(accountId), date, amount, description),
+    recurringKey: recurringKey(description),
   });
 
-  return ok(tx, 201);
+  return ok({ ...tx.toObject(), description, merchant, notes }, 201);
 });
 
 export const DELETE = route(async (req: Request) => {

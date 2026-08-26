@@ -1,6 +1,7 @@
 import { Account, Rule, Transaction } from '@/lib/models';
 import { ok, oid, requireUser, route } from '@/lib/api';
 import { applyRules } from '@/lib/rules';
+import { decryptTxFields, encryptField, getUserDek } from '@/lib/serverCrypto';
 
 /**
  * Re-runs the rule set over transactions already in the database.
@@ -25,7 +26,10 @@ export const POST = route(async (req: Request) => {
 
   const txFilter: Record<string, unknown> = { userId };
   if (onlyUncategorised) txFilter.categoryId = null;
-  const transactions = await Transaction.find(txFilter).limit(20000).lean();
+  const rawTransactions = await Transaction.find(txFilter).limit(20000).lean();
+
+  const dek = await getUserDek(userId);
+  const transactions = await Promise.all(rawTransactions.map((tx) => decryptTxFields(tx, dek)));
 
   const writes: Record<string, unknown>[] = [];
   const samples: unknown[] = [];
@@ -34,14 +38,14 @@ export const POST = route(async (req: Request) => {
   for (const tx of transactions) {
     const outcome = applyRules(
       {
-        description: tx.description,
-        merchant: tx.merchant,
-        reference: tx.reference,
-        notes: tx.notes,
-        amount: tx.amount,
-        type: tx.type,
+        description: tx.description as string,
+        merchant: tx.merchant as string,
+        reference: tx.reference as string,
+        notes: tx.notes as string,
+        amount: tx.amount as number,
+        type: tx.type as string,
         accountName: accountNames.get(String(tx.accountId)),
-        date: tx.date,
+        date: tx.date as Date,
       },
       rules as never,
     );
@@ -51,8 +55,8 @@ export const POST = route(async (req: Request) => {
     const set: Record<string, unknown> = {};
     if (outcome.categoryId) set.categoryId = outcome.categoryId;
     if (outcome.type) set.type = outcome.type;
-    if (outcome.merchant) set.merchant = outcome.merchant;
-    if (outcome.notes) set.notes = outcome.notes;
+    if (outcome.merchant) set.merchant = await encryptField(dek, outcome.merchant);
+    if (outcome.notes) set.notes = await encryptField(dek, outcome.notes);
     if (outcome.matchedRuleIds.length) set.appliedRuleId = outcome.matchedRuleIds[0];
     if (!Object.keys(set).length) continue;
 

@@ -1,6 +1,5 @@
 {
   "title": "Dashboard",
-  "subtitle": "Ogni scheda ha il proprio intervallo di tempo (3 mesi predefiniti).",
   "customiseWidgets": "Personalizza widget",
   "doneEditing": "Fatto",
   "widgetLoadError": "Impossibile caricare questo widget.",

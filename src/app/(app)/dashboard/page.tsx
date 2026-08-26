@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import useSWR from 'swr';
+import { PageHeader, useSettings } from '@/components/ui';
+import { WidgetRenderer, type Stats } from '@/components/widgets';
+import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
+import { GRID_COLS, GRID_MARGIN, ROW_HEIGHT, ensureLayouts } from '@/lib/dashboardLayout';
+import CheckIcon from '@mui/icons-material/CheckOutlined';
+import EditIcon from '@mui/icons-material/EditOutlined';
 import {
   Alert,
   Box,
@@ -13,15 +17,11 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/EditOutlined';
-import CheckIcon from '@mui/icons-material/CheckOutlined';
-import GridLayout, { WidthProvider } from 'react-grid-layout/legacy';
+import { useState } from 'react';
 import 'react-grid-layout/css/styles.css';
+import GridLayout, { WidthProvider } from 'react-grid-layout/legacy';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
-import { GRID_COLS, GRID_MARGIN, ROW_HEIGHT, ensureLayouts } from '@/lib/dashboardLayout';
-import { PageHeader, useSettings } from '@/components/ui';
-import { WidgetRenderer, type Stats } from '@/components/widgets';
+import useSWR from 'swr';
 
 const GridLayoutWithWidth = WidthProvider(GridLayout);
 
@@ -147,7 +147,6 @@ export default function DashboardPage() {
       />
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle')}
         action={
           <Tooltip title={editMode ? t('doneEditing') : t('customiseWidgets')}>
             <Button

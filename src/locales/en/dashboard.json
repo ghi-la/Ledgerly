@@ -1,6 +1,5 @@
 {
   "title": "Dashboard",
-  "subtitle": "Each card has its own time range (3 months by default).",
   "customiseWidgets": "Customise widgets",
   "doneEditing": "Done",
   "widgetLoadError": "Could not load this widget.",

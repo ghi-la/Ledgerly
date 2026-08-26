@@ -112,8 +112,17 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          '&:last-child': { pb: { xs: 2, sm: 2.5 } },
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5, gap: 1 }}>
           <Typography
             variant="overline"
@@ -142,7 +151,7 @@ function Shell({
             {action}
           </Stack>
         </Stack>
-        {children}
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
       </CardContent>
     </Card>
   );
@@ -281,7 +290,7 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
       ) : (
         <>
           {chartType === 'donut' && (
-            <Box sx={{ height: 260 }}>
+            <Box sx={{ flex: 1, minHeight: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={chartRows} dataKey="amount" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} stroke="none">
@@ -309,7 +318,7 @@ function SpendByCategoryWidget({ stats, currency, locale, range, onRangeChange, 
           )}
 
           {chartType === 'bar' && (
-            <Box sx={{ height: 260 }}>
+            <Box sx={{ flex: 1, minHeight: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartRows} layout="vertical" margin={{ left: 8, right: 16, top: 8 }}>
                   <XAxis type="number" hide />
@@ -583,10 +592,10 @@ export function WidgetRenderer({
             </Stack>
           }
         >
-          <Box sx={{ height: 260 }}>
+          <Box sx={{ flex: 1, minHeight: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'bar' ? (
-                <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
+                <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }} barCategoryGap="5%" barGap={0}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                   <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m, locale)} fontSize={11} />
                   <YAxis fontSize={11} width={64} tickFormatter={(v) => String(Math.round(v))} />
@@ -648,7 +657,7 @@ export function WidgetRenderer({
             />
           }
         >
-          <Box sx={{ height: 240 }}>
+          <Box sx={{ flex: 1, minHeight: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'line' ? (
                 <LineChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
@@ -675,7 +684,7 @@ export function WidgetRenderer({
                   />
                 </LineChart>
               ) : (
-                <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
+                <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }} barCategoryGap="5%" barGap={0}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                   <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m, locale)} fontSize={11} />
                   <YAxis fontSize={11} width={64} />

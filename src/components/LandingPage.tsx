@@ -40,7 +40,7 @@ export default function LandingPage() {
   const privacyPoints = [
     { icon: EnhancedEncryptionOutlined, key: 'encryptedAtRest' },
     { icon: VisibilityOffOutlined, key: 'defenceInDepth' },
-    { icon: StorageOutlined, key: 'ownDatabase' },
+    { icon: StorageOutlined, key: 'noDataResale' },
   ] as const;
 
   return (

@@ -25,8 +25,8 @@
         "description": "Confronta descrizione, commerciante, intervalli di importo o espressioni regolari. Le regole si applicano automaticamente all'importazione, o si possono rieseguire su tutto ciò che hai già."
       },
       "dashboard": {
-        "title": "Una dashboard che puoi riorganizzare",
-        "description": "Mostra, nascondi, ridimensiona e riordina i widget: patrimonio netto, spese per categoria, andamento mensile, budget, principali esercenti e altro."
+        "title": "Una dashboard che controlli davvero",
+        "description": "Trascina i widget ovunque su una griglia dal vivo e ridimensionali liberamente, poi scegli come ciascuno visualizza i tuoi dati - barre, linee, ciambella o elenco - fino a esplorare le sottocategorie di ogni categoria."
       },
       "budgets": {
         "title": "Budget, obiettivi e trasferimenti",
@@ -51,9 +51,9 @@
         "title": "Difesa in profondità",
         "description": "La chiave di cifratura è conservata separatamente dal database stesso, così una fuga di dati dal solo database non espone i dettagli delle tue transazioni."
       },
-      "ownDatabase": {
-        "title": "I tuoi dati, il tuo database",
-        "description": "Ledgerly gira su infrastruttura che controlli tu, appoggiata sulla tua istanza MongoDB. Nessun archivio dati multi-tenant condiviso, nessuna rivendita di dati analitici."
+      "noDataResale": {
+        "title": "Nessuna rivendita dei dati",
+        "description": "I tuoi dati risiedono in un unico database gestito direttamente da chi amministra questa istanza - non rivenduti a broker di dati o piattaforme di analisi, e mai condivisi con inserzionisti pubblicitari."
       }
     }
   },

@@ -25,8 +25,8 @@
         "description": "Match on description, merchant, amount ranges or regex. Rules run automatically on import, or re-run on everything you already have."
       },
       "dashboard": {
-        "title": "A dashboard you can rearrange",
-        "description": "Show, hide, resize and reorder widgets: net worth, spend-by-category, monthly trend, budgets, top merchants and more."
+        "title": "A dashboard you actually control",
+        "description": "Drag widgets anywhere on a live grid and resize them freely, then pick how each one visualises your data - bar, line, donut or list - down to drilling into a category's own subcategories."
       },
       "budgets": {
         "title": "Budgets, goals and transfers",
@@ -51,9 +51,9 @@
         "title": "Defence in depth",
         "description": "The encryption key is held separately from the database itself, so a database leak alone doesn't expose your transaction details."
       },
-      "ownDatabase": {
-        "title": "Your data, your database",
-        "description": "Ledgerly runs on infrastructure you control, backed by your own MongoDB instance. No shared multi-tenant data store, no analytics resale."
+      "noDataResale": {
+        "title": "No data reselling",
+        "description": "Your data lives in a single database operated directly by whoever runs this instance - not resold to data brokers or analytics platforms, and never shared with advertisers."
       }
     }
   },

@@ -369,7 +369,7 @@ function SpendByCategoryWidget({
       ) : (
         <>
           {chartType === 'donut' && (
-            <Box sx={{ flexGrow: 1, flexShrink: 1, flexBasis: 220, minHeight: 220 }}>
+            <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={chartRows} dataKey="amount" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} stroke="none">
@@ -397,7 +397,7 @@ function SpendByCategoryWidget({
           )}
 
           {chartType === 'bar' && (
-            <Box sx={{ flexGrow: 1, flexShrink: 1, flexBasis: 220, minHeight: 220 }}>
+            <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartRows} layout="vertical" margin={{ left: 8, right: 16, top: 8 }}>
                   <XAxis type="number" hide />
@@ -690,7 +690,7 @@ export function WidgetRenderer({
             </Stack>
           }
         >
-          <Box sx={{ flexGrow: 1, flexShrink: 1, flexBasis: 220, minHeight: 220 }}>
+          <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'bar' ? (
                 <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }} barCategoryGap="5%" barGap={0}>
@@ -758,7 +758,7 @@ export function WidgetRenderer({
             />
           }
         >
-          <Box sx={{ flexGrow: 1, flexShrink: 1, flexBasis: 200, minHeight: 200 }}>
+          <Box sx={{ height: { xs: 200, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'line' ? (
                 <LineChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>

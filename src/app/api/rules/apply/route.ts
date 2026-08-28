@@ -12,6 +12,7 @@ export const POST = route(async (req: Request) => {
   const body = await req.json().catch(() => ({}));
   const onlyUncategorised = body.onlyUncategorised ?? true;
   const dryRun = !!body.dryRun;
+  const visibleIds: string[] = Array.isArray(body.visibleIds) ? body.visibleIds.slice(0, 500) : [];
 
   const ruleFilter: Record<string, unknown> = { userId, enabled: true };
   if (oid(body.ruleId)) ruleFilter._id = oid(body.ruleId);
@@ -20,7 +21,7 @@ export const POST = route(async (req: Request) => {
     Rule.find(ruleFilter).sort({ priority: 1 }).lean(),
     Account.find({ userId }).lean(),
   ]);
-  if (!rules.length) return ok({ scanned: 0, matched: 0, updated: 0, samples: [] });
+  if (!rules.length) return ok({ scanned: 0, matched: 0, updated: 0, samples: [], updatedTransactions: [] });
 
   const accountNames = new Map(accounts.map((a) => [String(a._id), a.name]));
 
@@ -85,11 +86,25 @@ export const POST = route(async (req: Request) => {
     invalidateStats(userId);
   }
 
+  // Only fetch back the subset the caller says it currently has on screen -
+  // callers use this to keep an about-to-be-filtered-out row visible for a
+  // grace period, so there's no need to decrypt the full (possibly 20k-row) batch.
+  let updatedTransactions: unknown[] = [];
+  if (!dryRun && visibleIds.length) {
+    const writtenIds = new Set(writes.map((w) => String((w as { updateOne: { filter: { _id: unknown } } }).updateOne.filter._id)));
+    const idsToFetch = visibleIds.filter((id) => writtenIds.has(id)).map((id) => oid(id)).filter(Boolean);
+    if (idsToFetch.length) {
+      const fresh = await Transaction.find({ _id: { $in: idsToFetch }, userId }).lean();
+      updatedTransactions = await Promise.all(fresh.map((tx) => decryptTxFields(tx, dek)));
+    }
+  }
+
   return ok({
     scanned: transactions.length,
     matched,
     updated: dryRun ? 0 : writes.length,
     dryRun,
     samples,
+    updatedTransactions,
   });
 });

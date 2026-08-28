@@ -23,6 +23,10 @@
     "title": "Ancora nessuna transazione",
     "description": "Modifica i filtri, oppure importa un CSV per popolare questa pagina."
   },
+  "pinnedEdit": {
+    "message": "Non corrisponde più ai filtri — verrà nascosta tra {{seconds}}s",
+    "undo": "Annulla"
+  },
   "table": {
     "date": "Data",
     "description": "Descrizione",

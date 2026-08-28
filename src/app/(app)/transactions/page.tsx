@@ -1,7 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import useSWR from 'swr';
+import { categoryMenuItems } from '@/components/categoryMenuItems';
+import RuleDialog, { blankRuleDraft, buildRulePayload, type Condition, type RuleDraft } from '@/components/RuleDialog';
+import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
+import { fetcher, formatDate, send } from '@/lib/client';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import EditIcon from '@mui/icons-material/EditOutlined';
+import SwapIcon from '@mui/icons-material/SwapHorizOutlined';
 import {
   Alert,
   Box,
@@ -15,6 +22,7 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  LinearProgress,
   List,
   ListItemButton,
   ListItemText,
@@ -34,16 +42,10 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import SwapIcon from '@mui/icons-material/SwapHorizOutlined';
-import DeleteIcon from '@mui/icons-material/DeleteOutline';
-import EditIcon from '@mui/icons-material/EditOutlined';
-import CloseIcon from '@mui/icons-material/Close';
+import { alpha } from '@mui/material/styles';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetcher, formatDate, send } from '@/lib/client';
-import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
-import { categoryMenuItems } from '@/components/categoryMenuItems';
-import RuleDialog, { blankRuleDraft, buildRulePayload, type Condition, type RuleDraft } from '@/components/RuleDialog';
+import useSWR from 'swr';
 
 interface Tx {
   _id: string;
@@ -80,8 +82,15 @@ interface RuleSummary {
   actions: { categoryId: string | null; setType: string | null; addTags: string[] };
   stopProcessing: boolean;
 }
+interface PinnedEdit {
+  tx: Tx;
+  previous: Tx;
+  patchKeys: (keyof Tx)[];
+  expiresAt: number;
+}
 
 const today = () => new Date().toISOString().slice(0, 10);
+const PIN_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function TransactionsPage() {
   const { t } = useTranslation('transactions');
@@ -111,6 +120,9 @@ export default function TransactionsPage() {
   const [ruleError, setRuleError] = useState('');
   const [runRulesPrompt, setRunRulesPrompt] = useState(false);
   const [runningRules, setRunningRules] = useState(false);
+  const [pinned, setPinned] = useState<Map<string, PinnedEdit>>(new Map());
+  const [now, setNow] = useState(() => Date.now());
+  const pinTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
@@ -142,6 +154,100 @@ export default function TransactionsPage() {
   const categoryById = new Map((categories ?? []).map((c) => [c._id, c]));
   const accountById = new Map((accounts ?? []).map((a) => [a._id, a]));
 
+  const pinnedRows = useMemo(
+    () => Array.from(pinned.values()).filter((p) => !rows.some((r) => r._id === p.tx._id)),
+    [pinned, rows],
+  );
+
+  useEffect(() => {
+    if (pinned.size === 0) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [pinned.size]);
+
+  useEffect(
+    () => () => {
+      pinTimers.current.forEach(clearTimeout);
+    },
+    [],
+  );
+
+  // Once a filter change (or the natural refetch cadence) makes a pinned
+  // transaction match again, drop the pin - it's back for real, no need to
+  // keep faking its presence.
+  useEffect(() => {
+    setPinned((m) => {
+      if (m.size === 0) return m;
+      let changed = false;
+      const next = new Map(m);
+      for (const id of next.keys()) {
+        if (rows.some((r) => r._id === id)) {
+          next.delete(id);
+          changed = true;
+          const timer = pinTimers.current.get(id);
+          if (timer) {
+            clearTimeout(timer);
+            pinTimers.current.delete(id);
+          }
+        }
+      }
+      return changed ? next : m;
+    });
+  }, [rows]);
+
+  const schedulePinExpiry = (id: string) => {
+    const existing = pinTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      setPinned((m) => {
+        if (!m.has(id)) return m;
+        const next = new Map(m);
+        next.delete(id);
+        return next;
+      });
+      pinTimers.current.delete(id);
+    }, PIN_DURATION_MS);
+    pinTimers.current.set(id, timer);
+  };
+
+  /** After an edit, keeps a transaction visible a little longer if it just fell out of the active filters, so the change doesn't look like it vanished the row. */
+  const pinIfHidden = (before: Tx, after: Tx, patchKeys: (keyof Tx)[], freshItems: Tx[] | undefined) => {
+    if ((freshItems ?? []).some((r) => r._id === before._id)) return;
+    setPinned((m) => {
+      const next = new Map(m);
+      next.set(before._id, { tx: after, previous: before, patchKeys, expiresAt: Date.now() + PIN_DURATION_MS });
+      return next;
+    });
+    schedulePinExpiry(before._id);
+  };
+
+  const commitEdit = async (before: Tx, after: Tx, patchKeys: (keyof Tx)[]) => {
+    const fresh = await mutate();
+    pinIfHidden(before, after, patchKeys, fresh?.items);
+  };
+
+  const undoPinned = async (id: string) => {
+    const entry = pinned.get(id);
+    if (!entry) return;
+    const patch: Record<string, unknown> = {};
+    for (const key of entry.patchKeys) patch[key] = entry.previous[key];
+    const timer = pinTimers.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      pinTimers.current.delete(id);
+    }
+    setPinned((m) => {
+      const next = new Map(m);
+      next.delete(id);
+      return next;
+    });
+    await send(`/api/transactions/${id}`, 'PATCH', patch);
+    refresh();
+  };
+
+  const pinRemainingSeconds = (p: PinnedEdit) => Math.max(0, Math.ceil((p.expiresAt - now) / 1000));
+  const pinFraction = (p: PinnedEdit) => Math.max(0, Math.min(1, (p.expiresAt - now) / PIN_DURATION_MS));
+
   const toggleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -154,8 +260,8 @@ export default function TransactionsPage() {
 
   const setCategory = async (tx: Tx, value: string) => {
     const wasUncategorised = !tx.categoryId;
-    await send(`/api/transactions/${tx._id}`, 'PATCH', { categoryId: value || null });
-    refresh();
+    const updated = (await send(`/api/transactions/${tx._id}`, 'PATCH', { categoryId: value || null })) as Tx;
+    await commitEdit(tx, updated, ['categoryId']);
     if (wasUncategorised && value) setRulePrompt({ tx, categoryId: value });
   };
 
@@ -218,13 +324,22 @@ export default function TransactionsPage() {
   const runRulesOnUncategorised = async () => {
     setRunningRules(true);
     try {
-      const res = await send('/api/rules/apply', 'POST', { onlyUncategorised: true });
+      const beforeById = new Map(rows.map((r) => [r._id, r]));
+      const res = await send('/api/rules/apply', 'POST', {
+        onlyUncategorised: true,
+        visibleIds: Array.from(beforeById.keys()),
+      });
       setToast(
         res.updated
           ? t('rules:toast.applied', { updated: res.updated, scanned: res.scanned })
           : t('rules:toast.noChanges', { scanned: res.scanned }),
       );
-      refresh();
+      const fresh = await mutate();
+      const updatedTxs = (res.updatedTransactions ?? []) as Tx[];
+      updatedTxs.forEach((after) => {
+        const before = beforeById.get(after._id);
+        if (before) pinIfHidden(before, after, ['categoryId', 'type', 'merchant', 'notes', 'tags'], fresh?.items);
+      });
     } catch (e) {
       setToast(e instanceof Error ? e.message : t('rules:toast.runFailed'));
     } finally {
@@ -234,12 +349,18 @@ export default function TransactionsPage() {
   };
 
   const bulkCategorise = async (value: string) => {
-    await Promise.all(
-      selected.map((id) => send(`/api/transactions/${id}`, 'PATCH', { categoryId: value || null })),
+    const beforeById = new Map(rows.map((r) => [r._id, r]));
+    const ids = selected;
+    const results = await Promise.all(
+      ids.map((id) => send(`/api/transactions/${id}`, 'PATCH', { categoryId: value || null })),
     );
     setToast(t('toast.updated', { count: selected.length }));
     setSelected([]);
-    refresh();
+    const fresh = await mutate();
+    ids.forEach((id, i) => {
+      const before = beforeById.get(id);
+      if (before) pinIfHidden(before, results[i] as Tx, ['categoryId'], fresh?.items);
+    });
   };
 
   const removeSelected = async () => {
@@ -359,13 +480,42 @@ export default function TransactionsPage() {
       )}
 
       <Card>
-        {!effectiveLoading && rows.length === 0 ? (
+        {!effectiveLoading && rows.length === 0 && pinnedRows.length === 0 ? (
           <EmptyState
             title={t('empty.title')}
             description={t('empty.description')}
           />
         ) : isMobile ? (
           <Stack divider={<Box sx={{ borderBottom: 1, borderColor: 'divider' }} />}>
+            {pinnedRows.map((p) => (
+              <Box key={`pin-${p.tx._id}`} sx={{ p: 1.75, bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08) }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: 15 }} noWrap>
+                      {p.tx.description}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDate(p.tx.date, locale)} · {accountById.get(p.tx.accountId)?.name ?? '-'}
+                    </Typography>
+                  </Box>
+                  <Money value={p.tx.amount} currency={currency} locale={locale} colored bold />
+                </Stack>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                    {t('pinnedEdit.message', { seconds: pinRemainingSeconds(p) })}
+                  </Typography>
+                  <Button size="small" onClick={() => undoPinned(p.tx._id)}>
+                    {t('pinnedEdit.undo')}
+                  </Button>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={pinFraction(p) * 100}
+                  color="warning"
+                  sx={{ height: 3, mt: 1, borderRadius: 2 }}
+                />
+              </Box>
+            ))}
             {rows.map((tx) => (
               <Box key={tx._id} sx={{ p: 1.75 }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
@@ -466,6 +616,57 @@ export default function TransactionsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
+                {pinnedRows.map((p) => (
+                  <Fragment key={p.tx._id}>
+                    <TableRow sx={{ bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08) }}>
+                      <TableCell padding="checkbox" />
+                      <TableCell sx={{ whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                        {formatDate(p.tx.date, locale)}
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 380 }}>
+                        <Typography noWrap sx={{ fontSize: 14, fontWeight: 500 }}>
+                          {p.tx.description}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+                        {accountById.get(p.tx.accountId)?.name ?? '-'}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const cat = p.tx.categoryId ? categoryById.get(p.tx.categoryId) : null;
+                          return cat ? (
+                            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                              <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: cat.color }} />
+                              <Typography variant="body2">{cat.name}</Typography>
+                            </Stack>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              {t('common:actions.uncategorised')}
+                            </Typography>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Money value={p.tx.amount} currency={currency} locale={locale} colored bold />
+                      </TableCell>
+                      <TableCell colSpan={2}>
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {t('pinnedEdit.message', { seconds: pinRemainingSeconds(p) })}
+                          </Typography>
+                          <Button size="small" onClick={() => undoPinned(p.tx._id)}>
+                            {t('pinnedEdit.undo')}
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow sx={{ bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08) }}>
+                      <TableCell colSpan={8} sx={{ py: 0, border: 0 }}>
+                        <LinearProgress variant="determinate" value={pinFraction(p) * 100} color="warning" sx={{ height: 3 }} />
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
+                ))}
                 {rows.map((tx) => (
                   <TableRow key={tx._id} hover>
                     <TableCell padding="checkbox">
@@ -592,8 +793,8 @@ export default function TransactionsPage() {
         onClose={() => setEditing(null)}
         accounts={accounts ?? []}
         categories={categories ?? []}
-        onSaved={() => {
-          refresh();
+        onSaved={(updated) => {
+          if (editing) commitEdit(editing, updated, ['accountId', 'date', 'amount', 'categoryId', 'description', 'notes']);
           setToast(t('toast.updatedOne'));
         }}
       />
@@ -866,7 +1067,7 @@ function EditDialog({
   onClose: () => void;
   accounts: Account[];
   categories: Category[];
-  onSaved: () => void;
+  onSaved: (updated: Tx) => void;
 }) {
   const { t } = useTranslation('transactions');
   const [form, setForm] = useState({
@@ -884,15 +1085,15 @@ function EditDialog({
     if (!transaction) return;
     try {
       const value = Math.abs(Number(form.amount));
-      await send(`/api/transactions/${transaction._id}`, 'PATCH', {
+      const updated = (await send(`/api/transactions/${transaction._id}`, 'PATCH', {
         accountId: form.accountId,
         date: form.date,
         amount: form.direction === 'out' ? -value : value,
         categoryId: form.categoryId || null,
         description: form.description,
         notes: form.notes,
-      });
-      onSaved();
+      })) as Tx;
+      onSaved(updated);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t('dialog.saveFailed'));

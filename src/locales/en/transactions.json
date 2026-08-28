@@ -23,6 +23,10 @@
     "title": "No transactions here",
     "description": "Adjust the filters, or import a CSV to fill this in."
   },
+  "pinnedEdit": {
+    "message": "No longer matches your filters — hiding in {{seconds}}s",
+    "undo": "Undo"
+  },
   "table": {
     "date": "Date",
     "description": "Description",

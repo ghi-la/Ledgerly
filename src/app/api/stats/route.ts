@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { Account, Budget, Category, Goal, Transaction } from '@/lib/models';
 import { ok, requireUser, route } from '@/lib/api';
 import { decryptTxFields, getUserDek } from '@/lib/serverCrypto';
@@ -41,14 +42,9 @@ function budgetTotalsByCategory(budgets: Record<string, unknown>[], monthKeys: s
  * goal progress. Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD (defaults to the
  * trailing 3 months ending today).
  */
-export const GET = route(async (req: Request) => {
-  const userId = await requireUser();
-  const url = new URL(req.url);
-
+async function computeStats(userId: string, fromParam: string | null, toParam: string | null) {
   const now = new Date();
   const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
-  const fromParam = url.searchParams.get('from');
-  const toParam = url.searchParams.get('to');
   const to = toParam ? new Date(`${toParam}T23:59:59.999Z`) : now;
 
   const [accounts, categories, budgets, goals, oldestTx] = await Promise.all([
@@ -224,7 +220,7 @@ export const GET = route(async (req: Request) => {
 
   const totals = totalsAgg[0] ?? { income: 0, expense: 0, count: 0 };
 
-  return ok({
+  const payload = {
     from: from.toISOString().slice(0, 10),
     to: to.toISOString().slice(0, 10),
     netWorth: accountRows.filter((a) => !a.archived).reduce((s, a) => s + a.balance, 0),
@@ -267,5 +263,24 @@ export const GET = route(async (req: Request) => {
       categoryColor: t.categoryId ? (categoryById.get(String(t.categoryId))?.color ?? null) : null,
       accountName: accountRows.find((a) => a._id === String(t.accountId))?.name ?? '',
     })),
-  });
+  };
+
+  return payload;
+}
+
+// Reuses Next.js's Data Cache (Vercel-backed in production, so it's shared
+// across serverless invocations - a plain in-memory cache wouldn't be, since
+// concurrent requests can land on different function instances). Not
+// invalidated on writes, so numbers can lag up to `revalidate` seconds
+// behind a just-made edit.
+const getCachedStats = unstable_cache(computeStats, ['stats-v1'], { revalidate: 20 });
+
+export const GET = route(async (req: Request) => {
+  const userId = await requireUser();
+  const url = new URL(req.url);
+  const fromParam = url.searchParams.get('from');
+  const toParam = url.searchParams.get('to');
+
+  const payload = await getCachedStats(userId.toString(), fromParam, toParam);
+  return ok(payload);
 });

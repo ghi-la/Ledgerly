@@ -84,15 +84,17 @@ export function dedupeKey(accountId: string, date: Date, amount: number, descrip
 }
 
 /** Strips dates, card digits and reference noise so repeat payments group together. */
-export function recurringKey(description: string) {
+export function normalizeMerchantText(description: string) {
   return description
     .toLowerCase()
     .replace(/\d{2}[./-]\d{2}[./-]\d{2,4}/g, ' ')
     .replace(/\b\d{4,}\b/g, ' ')
     .replace(/[^a-z\s]/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .slice(0, 4)
-    .join(' ');
+    .trim();
+}
+
+/** Same cleanup as normalizeMerchantText, truncated to a short exact-match key. */
+export function recurringKey(description: string) {
+  return normalizeMerchantText(description).split(' ').slice(0, 4).join(' ');
 }

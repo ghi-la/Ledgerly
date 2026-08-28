@@ -27,7 +27,6 @@ import {
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import ReceiptIcon from '@mui/icons-material/ReceiptLongOutlined';
-import AccountsIcon from '@mui/icons-material/AccountBalanceOutlined';
 import CategoryIcon from '@mui/icons-material/LocalOfferOutlined';
 import RulesIcon from '@mui/icons-material/FilterAltOutlined';
 import BudgetIcon from '@mui/icons-material/DonutLargeOutlined';
@@ -46,8 +45,6 @@ import { LANG_STORAGE_KEY } from '@/i18n/languageDetector';
 import RouteProgress from './RouteProgress';
 
 const DRAWER = 248;
-
-const MOBILE_NAV_HREFS = ['/dashboard', '/transactions', '/goals', '/budgets'];
 
 export default function AppShell({
   children,
@@ -78,18 +75,49 @@ export default function AppShell({
   }, [locale, i18n]);
 
   const NAV = [
-    { href: '/dashboard', label: t('nav.dashboard'), icon: <DashboardIcon /> },
-    { href: '/transactions', label: t('nav.transactions'), icon: <ReceiptIcon /> },
-    { href: '/import', label: t('nav.import'), icon: <ImportIcon /> },
-    { href: '/export', label: t('nav.export'), icon: <ExportIcon /> },
-    { href: '/accounts', label: t('nav.accounts'), icon: <AccountsIcon /> },
-    { href: '/categories', label: t('nav.categories'), icon: <CategoryIcon /> },
-    { href: '/rules', label: t('nav.rules'), icon: <RulesIcon /> },
-    { href: '/budgets', label: t('nav.budgets'), icon: <BudgetIcon /> },
-    { href: '/goals', label: t('nav.goals'), icon: <GoalIcon /> },
-    { href: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> },
+    { href: '/dashboard', label: t('nav.dashboard'), icon: <DashboardIcon />, group: 'top', mobile: true },
+    { href: '/transactions', label: t('nav.transactions'), icon: <ReceiptIcon />, group: 'top', mobile: true },
+    { href: '/categories', label: t('nav.categories'), icon: <CategoryIcon />, group: 'organize' },
+    { href: '/rules', label: t('nav.rules'), icon: <RulesIcon />, group: 'organize' },
+    { href: '/budgets', label: t('nav.budgets'), icon: <BudgetIcon />, group: 'organize', mobile: true },
+    { href: '/goals', label: t('nav.goals'), icon: <GoalIcon />, group: 'organize', mobile: true },
+    { href: '/import', label: t('nav.import'), icon: <ImportIcon />, group: 'data' },
+    { href: '/export', label: t('nav.export'), icon: <ExportIcon />, group: 'data' },
   ];
-  const MOBILE_NAV = MOBILE_NAV_HREFS.map((href) => NAV.find((n) => n.href === href)!);
+  const SETTINGS_ITEM = { href: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> };
+  const NAV_GROUPS: { key: string; label?: string }[] = [
+    { key: 'top' },
+    { key: 'organize', label: t('nav.groups.organize') },
+    { key: 'data', label: t('nav.groups.data') },
+  ];
+  const MOBILE_NAV = NAV.filter((n) => n.mobile);
+
+  const renderNavItem = (item: { href: string; label: string; icon: React.ReactNode }) => {
+    const active = pathname.startsWith(item.href);
+    return (
+      <ListItemButton
+        key={item.href}
+        component={NextLink}
+        href={item.href}
+        onClick={() => setOpen(false)}
+        selected={active}
+        sx={{
+          borderRadius: 2,
+          mb: 0.25,
+          '&.Mui-selected': {
+            bgcolor: 'action.selected',
+            '& .MuiListItemIcon-root': { color: 'primary.main' },
+          },
+        }}
+      >
+        <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+        <ListItemText
+          primary={item.label}
+          primaryTypographyProps={{ fontWeight: active ? 700 : 500, fontSize: 15 }}
+        />
+      </ListItemButton>
+    );
+  };
 
   const nav = (
     <Box sx={{ px: 1.5, py: 2 }}>
@@ -113,34 +141,27 @@ export default function AppShell({
           Ledgerly
         </Typography>
       </Box>
-      <List disablePadding>
-        {NAV.map((item) => {
-          const active = pathname.startsWith(item.href);
-          return (
-            <ListItemButton
-              key={item.href}
-              component={NextLink}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              selected={active}
-              sx={{
-                borderRadius: 2,
-                mb: 0.25,
-                '&.Mui-selected': {
-                  bgcolor: 'action.selected',
-                  '& .MuiListItemIcon-root': { color: 'primary.main' },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{ fontWeight: active ? 700 : 500, fontSize: 15 }}
-              />
-            </ListItemButton>
-          );
-        })}
-      </List>
+      {NAV_GROUPS.map((g) => (
+        <List
+          key={g.key}
+          disablePadding
+          subheader={
+            g.label ? (
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ display: 'block', px: 1.5, mt: 1.5, mb: 0.5, fontSize: 11 }}
+              >
+                {g.label}
+              </Typography>
+            ) : undefined
+          }
+        >
+          {NAV.filter((item) => item.group === g.key).map((item) => renderNavItem(item))}
+        </List>
+      ))}
+      <Divider sx={{ my: 1 }} />
+      <List disablePadding>{renderNavItem(SETTINGS_ITEM)}</List>
     </Box>
   );
 
@@ -166,7 +187,7 @@ export default function AppShell({
             </IconButton>
           )}
           <Typography sx={{ flex: 1, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
-            {NAV.find((n) => pathname.startsWith(n.href))?.label ?? 'Ledgerly'}
+            {[...NAV, SETTINGS_ITEM].find((n) => pathname.startsWith(n.href))?.label ?? 'Ledgerly'}
           </Typography>
           <Tooltip title={mode === 'light' ? t('darkTheme') : t('lightTheme')}>
             <IconButton onClick={toggle} aria-label={t('switchTheme')}>

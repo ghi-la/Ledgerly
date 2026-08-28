@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -17,10 +20,12 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
 import { DecryptedText } from '@/components/widgets';
+import AccountsManager from '@/components/AccountsManager';
 import { toI18nLang } from '@/i18n/languageMap';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD', 'CHF', 'CAD', 'AUD', 'JPY', 'SEK', 'NOK', 'DKK', 'PLN', 'INR'];
@@ -122,6 +127,17 @@ export default function SettingsPage() {
           </Box>
         </CardContent>
       </Card>
+
+      <Accordion sx={{ mb: 3 }} disableGutters>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="overline" color="text.secondary">
+            {t('accounts:title')}
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <AccountsManager />
+        </AccordionDetails>
+      </Accordion>
 
       <Card>
         <CardContent>

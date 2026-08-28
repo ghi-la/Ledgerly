@@ -597,7 +597,7 @@ export function WidgetRenderer({
           visible={visible}
           onVisibleChange={onVisibleChange}
           action={
-            <Link component={NextLink} href="/accounts" variant="caption">
+            <Link component={NextLink} href="/settings" variant="caption">
               {t('links.manage')}
             </Link>
           }

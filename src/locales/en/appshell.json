@@ -4,12 +4,15 @@
     "transactions": "Transactions",
     "import": "Import",
     "export": "Export",
-    "accounts": "Accounts",
     "categories": "Categories",
     "rules": "Rules",
     "budgets": "Budgets",
     "goals": "Goals",
-    "settings": "Settings"
+    "settings": "Settings",
+    "groups": {
+      "organize": "Organize",
+      "data": "Data"
+    }
   },
   "openMenu": "Open menu",
   "accountMenu": "Account menu",

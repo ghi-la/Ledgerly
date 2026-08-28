@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache';
+import mongoose from 'mongoose';
 import { Account, Budget, Category, Goal, Transaction } from '@/lib/models';
 import { ok, requireUser, route } from '@/lib/api';
 import { decryptTxFields, getUserDek } from '@/lib/serverCrypto';
@@ -42,7 +43,10 @@ function budgetTotalsByCategory(budgets: Record<string, unknown>[], monthKeys: s
  * goal progress. Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD (defaults to the
  * trailing 3 months ending today).
  */
-async function computeStats(userId: string, fromParam: string | null, toParam: string | null) {
+async function computeStats(userIdStr: string, fromParam: string | null, toParam: string | null) {
+  // aggregate() $match doesn't auto-cast like find() does, so the cache key's
+  // plain string needs converting back to an ObjectId before use in queries.
+  const userId = new mongoose.Types.ObjectId(userIdStr);
   const now = new Date();
   const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
   const to = toParam ? new Date(`${toParam}T23:59:59.999Z`) : now;

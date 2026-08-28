@@ -1,10 +1,14 @@
 'use client';
 
-import type { Dispatch, SetStateAction } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,8 +25,11 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'react-i18next';
 import { categoryMenuItems, type CategoryOption } from '@/components/categoryMenuItems';
+import { formatDate, send } from '@/lib/client';
+import { Money, useSettings } from '@/components/ui';
 
 export interface Condition {
   field: string;
@@ -64,6 +71,18 @@ export function buildRulePayload(draft: RuleDraft) {
 }
 
 const isNumeric = (field: string) => field === 'amount' || field === 'absAmount';
+
+interface PreviewTx {
+  _id: string;
+  date: string;
+  description: string;
+  merchant?: string;
+  amount: number;
+}
+interface PreviewResult {
+  total: number;
+  samples: PreviewTx[];
+}
 
 interface RuleDialogProps {
   open: boolean;
@@ -124,6 +143,89 @@ export default function RuleDialog({
       ...d,
       conditions: d.conditions.map((c, idx) => (idx === i ? { ...c, ...patch } : c)),
     }));
+
+  const { currency, locale } = useSettings();
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewDebounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Collapse and clear any stale preview whenever the dialog is (re)opened,
+  // so switching between rules never briefly shows the previous one's matches.
+  useEffect(() => {
+    if (open) {
+      setPreviewOpen(false);
+      setPreview(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!previewOpen) return undefined;
+    setPreviewLoading(true);
+    if (previewDebounce.current) clearTimeout(previewDebounce.current);
+    let cancelled = false;
+    previewDebounce.current = setTimeout(async () => {
+      try {
+        const res = await send('/api/rules/preview', 'POST', {
+          matchType: draft.matchType,
+          conditions: draft.conditions,
+        });
+        if (!cancelled) setPreview({ total: res.total, samples: res.samples });
+      } catch {
+        if (!cancelled) setPreview({ total: 0, samples: [] });
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      if (previewDebounce.current) clearTimeout(previewDebounce.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewOpen, draft.matchType, draft.conditions]);
+
+  const renderPreviewDetails = () => {
+    if (previewLoading) {
+      return (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', py: 1 }}>
+          <CircularProgress size={16} />
+          <Typography variant="body2" color="text.secondary">
+            {t('dialog.preview.loading')}
+          </Typography>
+        </Stack>
+      );
+    }
+    if (!preview) return null;
+    if (preview.total === 0) {
+      return (
+        <Typography variant="body2" color="text.secondary">
+          {t('dialog.preview.empty')}
+        </Typography>
+      );
+    }
+    return (
+      <>
+        <Stack divider={<Divider />} sx={{ maxHeight: 260, overflowY: 'auto' }}>
+          {preview.samples.map((tx) => (
+            <Stack key={tx._id} direction="row" spacing={1.5} sx={{ py: 0.75, alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ width: 72, flexShrink: 0 }}>
+                {formatDate(tx.date, locale)}
+              </Typography>
+              <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+                {tx.description}
+              </Typography>
+              <Money value={tx.amount} currency={currency} locale={locale} colored />
+            </Stack>
+          ))}
+        </Stack>
+        {preview.total > preview.samples.length && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            {t('dialog.preview.more', { count: preview.total - preview.samples.length })}
+          </Typography>
+        )}
+      </>
+    );
+  };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -241,6 +343,28 @@ export default function RuleDialog({
               {t('dialog.addCondition')}
             </Button>
           </Box>
+
+          <Accordion
+            expanded={previewOpen}
+            onChange={(_, expanded) => setPreviewOpen(expanded)}
+            disableGutters
+            elevation={0}
+            sx={{ border: 1, borderColor: 'divider', borderRadius: 1, '&:before': { display: 'none' } }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {t('dialog.preview.title')}
+                </Typography>
+                {previewOpen && !previewLoading && preview && (
+                  <Typography variant="caption" color="text.secondary">
+                    {t('dialog.preview.count', { count: preview.total })}
+                  </Typography>
+                )}
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>{renderPreviewDetails()}</AccordionDetails>
+          </Accordion>
 
           <Divider />
 

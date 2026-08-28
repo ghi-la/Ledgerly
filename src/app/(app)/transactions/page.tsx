@@ -324,21 +324,16 @@ export default function TransactionsPage() {
   const runRulesOnUncategorised = async () => {
     setRunningRules(true);
     try {
-      const beforeById = new Map(rows.map((r) => [r._id, r]));
-      const res = await send('/api/rules/apply', 'POST', {
-        onlyUncategorised: true,
-        visibleIds: Array.from(beforeById.keys()),
-      });
+      const res = await send('/api/rules/apply', 'POST', { onlyUncategorised: true });
       setToast(
         res.updated
           ? t('rules:toast.applied', { updated: res.updated, scanned: res.scanned })
           : t('rules:toast.noChanges', { scanned: res.scanned }),
       );
       const fresh = await mutate();
-      const updatedTxs = (res.updatedTransactions ?? []) as Tx[];
-      updatedTxs.forEach((after) => {
-        const before = beforeById.get(after._id);
-        if (before) pinIfHidden(before, after, ['categoryId', 'type', 'merchant', 'notes', 'tags'], fresh?.items);
+      const pairs = (res.updatedTransactions ?? []) as { before: Tx; after: Tx }[];
+      pairs.forEach(({ before, after }) => {
+        pinIfHidden(before, after, ['categoryId', 'type', 'merchant', 'notes', 'tags'], fresh?.items);
       });
     } catch (e) {
       setToast(e instanceof Error ? e.message : t('rules:toast.runFailed'));

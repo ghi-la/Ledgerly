@@ -3,6 +3,8 @@ import { invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 import { applyRules } from '@/lib/rules';
 import { decryptTxFields, encryptField, getUserDek } from '@/lib/serverCrypto';
 
+const MAX_RETURNED_PAIRS = 200;
+
 /**
  * Re-runs the rule set over transactions already in the database.
  * body: { onlyUncategorised?: boolean, ruleId?: string, dryRun?: boolean }
@@ -12,7 +14,6 @@ export const POST = route(async (req: Request) => {
   const body = await req.json().catch(() => ({}));
   const onlyUncategorised = body.onlyUncategorised ?? true;
   const dryRun = !!body.dryRun;
-  const visibleIds: string[] = Array.isArray(body.visibleIds) ? body.visibleIds.slice(0, 500) : [];
 
   const ruleFilter: Record<string, unknown> = { userId, enabled: true };
   if (oid(body.ruleId)) ruleFilter._id = oid(body.ruleId);
@@ -34,6 +35,10 @@ export const POST = route(async (req: Request) => {
 
   const writes: Record<string, unknown>[] = [];
   const samples: unknown[] = [];
+  // Every transaction the rule set actually touches, before/after - not just
+  // ones the caller happened to have loaded - so the UI can surface every
+  // affected row, not only the one the user was looking at when they triggered this.
+  const updatedPairs: { before: Record<string, unknown>; after: Record<string, unknown> }[] = [];
   let matched = 0;
 
   for (const tx of transactions) {
@@ -79,24 +84,38 @@ export const POST = route(async (req: Request) => {
         },
       },
     });
+
+    if (!dryRun && updatedPairs.length < MAX_RETURNED_PAIRS) {
+      const before = {
+        _id: String(tx._id),
+        date: tx.date,
+        description: tx.description,
+        merchant: tx.merchant,
+        notes: tx.notes,
+        reference: tx.reference,
+        amount: tx.amount,
+        type: tx.type,
+        accountId: String(tx.accountId),
+        categoryId: tx.categoryId ? String(tx.categoryId) : null,
+        tags: (tx.tags as string[] | undefined) ?? [],
+      };
+      updatedPairs.push({
+        before,
+        after: {
+          ...before,
+          categoryId: outcome.categoryId ? String(outcome.categoryId) : before.categoryId,
+          type: outcome.type ?? before.type,
+          merchant: outcome.merchant ?? before.merchant,
+          notes: outcome.notes ?? before.notes,
+          tags: outcome.tags.length ? Array.from(new Set([...before.tags, ...outcome.tags])) : before.tags,
+        },
+      });
+    }
   }
 
   if (!dryRun && writes.length) {
     await Transaction.bulkWrite(writes as never);
     invalidateStats(userId);
-  }
-
-  // Only fetch back the subset the caller says it currently has on screen -
-  // callers use this to keep an about-to-be-filtered-out row visible for a
-  // grace period, so there's no need to decrypt the full (possibly 20k-row) batch.
-  let updatedTransactions: unknown[] = [];
-  if (!dryRun && visibleIds.length) {
-    const writtenIds = new Set(writes.map((w) => String((w as { updateOne: { filter: { _id: unknown } } }).updateOne.filter._id)));
-    const idsToFetch = visibleIds.filter((id) => writtenIds.has(id)).map((id) => oid(id)).filter(Boolean);
-    if (idsToFetch.length) {
-      const fresh = await Transaction.find({ _id: { $in: idsToFetch }, userId }).lean();
-      updatedTransactions = await Promise.all(fresh.map((tx) => decryptTxFields(tx, dek)));
-    }
   }
 
   return ok({
@@ -105,6 +124,6 @@ export const POST = route(async (req: Request) => {
     updated: dryRun ? 0 : writes.length,
     dryRun,
     samples,
-    updatedTransactions,
+    updatedTransactions: dryRun ? [] : updatedPairs,
   });
 });

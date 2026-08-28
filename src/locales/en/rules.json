@@ -99,6 +99,15 @@
     "and": "and",
     "removeCondition": "Remove condition",
     "addCondition": "Add condition",
+    "preview": {
+      "title": "Preview matching transactions",
+      "count_one": "{{count}} uncategorised transaction matches",
+      "count_other": "{{count}} uncategorised transactions match",
+      "loading": "Checking matches…",
+      "empty": "No uncategorised transactions match yet.",
+      "more_one": "+{{count}} more",
+      "more_other": "+{{count}} more"
+    },
     "thenDo": "…then do this",
     "setCategory": "Set category",
     "leaveUnchanged": "Leave unchanged",

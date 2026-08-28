@@ -99,6 +99,15 @@
     "and": "e",
     "removeCondition": "Rimuovi condizione",
     "addCondition": "Aggiungi condizione",
+    "preview": {
+      "title": "Anteprima transazioni corrispondenti",
+      "count_one": "{{count}} transazione non categorizzata corrisponde",
+      "count_other": "{{count}} transazioni non categorizzate corrispondono",
+      "loading": "Verifica corrispondenze…",
+      "empty": "Ancora nessuna transazione non categorizzata corrisponde.",
+      "more_one": "+{{count}} altra",
+      "more_other": "+{{count}} altre"
+    },
     "thenDo": "…allora fai questo",
     "setCategory": "Imposta categoria",
     "leaveUnchanged": "Lascia invariato",

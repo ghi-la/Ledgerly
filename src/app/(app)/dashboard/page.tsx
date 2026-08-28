@@ -90,7 +90,20 @@ export default function DashboardPage() {
         optimisticData: (current) =>
           current
             ? { ...current, settings: { ...current.settings, dashboard: next } }
-            : { name: '', email: '', settings: { currency: 'EUR', locale: 'en-GB', startOfMonth: 1, dashboard: next } },
+            : {
+                name: '',
+                email: '',
+                settings: {
+                  currency: 'EUR',
+                  locale: 'en-GB',
+                  startOfMonth: 1,
+                  dashboard: next,
+                  recurringDateToleranceDays: 3,
+                  recurringAmountTolerance: 10,
+                  recurringMinOccurrences: 3,
+                  recurringHiddenCadences: [],
+                },
+              },
         revalidate: false,
       },
     );

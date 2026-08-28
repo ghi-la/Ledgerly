@@ -24,6 +24,14 @@
       "monthly": "monthly",
       "quarterly": "quarterly",
       "twice a year": "twice a year"
+    },
+    "prefs": {
+      "title": "Detection settings",
+      "dateTolerance": "Date tolerance (days)",
+      "amountTolerance": "Amount tolerance",
+      "minOccurrences": "Minimum occurrences",
+      "showCadences": "Show cadences",
+      "save": "Save preferences"
     }
   }
 }

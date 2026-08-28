@@ -24,6 +24,14 @@
       "monthly": "mensile",
       "quarterly": "trimestrale",
       "twice a year": "semestrale"
+    },
+    "prefs": {
+      "title": "Impostazioni di rilevamento",
+      "dateTolerance": "Tolleranza data (giorni)",
+      "amountTolerance": "Tolleranza importo",
+      "minOccurrences": "Occorrenze minime",
+      "showCadences": "Mostra frequenze",
+      "save": "Salva preferenze"
     }
   }
 }

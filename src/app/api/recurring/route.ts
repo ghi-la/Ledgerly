@@ -1,4 +1,4 @@
-import { Category, Transaction } from '@/lib/models';
+import { Category, Transaction, User } from '@/lib/models';
 import { ok, requireUser, route } from '@/lib/api';
 import { normalizeMerchantText } from '@/lib/parse';
 import { diceCoefficient } from '@/lib/similarity';
@@ -11,9 +11,9 @@ const DAY = 86_400_000;
 // Real statements rarely post a recurring charge on the exact same day or for
 // the exact same cent every cycle (weekends, FX rounding, small plan
 // add-ons...), so matching needs slack on all three signals instead of an
-// exact description key.
-const DATE_TOLERANCE_DAYS = 3;
-const AMOUNT_ABS_TOLERANCE = 10;
+// exact description key. Date/amount tolerance and the minimum occurrence
+// count are user-tunable (see /api/settings); the rest are internal
+// thresholds not exposed as user preferences.
 const AMOUNT_REL_TOLERANCE = 0.35;
 const TEXT_SIMILARITY_THRESHOLD = 0.5;
 // A word that shows up in a big share of a user's own transactions (e.g. a
@@ -38,20 +38,6 @@ interface Cluster {
   gaps: number[];
 }
 
-function amountMatches(candidate: number, cluster: Cluster): boolean {
-  const avg = cluster.sumAmount / cluster.members.length;
-  const tolerance = Math.max(AMOUNT_ABS_TOLERANCE, avg * AMOUNT_REL_TOLERANCE);
-  return Math.abs(candidate - avg) <= tolerance;
-}
-
-function dateMatches(candidateDate: Date, cluster: Cluster): boolean {
-  if (cluster.gaps.length === 0) return true; // no established cadence yet - anything can start one
-  const avgGap = cluster.gaps.reduce((a, b) => a + b, 0) / cluster.gaps.length;
-  const lastDate = cluster.members[cluster.members.length - 1].date;
-  const actualGap = (+candidateDate - +new Date(lastDate)) / DAY;
-  return Math.abs(actualGap - avgGap) <= DATE_TOLERANCE_DAYS;
-}
-
 /**
  * Finds repeating payments by fuzzy-matching description, amount and date
  * together (rather than requiring byte-identical descriptions), then checking
@@ -60,6 +46,26 @@ function dateMatches(candidateDate: Date, cluster: Cluster): boolean {
  */
 export const GET = route(async () => {
   const userId = await requireUser();
+
+  const user = (await User.findById(userId).lean()) as any;
+  const dateToleranceDays = user?.settings?.recurringDateToleranceDays ?? 3;
+  const amountAbsTolerance = user?.settings?.recurringAmountTolerance ?? 10;
+  const minOccurrences = user?.settings?.recurringMinOccurrences ?? 3;
+  const hiddenCadences = new Set<string>(user?.settings?.recurringHiddenCadences ?? []);
+
+  const amountMatches = (candidate: number, cluster: Cluster): boolean => {
+    const avg = cluster.sumAmount / cluster.members.length;
+    const tolerance = Math.max(amountAbsTolerance, avg * AMOUNT_REL_TOLERANCE);
+    return Math.abs(candidate - avg) <= tolerance;
+  };
+
+  const dateMatches = (candidateDate: Date, cluster: Cluster): boolean => {
+    if (cluster.gaps.length === 0) return true; // no established cadence yet - anything can start one
+    const avgGap = cluster.gaps.reduce((a, b) => a + b, 0) / cluster.gaps.length;
+    const lastDate = cluster.members.at(-1)!.date;
+    const actualGap = (+candidateDate - +new Date(lastDate)) / DAY;
+    return Math.abs(actualGap - avgGap) <= dateToleranceDays;
+  };
 
   const since = new Date(Date.now() - 400 * DAY);
   const [rawTransactions, categories] = await Promise.all([
@@ -117,12 +123,12 @@ export const GET = route(async () => {
     for (const { tx, signature } of items) {
       const match = open.find(
         (c) =>
-          diceCoefficient(signature, c.signatures[c.signatures.length - 1]) >= TEXT_SIMILARITY_THRESHOLD &&
+          diceCoefficient(signature, c.signatures.at(-1)!) >= TEXT_SIMILARITY_THRESHOLD &&
           amountMatches(Math.abs(tx.amount), c) &&
           dateMatches(tx.date, c),
       );
       if (match) {
-        match.gaps.push((+new Date(tx.date) - +new Date(match.members[match.members.length - 1].date)) / DAY);
+        match.gaps.push((+new Date(tx.date) - +new Date(match.members.at(-1)!.date)) / DAY);
         match.members.push(tx);
         match.signatures.push(signature);
         match.sumAmount += Math.abs(tx.amount);
@@ -137,21 +143,22 @@ export const GET = route(async () => {
 
   for (const cluster of clusters) {
     const items = cluster.members;
-    if (items.length < 3) continue;
+    if (items.length < minOccurrences) continue;
 
     const avgAmount = cluster.sumAmount / items.length;
     if (avgAmount === 0) continue;
     const amounts = items.map((t) => Math.abs(t.amount));
     const amountSpread = Math.max(...amounts) - Math.min(...amounts);
-    if (amountSpread > Math.max(AMOUNT_ABS_TOLERANCE * 2, avgAmount * 0.5)) continue;
+    if (amountSpread > Math.max(amountAbsTolerance * 2, avgAmount * 0.5)) continue;
 
     const avgGap = cluster.gaps.reduce((a, b) => a + b, 0) / cluster.gaps.length;
     if (avgGap < 5 || avgGap > 190) continue;
     const gapSpread = Math.max(...cluster.gaps) - Math.min(...cluster.gaps);
-    if (gapSpread > Math.max(DATE_TOLERANCE_DAYS * 3, avgGap * 0.6)) continue;
+    if (gapSpread > Math.max(dateToleranceDays * 3, avgGap * 0.6)) continue;
 
     const cadence =
       avgGap < 10 ? 'weekly' : avgGap < 18 ? 'fortnightly' : avgGap < 45 ? 'monthly' : avgGap < 100 ? 'quarterly' : 'twice a year';
+    if (hiddenCadences.has(cadence)) continue;
 
     const last = items[items.length - 1];
     const cat = last.categoryId ? categoryById.get(String(last.categoryId)) : null;

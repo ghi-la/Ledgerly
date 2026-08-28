@@ -11,8 +11,11 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   Divider,
+  FormControlLabel,
+  FormGroup,
   Grid,
   MenuItem,
   Snackbar,
@@ -33,6 +36,7 @@ const LOCALES = [
   { value: 'en-GB', label: 'English' },
   { value: 'it-IT', label: 'Italiano' },
 ];
+const CADENCES = ['weekly', 'fortnightly', 'monthly', 'quarterly', 'twice a year'];
 
 interface Recurring {
   items: {
@@ -55,14 +59,26 @@ export default function SettingsPage() {
   const [curr, setCurr] = useState('EUR');
   const [loc, setLoc] = useState('en-GB');
   const [toast, setToast] = useState('');
+  const [recurringPrefs, setRecurringPrefs] = useState({
+    dateToleranceDays: '3',
+    amountTolerance: '10',
+    minOccurrences: '3',
+    hiddenCadences: [] as string[],
+  });
 
-  const { data: recurring } = useSWR<Recurring>('/api/recurring', fetcher);
+  const { data: recurring, mutate: mutateRecurring } = useSWR<Recurring>('/api/recurring', fetcher);
 
   useEffect(() => {
     if (profile) {
       setName(profile.name ?? '');
       setCurr(profile.settings.currency);
       setLoc(profile.settings.locale);
+      setRecurringPrefs({
+        dateToleranceDays: String(profile.settings.recurringDateToleranceDays ?? 3),
+        amountTolerance: String(profile.settings.recurringAmountTolerance ?? 10),
+        minOccurrences: String(profile.settings.recurringMinOccurrences ?? 3),
+        hiddenCadences: profile.settings.recurringHiddenCadences ?? [],
+      });
     }
   }, [profile]);
 
@@ -70,6 +86,27 @@ export default function SettingsPage() {
     await send('/api/settings', 'PATCH', { name, currency: curr, locale: loc });
     void i18n.changeLanguage(toI18nLang(loc));
     mutate();
+    setToast(t('toast.saved'));
+  };
+
+  const toggleCadence = (cadence: string) => {
+    setRecurringPrefs((p) => ({
+      ...p,
+      hiddenCadences: p.hiddenCadences.includes(cadence)
+        ? p.hiddenCadences.filter((c) => c !== cadence)
+        : [...p.hiddenCadences, cadence],
+    }));
+  };
+
+  const saveRecurringPrefs = async () => {
+    await send('/api/settings', 'PATCH', {
+      recurringDateToleranceDays: Number(recurringPrefs.dateToleranceDays),
+      recurringAmountTolerance: Number(recurringPrefs.amountTolerance),
+      recurringMinOccurrences: Number(recurringPrefs.minOccurrences),
+      recurringHiddenCadences: recurringPrefs.hiddenCadences,
+    });
+    mutate();
+    mutateRecurring();
     setToast(t('toast.saved'));
   };
 
@@ -156,6 +193,76 @@ export default function SettingsPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {t('recurring.description')}
           </Typography>
+
+          <Accordion
+            disableGutters
+            elevation={0}
+            sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 2, '&:before': { display: 'none' } }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {t('recurring.prefs.title')}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <TextField
+                    label={t('recurring.prefs.dateTolerance')}
+                    type="number"
+                    size="small"
+                    value={recurringPrefs.dateToleranceDays}
+                    onChange={(e) => setRecurringPrefs((p) => ({ ...p, dateToleranceDays: e.target.value }))}
+                    inputProps={{ min: 0, max: 14 }}
+                    fullWidth
+                  />
+                  <TextField
+                    label={t('recurring.prefs.amountTolerance')}
+                    type="number"
+                    size="small"
+                    value={recurringPrefs.amountTolerance}
+                    onChange={(e) => setRecurringPrefs((p) => ({ ...p, amountTolerance: e.target.value }))}
+                    inputProps={{ min: 0 }}
+                    fullWidth
+                  />
+                  <TextField
+                    label={t('recurring.prefs.minOccurrences')}
+                    type="number"
+                    size="small"
+                    value={recurringPrefs.minOccurrences}
+                    onChange={(e) => setRecurringPrefs((p) => ({ ...p, minOccurrences: e.target.value }))}
+                    inputProps={{ min: 2, max: 12 }}
+                    fullWidth
+                  />
+                </Stack>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    {t('recurring.prefs.showCadences')}
+                  </Typography>
+                  <FormGroup row>
+                    {CADENCES.map((cadence) => (
+                      <FormControlLabel
+                        key={cadence}
+                        control={
+                          <Checkbox
+                            size="small"
+                            checked={!recurringPrefs.hiddenCadences.includes(cadence)}
+                            onChange={() => toggleCadence(cadence)}
+                          />
+                        }
+                        label={t(`recurring.cadence.${cadence}`)}
+                      />
+                    ))}
+                  </FormGroup>
+                </Box>
+                <Box>
+                  <Button size="small" variant="contained" onClick={saveRecurringPrefs}>
+                    {t('recurring.prefs.save')}
+                  </Button>
+                </Box>
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
 
           {!recurring && <Typography variant="body2">{t('recurring.loading')}</Typography>}
           {recurring && recurring.items.length === 0 && (

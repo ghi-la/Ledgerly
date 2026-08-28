@@ -108,6 +108,10 @@ export interface UserSettings {
     config?: Record<string, unknown>;
     layout?: { x: number; y: number; w: number; h: number };
   }[];
+  recurringDateToleranceDays: number;
+  recurringAmountTolerance: number;
+  recurringMinOccurrences: number;
+  recurringHiddenCadences: string[];
 }
 
 export function useSettings() {

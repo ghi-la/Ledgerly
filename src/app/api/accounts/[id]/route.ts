@@ -1,5 +1,5 @@
 import { Account, Transaction } from '@/lib/models';
-import { HttpError, ok, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, requireUser, route } from '@/lib/api';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -23,6 +23,7 @@ export const PATCH = route(async (req: Request, ctx: Ctx) => {
     { new: true },
   );
   if (!account) throw new HttpError(404, 'That account no longer exists.');
+  invalidateStats(userId);
   return ok(account);
 });
 
@@ -32,5 +33,6 @@ export const DELETE = route(async (_req: Request, ctx: Ctx) => {
   const account = await Account.findOneAndDelete({ _id: id, userId });
   if (!account) throw new HttpError(404, 'That account no longer exists.');
   const { deletedCount } = await Transaction.deleteMany({ userId, accountId: id });
+  invalidateStats(userId);
   return ok({ deleted: true, transactionsRemoved: deletedCount ?? 0 });
 });

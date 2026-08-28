@@ -1,5 +1,5 @@
 import { Budget } from '@/lib/models';
-import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +20,7 @@ export const POST = route(async (req: Request) => {
 
   if (amount === 0) {
     await Budget.deleteOne({ userId, categoryId, month });
+    invalidateStats(userId);
     return ok({ deleted: true });
   }
 
@@ -28,5 +29,6 @@ export const POST = route(async (req: Request) => {
     { $set: { amount } },
     { upsert: true, new: true },
   );
+  invalidateStats(userId);
   return ok(budget);
 });

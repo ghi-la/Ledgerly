@@ -1,5 +1,5 @@
 import { Transaction } from '@/lib/models';
-import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 import { recurringKey } from '@/lib/parse';
 import { decryptTxFields, encryptField, getUserDek } from '@/lib/serverCrypto';
 
@@ -40,6 +40,7 @@ export const PATCH = route(async (req: Request, ctx: Ctx) => {
   > | null;
   if (!tx) throw new HttpError(404, 'That transaction no longer exists.');
 
+  invalidateStats(userId);
   return ok(await decryptTxFields(tx, dek));
 });
 
@@ -50,5 +51,6 @@ export const DELETE = route(async (_req: Request, ctx: Ctx) => {
   if (!tx) throw new HttpError(404, 'That transaction no longer exists.');
   // Deleting one leg of a transfer removes the matching leg too.
   if (tx.transferId) await Transaction.deleteMany({ userId, transferId: tx.transferId });
+  invalidateStats(userId);
   return ok({ deleted: true });
 });

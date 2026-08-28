@@ -1,5 +1,5 @@
 import { Goal } from '@/lib/models';
-import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,5 +24,6 @@ export const POST = route(async (req: Request) => {
     accountId: oid(body.accountId),
     color: body.color ?? '#E0A458',
   });
+  invalidateStats(userId);
   return ok(goal, 201);
 });

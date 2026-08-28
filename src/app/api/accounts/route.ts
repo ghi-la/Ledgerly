@@ -1,5 +1,5 @@
 import { Account, Transaction } from '@/lib/models';
-import { ok, requireUser, route, HttpError } from '@/lib/api';
+import { invalidateStats, ok, requireUser, route, HttpError } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,5 +37,6 @@ export const POST = route(async (req: Request) => {
     openingBalance: Number(body.openingBalance ?? 0),
     color: body.color ?? '#2E7D6F',
   });
+  invalidateStats(userId);
   return ok(account, 201);
 });

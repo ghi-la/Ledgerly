@@ -270,17 +270,20 @@ async function computeStats(userId: string, fromParam: string | null, toParam: s
 
 // Reuses Next.js's Data Cache (Vercel-backed in production, so it's shared
 // across serverless invocations - a plain in-memory cache wouldn't be, since
-// concurrent requests can land on different function instances). Not
-// invalidated on writes, so numbers can lag up to `revalidate` seconds
-// behind a just-made edit.
-const getCachedStats = unstable_cache(computeStats, ['stats-v1'], { revalidate: 20 });
-
+// concurrent requests can land on different function instances). Tagged per
+// user so writes can invalidate this user's entry on demand via
+// `invalidateStats` instead of only waiting out `revalidate`.
 export const GET = route(async (req: Request) => {
   const userId = await requireUser();
   const url = new URL(req.url);
   const fromParam = url.searchParams.get('from');
   const toParam = url.searchParams.get('to');
 
-  const payload = await getCachedStats(userId.toString(), fromParam, toParam);
+  const userIdStr = userId.toString();
+  const getCachedStats = unstable_cache(computeStats, ['stats-v2'], {
+    revalidate: 20,
+    tags: [`stats:${userIdStr}`],
+  });
+  const payload = await getCachedStats(userIdStr, fromParam, toParam);
   return ok(payload);
 });

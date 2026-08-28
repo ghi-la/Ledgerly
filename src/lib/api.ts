@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import mongoose from 'mongoose';
 import { auth } from './auth';
 import { connectDB } from './db';
@@ -40,6 +41,11 @@ export function route<T extends unknown[]>(
 }
 
 export const ok = (data: unknown, status = 200) => NextResponse.json(data, { status });
+
+/** Invalidates this user's cached /api/stats response after a write that changes it. */
+export function invalidateStats(userId: unknown) {
+  revalidateTag(`stats:${String(userId)}`);
+}
 
 export function oid(value: unknown) {
   if (!value || !mongoose.Types.ObjectId.isValid(String(value))) return null;

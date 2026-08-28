@@ -1,5 +1,5 @@
 import { Category, Rule, Transaction } from '@/lib/models';
-import { HttpError, ok, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, requireUser, route } from '@/lib/api';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -22,6 +22,7 @@ export const PATCH = route(async (req: Request, ctx: Ctx) => {
     { new: true },
   );
   if (!category) throw new HttpError(404, 'That category no longer exists.');
+  invalidateStats(userId);
   return ok(category);
 });
 
@@ -33,5 +34,6 @@ export const DELETE = route(async (_req: Request, ctx: Ctx) => {
   // Transactions and rules keep working; they simply lose the category link.
   await Transaction.updateMany({ userId, categoryId: id }, { $set: { categoryId: null } });
   await Rule.updateMany({ userId, 'actions.categoryId': id }, { $set: { 'actions.categoryId': null } });
+  invalidateStats(userId);
   return ok({ deleted: true });
 });

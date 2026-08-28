@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Account, Transaction } from '@/lib/models';
-import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 import { dedupeKey, recurringKey } from '@/lib/parse';
 import { encryptTxFields, getUserDek } from '@/lib/serverCrypto';
 
@@ -55,5 +55,6 @@ export const POST = route(async (req: Request) => {
 
   const inserted = await Transaction.insertMany(docs, { ordered: false });
 
+  invalidateStats(userId);
   return ok({ importBatchId, imported: inserted.length }, 201);
 });

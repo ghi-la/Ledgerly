@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Account, Transaction } from '@/lib/models';
-import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 
 /** Creates the two matching legs of a transfer between accounts. */
 export const POST = route(async (req: Request) => {
@@ -48,5 +48,6 @@ export const POST = route(async (req: Request) => {
     },
   ]);
 
+  invalidateStats(userId);
   return ok({ transferId, out, in: incoming }, 201);
 });

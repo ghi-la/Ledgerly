@@ -1,5 +1,5 @@
 import { Goal } from '@/lib/models';
-import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -19,6 +19,7 @@ export const PATCH = route(async (req: Request, ctx: Ctx) => {
 
   const goal = await Goal.findOneAndUpdate({ _id: id, userId }, { $set: set }, { new: true });
   if (!goal) throw new HttpError(404, 'That goal no longer exists.');
+  invalidateStats(userId);
   return ok(goal);
 });
 
@@ -26,5 +27,6 @@ export const DELETE = route(async (_req: Request, ctx: Ctx) => {
   const userId = await requireUser();
   const { id } = await ctx.params;
   await Goal.deleteOne({ _id: id, userId });
+  invalidateStats(userId);
   return ok({ deleted: true });
 });

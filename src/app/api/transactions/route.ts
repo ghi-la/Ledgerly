@@ -1,5 +1,5 @@
 import { Account, Category, Transaction } from '@/lib/models';
-import { HttpError, ok, oid, requireUser, route } from '@/lib/api';
+import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 import { dedupeKey, recurringKey } from '@/lib/parse';
 import { buildTransactionFilter } from '@/lib/transactionFilter';
 import { decryptTxFields, encryptTxFields, getUserDek } from '@/lib/serverCrypto';
@@ -181,6 +181,7 @@ export const POST = route(async (req: Request) => {
     recurringKey: recurringKey(description),
   });
 
+  invalidateStats(userId);
   return ok({ ...tx.toObject(), description, merchant, notes }, 201);
 });
 
@@ -190,9 +191,11 @@ export const DELETE = route(async (req: Request) => {
 
   if (importBatchId) {
     const res = await Transaction.deleteMany({ userId, importBatchId });
+    invalidateStats(userId);
     return ok({ deleted: res.deletedCount ?? 0 });
   }
   if (!Array.isArray(ids) || !ids.length) throw new HttpError(400, 'Select transactions first.');
   const res = await Transaction.deleteMany({ userId, _id: { $in: ids } });
+  invalidateStats(userId);
   return ok({ deleted: res.deletedCount ?? 0 });
 });

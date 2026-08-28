@@ -1,5 +1,5 @@
 import { Account, Rule, Transaction } from '@/lib/models';
-import { ok, oid, requireUser, route } from '@/lib/api';
+import { invalidateStats, ok, oid, requireUser, route } from '@/lib/api';
 import { applyRules } from '@/lib/rules';
 import { decryptTxFields, encryptField, getUserDek } from '@/lib/serverCrypto';
 
@@ -82,6 +82,7 @@ export const POST = route(async (req: Request) => {
 
   if (!dryRun && writes.length) {
     await Transaction.bulkWrite(writes as never);
+    invalidateStats(userId);
   }
 
   return ok({

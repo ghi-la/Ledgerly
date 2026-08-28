@@ -19,6 +19,19 @@
     "other": "Other",
     "empty": "No rules here yet."
   },
+  "createPrompt": {
+    "message": "Create a rule to auto-categorize similar transactions?",
+    "newRule": "New rule",
+    "updateRule": "Update rule",
+    "dismiss": "Dismiss",
+    "pickTitle": "Choose a rule to update",
+    "pickTitleForCategory": "Choose a \"{{category}}\" rule to update",
+    "pickSearch": "Search rules…",
+    "pickEmpty": "No rules for this category yet.",
+    "saved": "Rule saved.",
+    "runMessage": "Rule saved. Run it on your uncategorised transactions?",
+    "run": "Run now"
+  },
   "card": {
     "conditions_one": "{{count}} condition",
     "conditions_other": "{{count}} conditions",

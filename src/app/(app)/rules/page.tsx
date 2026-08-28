@@ -9,20 +9,11 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControlLabel,
-  Grid,
   IconButton,
-  MenuItem,
   Skeleton,
   Snackbar,
   Stack,
   Switch,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -35,7 +26,7 @@ import DownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useTranslation } from 'react-i18next';
 import { fetcher, send } from '@/lib/client';
 import { EmptyState, PageHeader } from '@/components/ui';
-import { categoryMenuItems } from '@/components/categoryMenuItems';
+import RuleDialog, { blankCondition, blankRuleDraft, buildRulePayload, type RuleDraft } from '@/components/RuleDialog';
 
 interface Condition {
   field: string;
@@ -61,64 +52,14 @@ interface Category {
   kind: string;
 }
 
-const isNumeric = (field: string) => field === 'amount' || field === 'absAmount';
-
-const blankCondition: Condition = { field: 'description', operator: 'contains', value: '' };
-const blankRule: {
-  name: string;
-  enabled: boolean;
-  matchType: 'all' | 'any';
-  conditions: Condition[];
-  actions: { categoryId: string; setType: string; addTags: string[] };
-  stopProcessing: boolean;
-} = {
-  name: '',
-  enabled: true,
-  matchType: 'all',
-  conditions: [{ ...blankCondition }],
-  actions: { categoryId: '', setType: '', addTags: [] },
-  stopProcessing: true,
-};
-
 export default function RulesPage() {
   const { t } = useTranslation('rules');
-
-  const FIELDS = [
-    { value: 'description', label: t('fields.description') },
-    { value: 'merchant', label: t('fields.merchant') },
-    { value: 'reference', label: t('fields.reference') },
-    { value: 'notes', label: t('fields.notes') },
-    { value: 'any', label: t('fields.any') },
-    { value: 'amount', label: t('fields.amount') },
-    { value: 'absAmount', label: t('fields.absAmount') },
-    { value: 'type', label: t('fields.type') },
-    { value: 'account', label: t('fields.account') },
-    { value: 'date', label: t('fields.date') },
-  ];
-  const TEXT_OPS = [
-    { value: 'contains', label: t('textOps.contains') },
-    { value: 'not_contains', label: t('textOps.not_contains') },
-    { value: 'equals', label: t('textOps.equals') },
-    { value: 'starts_with', label: t('textOps.starts_with') },
-    { value: 'ends_with', label: t('textOps.ends_with') },
-    { value: 'regex', label: t('textOps.regex') },
-    { value: 'is_empty', label: t('textOps.is_empty') },
-  ];
-  const NUM_OPS = [
-    { value: 'gt', label: t('numOps.gt') },
-    { value: 'gte', label: t('numOps.gte') },
-    { value: 'lt', label: t('numOps.lt') },
-    { value: 'lte', label: t('numOps.lte') },
-    { value: 'equals', label: t('numOps.equals') },
-    { value: 'between', label: t('numOps.between') },
-  ];
-  const opsFor = (field: string) => (isNumeric(field) ? NUM_OPS : TEXT_OPS);
 
   const { data: rules, mutate, isLoading } = useSWR<Rule[]>('/api/rules', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
-  const [draft, setDraft] = useState<typeof blankRule>(blankRule);
+  const [draft, setDraft] = useState<RuleDraft>(blankRuleDraft);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [running, setRunning] = useState(false);
@@ -127,7 +68,7 @@ export default function RulesPage() {
 
   const openNew = () => {
     setEditing(null);
-    setDraft(structuredClone(blankRule));
+    setDraft(structuredClone(blankRuleDraft));
     setError('');
     setOpen(true);
   };
@@ -155,14 +96,7 @@ export default function RulesPage() {
       setError('');
       if (!draft.name.trim()) throw new Error(t('errors.nameRequired'));
       if (!draft.conditions.length) throw new Error(t('errors.conditionRequired'));
-      const payload = {
-        ...draft,
-        actions: {
-          categoryId: draft.actions.categoryId || null,
-          setType: draft.actions.setType || null,
-          addTags: draft.actions.addTags,
-        },
-      };
+      const payload = buildRulePayload(draft);
       if (editing) await send(`/api/rules/${editing._id}`, 'PATCH', payload);
       else await send('/api/rules', 'POST', payload);
       setOpen(false);
@@ -223,12 +157,6 @@ export default function RulesPage() {
       setRunning(false);
     }
   };
-
-  const setCondition = (i: number, patch: Partial<Condition>) =>
-    setDraft((d) => ({
-      ...d,
-      conditions: d.conditions.map((c, idx) => (idx === i ? { ...c, ...patch } : c)),
-    }));
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
@@ -350,196 +278,16 @@ export default function RulesPage() {
           );
         })}
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>{editing ? t('dialog.editTitle') : t('dialog.newTitle')}</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2.5} sx={{ pt: 0.5 }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label={t('dialog.ruleName')}
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                fullWidth
-                autoFocus
-              />
-              <TextField
-                select
-                label={t('dialog.match')}
-                value={draft.matchType}
-                onChange={(e) => setDraft({ ...draft, matchType: e.target.value as 'all' | 'any' })}
-                sx={{ minWidth: 180 }}
-              >
-                <MenuItem value="all">{t('dialog.allConditions')}</MenuItem>
-                <MenuItem value="any">{t('dialog.anyCondition')}</MenuItem>
-              </TextField>
-            </Stack>
-
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                {t('dialog.whenTransaction')}
-              </Typography>
-              <Stack spacing={1.5} sx={{ mt: 1 }}>
-                {draft.conditions.map((c, i) => (
-                  <Grid container spacing={1} key={i} alignItems="center">
-                    <Grid item xs={12} sm={3}>
-                      <TextField
-                        select
-                        label={t('dialog.field')}
-                        value={c.field}
-                        onChange={(e) => {
-                          const field = e.target.value;
-                          const ops = opsFor(field);
-                          setCondition(i, {
-                            field,
-                            operator: ops.some((o) => o.value === c.operator) ? c.operator : ops[0].value,
-                          });
-                        }}
-                        fullWidth
-                      >
-                        {FIELDS.map((f) => (
-                          <MenuItem key={f.value} value={f.value}>
-                            {f.label}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <TextField
-                        select
-                        label={t('dialog.is')}
-                        value={c.operator}
-                        onChange={(e) => setCondition(i, { operator: e.target.value })}
-                        fullWidth
-                      >
-                        {opsFor(c.field).map((o) => (
-                          <MenuItem key={o.value} value={o.value}>
-                            {o.label}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
-                    <Grid item xs={c.operator === 'between' ? 6 : 12} sm={c.operator === 'between' ? 2.5 : 5}>
-                      {c.operator !== 'is_empty' && (
-                        <TextField
-                          label={c.field === 'type' ? t('dialog.valueDirection') : t('dialog.value')}
-                          value={c.value}
-                          onChange={(e) => setCondition(i, { value: e.target.value })}
-                          fullWidth
-                          type={isNumeric(c.field) ? 'number' : c.field === 'date' ? 'date' : 'text'}
-                          InputLabelProps={c.field === 'date' ? { shrink: true } : undefined}
-                        />
-                      )}
-                    </Grid>
-                    {c.operator === 'between' && (
-                      <Grid item xs={5} sm={2.5}>
-                        <TextField
-                          label={t('dialog.and')}
-                          value={c.value2 ?? ''}
-                          onChange={(e) => setCondition(i, { value2: e.target.value })}
-                          fullWidth
-                          type={isNumeric(c.field) ? 'number' : 'text'}
-                        />
-                      </Grid>
-                    )}
-                    <Grid item xs={1}>
-                      <IconButton
-                        size="small"
-                        disabled={draft.conditions.length === 1}
-                        onClick={() =>
-                          setDraft({ ...draft, conditions: draft.conditions.filter((_, idx) => idx !== i) })
-                        }
-                        aria-label={t('dialog.removeCondition')}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Grid>
-                  </Grid>
-                ))}
-              </Stack>
-              <Button
-                size="small"
-                startIcon={<AddIcon />}
-                sx={{ mt: 1 }}
-                onClick={() => setDraft({ ...draft, conditions: [...draft.conditions, { ...blankCondition }] })}
-              >
-                {t('dialog.addCondition')}
-              </Button>
-            </Box>
-
-            <Divider />
-
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                {t('dialog.thenDo')}
-              </Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1 }}>
-                <TextField
-                  select
-                  label={t('dialog.setCategory')}
-                  value={draft.actions.categoryId}
-                  onChange={(e) =>
-                    setDraft({ ...draft, actions: { ...draft.actions, categoryId: e.target.value } })
-                  }
-                  fullWidth
-                >
-                  <MenuItem value="">{t('dialog.leaveUnchanged')}</MenuItem>
-                  {categoryMenuItems(categories ?? [], t)}
-                </TextField>
-                <TextField
-                  select
-                  label={t('dialog.setDirection')}
-                  value={draft.actions.setType}
-                  onChange={(e) =>
-                    setDraft({ ...draft, actions: { ...draft.actions, setType: e.target.value } })
-                  }
-                  fullWidth
-                >
-                  <MenuItem value="">{t('dialog.leaveUnchanged')}</MenuItem>
-                  <MenuItem value="expense">{t('dialog.expense')}</MenuItem>
-                  <MenuItem value="income">{t('dialog.income')}</MenuItem>
-                  <MenuItem value="transfer">{t('dialog.transfer')}</MenuItem>
-                </TextField>
-              </Stack>
-              <TextField
-                label={t('dialog.addTags')}
-                value={draft.actions.addTags.join(', ')}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    actions: {
-                      ...draft.actions,
-                      addTags: e.target.value
-                        .split(',')
-                        .map((tag) => tag.trim())
-                        .filter(Boolean),
-                    },
-                  })
-                }
-                fullWidth
-                sx={{ mt: 2 }}
-              />
-            </Box>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={draft.stopProcessing}
-                  onChange={(e) => setDraft({ ...draft, stopProcessing: e.target.checked })}
-                />
-              }
-              label={t('dialog.stopProcessing')}
-            />
-
-            {error && <Alert severity="error">{error}</Alert>}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>{t('common:actions.cancel')}</Button>
-          <Button variant="contained" onClick={save}>
-            {t('dialog.saveRule')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <RuleDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        isEditing={!!editing}
+        draft={draft}
+        setDraft={setDraft}
+        categories={categories ?? []}
+        error={error}
+        onSave={save}
+      />
 
       <Snackbar open={!!toast} autoHideDuration={4000} onClose={() => setToast('')} message={toast} />
     </Box>

@@ -15,6 +15,9 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
   MenuItem,
   Snackbar,
   Stack,
@@ -35,10 +38,12 @@ import AddIcon from '@mui/icons-material/Add';
 import SwapIcon from '@mui/icons-material/SwapHorizOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/EditOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
 import { categoryMenuItems } from '@/components/categoryMenuItems';
+import RuleDialog, { blankRuleDraft, buildRulePayload, type Condition, type RuleDraft } from '@/components/RuleDialog';
 
 interface Tx {
   _id: string;
@@ -66,6 +71,15 @@ interface Category {
   kind: string;
   color: string;
 }
+interface RuleSummary {
+  _id: string;
+  name: string;
+  enabled: boolean;
+  matchType: 'all' | 'any';
+  conditions: Condition[];
+  actions: { categoryId: string | null; setType: string | null; addTags: string[] };
+  stopProcessing: boolean;
+}
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -89,9 +103,18 @@ export default function TransactionsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [editing, setEditing] = useState<Tx | null>(null);
+  const [rulePrompt, setRulePrompt] = useState<{ tx: Tx; categoryId: string } | null>(null);
+  const [pickRuleOpen, setPickRuleOpen] = useState(false);
+  const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
+  const [ruleEditingId, setRuleEditingId] = useState<string | null>(null);
+  const [ruleDraft, setRuleDraft] = useState<RuleDraft>(blankRuleDraft);
+  const [ruleError, setRuleError] = useState('');
+  const [runRulesPrompt, setRunRulesPrompt] = useState(false);
+  const [runningRules, setRunningRules] = useState(false);
 
   const { data: accounts } = useSWR<Account[]>('/api/accounts', fetcher);
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
+  const { data: rules, mutate: refreshRules } = useSWR<RuleSummary[]>('/api/rules', fetcher);
 
   const searchTerm = search.trim();
 
@@ -129,9 +152,85 @@ export default function TransactionsPage() {
     setPage(0);
   };
 
-  const setCategory = async (id: string, value: string) => {
-    await send(`/api/transactions/${id}`, 'PATCH', { categoryId: value || null });
+  const setCategory = async (tx: Tx, value: string) => {
+    const wasUncategorised = !tx.categoryId;
+    await send(`/api/transactions/${tx._id}`, 'PATCH', { categoryId: value || null });
     refresh();
+    if (wasUncategorised && value) setRulePrompt({ tx, categoryId: value });
+  };
+
+  const startNewRuleFromPrompt = () => {
+    if (!rulePrompt) return;
+    const { tx, categoryId } = rulePrompt;
+    setRuleEditingId(null);
+    setRuleDraft({
+      ...structuredClone(blankRuleDraft),
+      name: (tx.merchant || tx.description).slice(0, 80),
+      conditions: [{ field: 'description', operator: 'contains', value: tx.description }],
+      actions: { categoryId, setType: '', addTags: [] },
+    });
+    setRuleError('');
+    setRulePrompt(null);
+    setRuleDialogOpen(true);
+  };
+
+  const chooseRuleToUpdate = (rule: RuleSummary) => {
+    if (!rulePrompt) return;
+    const { tx, categoryId } = rulePrompt;
+    setRuleEditingId(rule._id);
+    setRuleDraft({
+      name: rule.name,
+      enabled: rule.enabled,
+      matchType: 'any',
+      conditions: [
+        ...structuredClone(rule.conditions),
+        { field: 'description', operator: 'contains', value: tx.description },
+      ],
+      actions: {
+        categoryId,
+        setType: rule.actions.setType ?? '',
+        addTags: rule.actions.addTags ?? [],
+      },
+      stopProcessing: rule.stopProcessing,
+    });
+    setRuleError('');
+    setPickRuleOpen(false);
+    setRulePrompt(null);
+    setRuleDialogOpen(true);
+  };
+
+  const saveRule = async () => {
+    try {
+      setRuleError('');
+      if (!ruleDraft.name.trim()) throw new Error(t('rules:errors.nameRequired'));
+      if (!ruleDraft.conditions.length) throw new Error(t('rules:errors.conditionRequired'));
+      const payload = buildRulePayload(ruleDraft);
+      if (ruleEditingId) await send(`/api/rules/${ruleEditingId}`, 'PATCH', payload);
+      else await send('/api/rules', 'POST', payload);
+      setRuleDialogOpen(false);
+      refreshRules();
+      setRunRulesPrompt(true);
+    } catch (e) {
+      setRuleError(e instanceof Error ? e.message : t('rules:errors.saveFailed'));
+    }
+  };
+
+  const runRulesOnUncategorised = async () => {
+    setRunningRules(true);
+    try {
+      const res = await send('/api/rules/apply', 'POST', { onlyUncategorised: true });
+      setToast(
+        res.updated
+          ? t('rules:toast.applied', { updated: res.updated, scanned: res.scanned })
+          : t('rules:toast.noChanges', { scanned: res.scanned }),
+      );
+      refresh();
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : t('rules:toast.runFailed'));
+    } finally {
+      setRunningRules(false);
+      setRunRulesPrompt(false);
+    }
   };
 
   const bulkCategorise = async (value: string) => {
@@ -297,7 +396,7 @@ export default function TransactionsPage() {
                   fullWidth
                   sx={{ mt: 1.25 }}
                   value={tx.categoryId ?? ''}
-                  onChange={(e) => setCategory(tx._id, e.target.value)}
+                  onChange={(e) => setCategory(tx, e.target.value)}
                 >
                   <MenuItem value="">{t('common:actions.uncategorised')}</MenuItem>
                   {categoryMenuItems(categories ?? [], t)}
@@ -397,7 +496,7 @@ export default function TransactionsPage() {
                         size="small"
                         fullWidth
                         value={tx.categoryId ?? ''}
-                        onChange={(e) => setCategory(tx._id, e.target.value)}
+                        onChange={(e) => setCategory(tx, e.target.value)}
                         SelectProps={{
                           renderValue: (v) => {
                             const c = categoryById.get(String(v));
@@ -500,7 +599,137 @@ export default function TransactionsPage() {
       />
 
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast('')} message={toast} />
+
+      <Snackbar
+        open={!!rulePrompt}
+        onClose={() => setRulePrompt(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={t('rules:createPrompt.message')}
+        action={
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            <Button color="inherit" size="small" onClick={startNewRuleFromPrompt}>
+              {t('rules:createPrompt.newRule')}
+            </Button>
+            {rulePrompt && (rules ?? []).some((r) => r.actions.categoryId === rulePrompt.categoryId) && (
+              <Button color="inherit" size="small" onClick={() => setPickRuleOpen(true)}>
+                {t('rules:createPrompt.updateRule')}
+              </Button>
+            )}
+            <IconButton
+              size="small"
+              color="inherit"
+              onClick={() => setRulePrompt(null)}
+              aria-label={t('rules:createPrompt.dismiss')}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        }
+      />
+
+      <PickRuleDialog
+        open={pickRuleOpen}
+        onClose={() => setPickRuleOpen(false)}
+        rules={rules ?? []}
+        categories={categories ?? []}
+        categoryId={rulePrompt?.categoryId ?? ''}
+        onPick={chooseRuleToUpdate}
+      />
+
+      <RuleDialog
+        open={ruleDialogOpen}
+        onClose={() => setRuleDialogOpen(false)}
+        isEditing={!!ruleEditingId}
+        draft={ruleDraft}
+        setDraft={setRuleDraft}
+        categories={categories ?? []}
+        error={ruleError}
+        onSave={saveRule}
+      />
+
+      <Snackbar
+        open={runRulesPrompt}
+        onClose={() => setRunRulesPrompt(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={t('rules:createPrompt.runMessage')}
+        action={
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            <Button color="inherit" size="small" disabled={runningRules} onClick={runRulesOnUncategorised}>
+              {t('rules:createPrompt.run')}
+            </Button>
+            <IconButton
+              size="small"
+              color="inherit"
+              onClick={() => setRunRulesPrompt(false)}
+              aria-label={t('rules:createPrompt.dismiss')}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        }
+      />
     </Box>
+  );
+}
+
+function PickRuleDialog({
+  open,
+  onClose,
+  rules,
+  categories,
+  categoryId,
+  onPick,
+}: {
+  open: boolean;
+  onClose: () => void;
+  rules: RuleSummary[];
+  categories: Category[];
+  categoryId: string;
+  onPick: (rule: RuleSummary) => void;
+}) {
+  const { t } = useTranslation('transactions');
+  const [search, setSearch] = useState('');
+  const categoryById = new Map(categories.map((c) => [c._id, c]));
+  const category = categoryId ? categoryById.get(categoryId) : null;
+  const relevant = rules.filter((r) => r.actions.categoryId === categoryId);
+  const filtered = relevant.filter((r) => r.name.toLowerCase().includes(search.trim().toLowerCase()));
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>
+        {category ? t('rules:createPrompt.pickTitleForCategory', { category: category.name }) : t('rules:createPrompt.pickTitle')}
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: 0 }}>
+        <Box sx={{ p: 2, pb: 1 }}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder={t('rules:createPrompt.pickSearch')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+        </Box>
+        <List dense sx={{ maxHeight: 360, overflowY: 'auto' }}>
+          {filtered.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1.5 }}>
+              {t('rules:createPrompt.pickEmpty')}
+            </Typography>
+          )}
+          {filtered.map((r) => (
+            <ListItemButton key={r._id} onClick={() => onPick(r)}>
+              <ListItemText
+                primary={r.name}
+                secondary={t('rules:card.conditions', { count: r.conditions.length })}
+              />
+            </ListItemButton>
+          ))}
+        </List>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('common:actions.cancel')}</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

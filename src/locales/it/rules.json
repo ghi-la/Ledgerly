@@ -19,6 +19,19 @@
     "other": "Altro",
     "empty": "Ancora nessuna regola qui."
   },
+  "createPrompt": {
+    "message": "Creare una regola per categorizzare automaticamente transazioni simili?",
+    "newRule": "Nuova regola",
+    "updateRule": "Aggiorna regola",
+    "dismiss": "Ignora",
+    "pickTitle": "Scegli una regola da aggiornare",
+    "pickTitleForCategory": "Scegli una regola \"{{category}}\" da aggiornare",
+    "pickSearch": "Cerca regole…",
+    "pickEmpty": "Ancora nessuna regola per questa categoria.",
+    "saved": "Regola salvata.",
+    "runMessage": "Regola salvata. Eseguirla sulle transazioni non categorizzate?",
+    "run": "Esegui ora"
+  },
   "card": {
     "conditions_one": "{{count}} condizione",
     "conditions_other": "{{count}} condizioni",

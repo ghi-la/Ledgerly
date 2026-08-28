@@ -13,6 +13,12 @@
     "description": "A rule watches for keywords or amounts and drops matching entries into a category.",
     "action": "Create your first rule"
   },
+  "groups": {
+    "expenses": "Expenses",
+    "income": "Income",
+    "other": "Other",
+    "empty": "No rules here yet."
+  },
   "card": {
     "conditions_one": "{{count}} condition",
     "conditions_other": "{{count}} conditions",

@@ -13,6 +13,12 @@
     "description": "Una regola osserva parole chiave o importi e assegna le voci corrispondenti a una categoria.",
     "action": "Crea la tua prima regola"
   },
+  "groups": {
+    "expenses": "Uscite",
+    "income": "Entrate",
+    "other": "Altro",
+    "empty": "Ancora nessuna regola qui."
+  },
   "card": {
     "conditions_one": "{{count}} condizione",
     "conditions_other": "{{count}} condizioni",

@@ -183,8 +183,7 @@ export default function RulesPage() {
     mutate();
   };
 
-  const reorder = async (index: number, delta: number) => {
-    const list = [...(rules ?? [])];
+  const reorder = async (list: Rule[], index: number, delta: number) => {
     const target = index + delta;
     if (target < 0 || target >= list.length) return;
     const a = list[index];
@@ -195,6 +194,19 @@ export default function RulesPage() {
     ]);
     mutate();
   };
+
+  const ruleKind = (r: Rule): 'expense' | 'income' | 'other' => {
+    if (r.actions.setType === 'expense' || r.actions.setType === 'income') return r.actions.setType;
+    const cat = r.actions.categoryId ? categoryById.get(r.actions.categoryId) : null;
+    if (cat?.kind === 'expense' || cat?.kind === 'income') return cat.kind;
+    return 'other';
+  };
+
+  const groups: { kind: 'expense' | 'income' | 'other'; label: string }[] = [
+    { kind: 'expense', label: t('groups.expenses') },
+    { kind: 'income', label: t('groups.income') },
+    { kind: 'other', label: t('groups.other') },
+  ];
 
   const runAll = async (onlyUncategorised: boolean) => {
     setRunning(true);
@@ -259,56 +271,84 @@ export default function RulesPage() {
         </Card>
       )}
 
-      <Stack spacing={1.5}>
-        {isLoading && [0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={64} />)}
-        {(rules ?? []).map((r, i) => {
-          const cat = r.actions.categoryId ? categoryById.get(r.actions.categoryId) : null;
+      {isLoading && (
+        <Stack spacing={1.5}>
+          {[0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={64} />)}
+        </Stack>
+      )}
+
+      {!isLoading &&
+        (rules?.length ?? 0) > 0 &&
+        groups.map((g) => {
+          const items = (rules ?? []).filter((r) => ruleKind(r) === g.kind);
+          if (g.kind === 'other' && items.length === 0) return null;
           return (
-            <Card key={r._id} sx={{ opacity: r.enabled ? 1 : 0.6 }}>
-              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                  <Stack sx={{ mr: -0.5 }}>
-                    <IconButton size="small" disabled={i === 0} onClick={() => reorder(i, -1)} aria-label={t('card.moveUp')}>
-                      <UpIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      disabled={i === (rules?.length ?? 0) - 1}
-                      onClick={() => reorder(i, 1)}
-                      aria-label={t('card.moveDown')}
-                    >
-                      <DownIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 700 }}>{r.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('card.conditions', { count: r.conditions.length })} ·{' '}
-                      {r.matchType === 'all' ? t('card.matchAll') : t('card.matchAny')}
-                    </Typography>
-                  </Box>
-                  {cat && (
-                    <Chip
-                      size="small"
-                      label={cat.name}
-                      sx={{ bgcolor: cat.color, color: '#fff', fontWeight: 600 }}
-                    />
-                  )}
-                  <Tooltip title={r.enabled ? t('card.enabled') : t('card.disabled')}>
-                    <Switch size="small" checked={r.enabled} onChange={() => toggle(r)} />
-                  </Tooltip>
-                  <IconButton size="small" onClick={() => openEdit(r)} aria-label={t('card.edit')}>
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => remove(r)} aria-label={t('card.delete')}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
-              </CardContent>
-            </Card>
+            <Box key={g.kind} sx={{ mb: 3 }}>
+              <Typography variant="overline" color="text.secondary">
+                {g.label} · {items.length}
+              </Typography>
+              <Stack spacing={1.5} sx={{ mt: 1 }}>
+                {items.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    {t('groups.empty')}
+                  </Typography>
+                )}
+                {items.map((r, i) => {
+                  const cat = r.actions.categoryId ? categoryById.get(r.actions.categoryId) : null;
+                  return (
+                    <Card key={r._id} sx={{ opacity: r.enabled ? 1 : 0.6 }}>
+                      <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                          <Stack sx={{ mr: -0.5 }}>
+                            <IconButton
+                              size="small"
+                              disabled={i === 0}
+                              onClick={() => reorder(items, i, -1)}
+                              aria-label={t('card.moveUp')}
+                            >
+                              <UpIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              disabled={i === items.length - 1}
+                              onClick={() => reorder(items, i, 1)}
+                              aria-label={t('card.moveDown')}
+                            >
+                              <DownIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontWeight: 700 }}>{r.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {t('card.conditions', { count: r.conditions.length })} ·{' '}
+                              {r.matchType === 'all' ? t('card.matchAll') : t('card.matchAny')}
+                            </Typography>
+                          </Box>
+                          {cat && (
+                            <Chip
+                              size="small"
+                              label={cat.name}
+                              sx={{ bgcolor: cat.color, color: '#fff', fontWeight: 600 }}
+                            />
+                          )}
+                          <Tooltip title={r.enabled ? t('card.enabled') : t('card.disabled')}>
+                            <Switch size="small" checked={r.enabled} onChange={() => toggle(r)} />
+                          </Tooltip>
+                          <IconButton size="small" onClick={() => openEdit(r)} aria-label={t('card.edit')}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => remove(r)} aria-label={t('card.delete')}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </Stack>
+            </Box>
           );
         })}
-      </Stack>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>{editing ? t('dialog.editTitle') : t('dialog.newTitle')}</DialogTitle>

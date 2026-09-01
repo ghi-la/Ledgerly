@@ -4,5 +4,7 @@
   "doneEditing": "Done",
   "widgetLoadError": "Could not load this widget.",
   "chooseWidgets": "Choose widgets",
-  "allHidden": "Every widget is hidden right now."
+  "allHidden": "Every widget is hidden right now.",
+  "addWidget": "Add widget",
+  "confirmRemoveWidget": "Remove \"{{name}}\" from the dashboard?"
 }

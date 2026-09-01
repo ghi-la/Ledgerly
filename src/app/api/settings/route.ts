@@ -1,9 +1,21 @@
-import { DEFAULT_WIDGETS, User } from '@/lib/models';
+import { ALL_WIDGET_TYPES, DEFAULT_WIDGETS, User } from '@/lib/models';
 import { HttpError, ok, requireUser, route } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
 const CADENCES = new Set(['weekly', 'fortnightly', 'monthly', 'quarterly', 'twice a year']);
+const WIDGET_TYPES = new Set(ALL_WIDGET_TYPES);
+
+function validateDashboard(dashboard: unknown): void {
+  if (!Array.isArray(dashboard)) throw new HttpError(400, 'dashboard must be an array.');
+  const ids = new Set<string>();
+  for (const w of dashboard) {
+    if (!w || typeof w.id !== 'string' || !w.id || !WIDGET_TYPES.has(w.type) || ids.has(w.id)) {
+      throw new HttpError(400, 'Invalid widget entry.');
+    }
+    ids.add(w.id);
+  }
+}
 
 export const GET = route(async () => {
   const userId = await requireUser();
@@ -33,7 +45,10 @@ export const PATCH = route(async (req: Request) => {
   if (body.currency !== undefined) set['settings.currency'] = String(body.currency).toUpperCase();
   if (body.locale !== undefined) set['settings.locale'] = String(body.locale);
   if (body.startOfMonth !== undefined) set['settings.startOfMonth'] = Number(body.startOfMonth);
-  if (body.dashboard !== undefined) set['settings.dashboard'] = body.dashboard;
+  if (body.dashboard !== undefined) {
+    validateDashboard(body.dashboard);
+    set['settings.dashboard'] = body.dashboard;
+  }
   if (body.recurringDateToleranceDays !== undefined) {
     const v = Number(body.recurringDateToleranceDays);
     set['settings.recurringDateToleranceDays'] = Number.isFinite(v) ? Math.max(0, Math.min(14, v)) : 3;

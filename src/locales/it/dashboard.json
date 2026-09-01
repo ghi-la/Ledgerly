@@ -4,5 +4,7 @@
   "doneEditing": "Fatto",
   "widgetLoadError": "Impossibile caricare questo widget.",
   "chooseWidgets": "Scegli i widget",
-  "allHidden": "Al momento tutti i widget sono nascosti."
+  "allHidden": "Al momento tutti i widget sono nascosti.",
+  "addWidget": "Aggiungi widget",
+  "confirmRemoveWidget": "Rimuovere \"{{name}}\" dalla dashboard?"
 }

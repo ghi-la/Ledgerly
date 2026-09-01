@@ -28,9 +28,16 @@
   "chartTypes": {
     "donut": "Ciambella",
     "bar": "Barre",
+    "stacked": "Barra impilata",
     "line": "Linea",
     "area": "Area",
     "list": "Elenco"
+  },
+  "stackedDetail": {
+    "dots": "Legenda colori",
+    "amounts": "Legenda con importi",
+    "bars": "Elenco dettagliato",
+    "hidden": "Nascondi elenco"
   },
   "metrics": {
     "both": "Entrate e uscite",
@@ -48,7 +55,9 @@
   },
   "settings": {
     "title": "Impostazioni widget",
-    "visible": "Visibile in dashboard"
+    "visible": "Visibile in dashboard",
+    "name": "Nome widget",
+    "remove": "Rimuovi widget"
   },
   "empty": {
     "accounts": "Ancora nessun conto.",

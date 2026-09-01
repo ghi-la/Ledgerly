@@ -28,9 +28,16 @@
   "chartTypes": {
     "donut": "Donut",
     "bar": "Bar",
+    "stacked": "Stacked bar",
     "line": "Line",
     "area": "Area",
     "list": "List"
+  },
+  "stackedDetail": {
+    "dots": "Color key",
+    "amounts": "Color key with amounts",
+    "bars": "Breakdown list",
+    "hidden": "Hide list"
   },
   "metrics": {
     "both": "Income & expense",
@@ -48,7 +55,9 @@
   },
   "settings": {
     "title": "Widget settings",
-    "visible": "Visible on dashboard"
+    "visible": "Visible on dashboard",
+    "name": "Widget name",
+    "remove": "Remove widget"
   },
   "empty": {
     "accounts": "No accounts yet.",

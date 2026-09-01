@@ -51,6 +51,7 @@ export function monthLabel(key: string, locale = 'en-GB') {
 
 /** Time-interval presets every dashboard widget can be set to, independently. */
 export const RANGE_PRESETS = [
+  { key: '30d', label: 'Last 30 days' },
   { key: '1m', label: '1M' },
   { key: '3m', label: '3M' },
   { key: '6m', label: '6M' },
@@ -70,11 +71,18 @@ const dateStr = (d: Date) =>
  * Turns a preset key into a concrete [from, to] date-string window ending
  * today. "all" sends the sentinel 'oldest'; the server resolves it to the
  * user's actual earliest transaction rather than an arbitrary fixed date.
+ * "30d" is a rolling 30-day window (today minus 30 days); the month-based
+ * presets are calendar-month-aligned instead (start of month, N-1 back).
  */
 export function rangeToDates(key: string, today = new Date()): { from: string; to: string } {
   const to = dateStr(today);
   if (key === 'all') return { from: 'oldest', to };
   if (key === 'ytd') return { from: `${today.getFullYear()}-01-01`, to };
+  if (key === '30d') {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 30);
+    return { from: dateStr(start), to };
+  }
   const months = { '1m': 1, '3m': 3, '6m': 6, '12m': 12 }[key] ?? 3;
   const start = new Date(today.getFullYear(), today.getMonth() - (months - 1), 1);
   return { from: dateStr(start), to };

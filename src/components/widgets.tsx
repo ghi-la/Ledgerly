@@ -6,8 +6,10 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import SettingsIcon from '@mui/icons-material/SettingsOutlined';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -102,6 +104,9 @@ export interface WidgetProps {
   editMode?: boolean;
   visible?: boolean;
   onVisibleChange?: (visible: boolean) => void;
+  title?: string;
+  onTitleChange?: (title: string) => void;
+  onRemove?: () => void;
 }
 
 export const widgetTitle = (type: string, t: TFunction) => t(`widgets:titles.${type}`, { defaultValue: type });
@@ -114,6 +119,8 @@ function Shell({
   editMode,
   visible,
   onVisibleChange,
+  onTitleChange,
+  onRemove,
   settingsContent,
   children,
 }: {
@@ -124,6 +131,8 @@ function Shell({
   editMode?: boolean;
   visible?: boolean;
   onVisibleChange?: (visible: boolean) => void;
+  onTitleChange?: (title: string) => void;
+  onRemove?: () => void;
   settingsContent?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -197,6 +206,15 @@ function Shell({
                     <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1 }}>
                       {t('settings.title')}
                     </Typography>
+                    {onTitleChange && (
+                      <TextField
+                        size="small"
+                        variant="standard"
+                        label={t('settings.name')}
+                        value={title}
+                        onChange={(e) => onTitleChange(e.target.value)}
+                      />
+                    )}
                     {settingsContent}
                     {settingsContent && <Divider />}
                     <Stack
@@ -210,6 +228,22 @@ function Shell({
                         onChange={(e) => onVisibleChange?.(e.target.checked)}
                       />
                     </Stack>
+                    {onRemove && (
+                      <>
+                        <Divider />
+                        <Button
+                          size="small"
+                          startIcon={<DeleteOutlineIcon fontSize="small" />}
+                          onClick={() => {
+                            setAnchorEl(null);
+                            onRemove();
+                          }}
+                          sx={{ alignSelf: 'flex-start' }}
+                        >
+                          {t('settings.remove')}
+                        </Button>
+                      </>
+                    )}
                   </Stack>
                 </Popover>
               </>
@@ -280,10 +314,14 @@ function SpendByCategoryWidget({
   editMode,
   visible,
   onVisibleChange,
+  title,
+  onTitleChange,
+  onRemove,
 }: WidgetProps) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
   const chartType = (config?.chartType as string) ?? 'donut';
+  const stackedDetail = (config?.stackedDetail as string) ?? 'dots';
   const subcategoryDisplay = (config?.subcategoryDisplay as string) ?? 'click';
   const alwaysShow = subcategoryDisplay === 'always';
   const data = stats.categorySpend.slice(0, 8);
@@ -316,6 +354,11 @@ function SpendByCategoryWidget({
         depth: 0 as const,
       }));
 
+  const stackedRow: Record<string, number | string> = { name: 'total' };
+  chartRows.forEach((d) => {
+    stackedRow[d.name] = d.amount;
+  });
+
   const rowByName = new Map(chartRows.map((r) => [r.name, r]));
   const labelFor = (name: string) => {
     const row = rowByName.get(name);
@@ -336,12 +379,14 @@ function SpendByCategoryWidget({
 
   return (
     <Shell
-      title={widgetTitle('spend-by-category', t)}
+      title={title || widgetTitle('spend-by-category', t)}
       range={range}
       onRangeChange={onRangeChange}
       editMode={editMode}
       visible={visible}
       onVisibleChange={onVisibleChange}
+      onTitleChange={onTitleChange}
+      onRemove={onRemove}
       settingsContent={
         <Stack spacing={1.25}>
           <ConfigSelect
@@ -350,9 +395,22 @@ function SpendByCategoryWidget({
             options={[
               { value: 'donut', label: t('chartTypes.donut') },
               { value: 'bar', label: t('chartTypes.bar') },
+              { value: 'stacked', label: t('chartTypes.stacked') },
               { value: 'list', label: t('chartTypes.list') },
             ]}
           />
+          {chartType === 'stacked' && (
+            <ConfigSelect
+              value={stackedDetail}
+              onChange={(v) => onConfigChange?.({ stackedDetail: v })}
+              options={[
+                { value: 'dots', label: t('stackedDetail.dots') },
+                { value: 'amounts', label: t('stackedDetail.amounts') },
+                { value: 'bars', label: t('stackedDetail.bars') },
+                { value: 'hidden', label: t('stackedDetail.hidden') },
+              ]}
+            />
+          )}
           <ConfigSelect
             value={subcategoryDisplay}
             onChange={(v) => onConfigChange?.({ subcategoryDisplay: v })}
@@ -416,6 +474,93 @@ function SpendByCategoryWidget({
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </Box>
+          )}
+
+          {chartType === 'stacked' && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ height: 28, borderRadius: 999, overflow: 'hidden' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[stackedRow]} layout="vertical" margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                    <XAxis type="number" domain={[0, 'dataMax']} hide />
+                    <YAxis type="category" dataKey="name" hide />
+                    {chartRows.map((d) => (
+                      <Bar
+                        key={d.categoryId ?? d.name}
+                        dataKey={d.name}
+                        stackId="stack"
+                        fill={d.color}
+                        fillOpacity={d.depth === 1 ? 0.6 : 1}
+                        activeBar={false}
+                        cursor="pointer"
+                        onClick={() => handleSelect(d)}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+
+              {(stackedDetail === 'dots' || stackedDetail === 'amounts') && (
+                <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                  {chartRows.map((d) => (
+                    <Stack
+                      key={d.categoryId ?? d.name}
+                      direction="row"
+                      spacing={0.5}
+                      onClick={() => handleSelect(d)}
+                      sx={{ alignItems: 'center', cursor: 'pointer' }}
+                    >
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: d.color, opacity: d.depth === 1 ? 0.6 : 1, flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: 12 }} color="text.secondary">
+                        {labelFor(d.name)}
+                      </Typography>
+                      {stackedDetail === 'amounts' && (
+                        <Typography sx={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} color="text.secondary">
+                          {money(d.amount)}
+                        </Typography>
+                      )}
+                    </Stack>
+                  ))}
+                </Stack>
+              )}
+
+              {stackedDetail === 'bars' && (
+                <Stack spacing={1}>
+                  {chartRows.map((d) => {
+                    const base = chartRows[0]?.amount;
+                    const pct = base ? Math.round((d.amount / base) * 100) : 0;
+                    return (
+                      <Box key={d.categoryId ?? d.name} onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                          {d.depth === 1 && (
+                            <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
+                          )}
+                          <Typography
+                            sx={{ flex: 1, fontSize: d.depth === 1 ? 13 : 14, fontWeight: d.depth === 1 ? 500 : 600 }}
+                            noWrap
+                          >
+                            {d.name}
+                          </Typography>
+                          <Typography sx={{ fontFamily: 'var(--font-mono)', fontSize: d.depth === 1 ? 12 : 13 }}>
+                            {money(d.amount)}
+                          </Typography>
+                        </Stack>
+                        <LinearProgress
+                          variant="determinate"
+                          value={pct}
+                          sx={{
+                            mt: 0.25,
+                            height: d.depth === 1 ? 4 : 6,
+                            borderRadius: 3,
+                            bgcolor: 'action.hover',
+                            '& .MuiLinearProgress-bar': { bgcolor: d.color, borderRadius: 3 },
+                          }}
+                        />
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              )}
             </Box>
           )}
 
@@ -546,6 +691,9 @@ export function WidgetRenderer({
   editMode,
   visible,
   onVisibleChange,
+  title,
+  onTitleChange,
+  onRemove,
 }: WidgetProps & { type: string }) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
@@ -560,12 +708,14 @@ export function WidgetRenderer({
       ];
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
         >
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -590,12 +740,14 @@ export function WidgetRenderer({
     case 'accounts':
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
           action={
             <Link component={NextLink} href="/settings" variant="caption">
               {t('links.manage')}
@@ -640,6 +792,9 @@ export function WidgetRenderer({
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          title={title}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
         />
       );
 
@@ -660,12 +815,14 @@ export function WidgetRenderer({
 
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
           settingsContent={
             <Stack spacing={1.25}>
               <ConfigSelect
@@ -741,12 +898,14 @@ export function WidgetRenderer({
       const chartType = (config?.chartType as string) ?? 'bar';
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
           settingsContent={
             <ConfigSelect
               value={chartType}
@@ -806,12 +965,14 @@ export function WidgetRenderer({
     case 'budget-progress':
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
           action={
             <Link component={NextLink} href="/budgets" variant="caption">
               {t('common:actions.edit')}
@@ -853,12 +1014,14 @@ export function WidgetRenderer({
     case 'recent-transactions':
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
           action={
             <Link component={NextLink} href="/transactions" variant="caption">
               {t('links.seeAll')}
@@ -892,12 +1055,14 @@ export function WidgetRenderer({
     case 'goals':
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
           action={
             <Link component={NextLink} href="/goals" variant="caption">
               {t('common:actions.edit')}
@@ -939,12 +1104,14 @@ export function WidgetRenderer({
     case 'top-merchants':
       return (
         <Shell
-          title={widgetTitle(type, t)}
+          title={title || widgetTitle(type, t)}
           range={range}
           onRangeChange={onRangeChange}
           editMode={editMode}
           visible={visible}
           onVisibleChange={onVisibleChange}
+          onTitleChange={onTitleChange}
+          onRemove={onRemove}
         >
           {stats.topMerchants.length === 0 ? (
             <Nothing>{t('empty.topMerchants')}</Nothing>

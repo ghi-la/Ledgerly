@@ -35,3 +35,13 @@ export function ensureLayouts<
     return { ...w, layout };
   });
 }
+
+/** Where a freshly-added widget should land: below everything else, so existing widgets' saved positions are untouched. */
+export function nextLayoutSlot(
+  widgets: { layout?: { x: number; y: number; w: number; h: number } }[],
+  size: string,
+): { x: number; y: number; w: number; h: number } {
+  const width = SIZE_TO_W[size] ?? 6;
+  const maxY = widgets.reduce((m, w) => (w.layout ? Math.max(m, w.layout.y + w.layout.h) : m), 0);
+  return { x: 0, y: maxY, w: width, h: FALLBACK_H };
+}

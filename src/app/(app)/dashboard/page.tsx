@@ -1,9 +1,11 @@
 'use client';
 
 import { PageHeader, useSettings } from '@/components/ui';
-import { WidgetRenderer, type Stats } from '@/components/widgets';
+import { WidgetRenderer, widgetTitle, type Stats } from '@/components/widgets';
 import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
-import { GRID_COLS, GRID_MARGIN, ROW_HEIGHT, ensureLayouts } from '@/lib/dashboardLayout';
+import { GRID_COLS, GRID_MARGIN, ROW_HEIGHT, ensureLayouts, nextLayoutSlot } from '@/lib/dashboardLayout';
+import { ALL_WIDGET_TYPES, type WidgetType } from '@/lib/widgetTypes';
+import AddIcon from '@mui/icons-material/Add';
 import CheckIcon from '@mui/icons-material/CheckOutlined';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import {
@@ -11,6 +13,8 @@ import {
   Box,
   Button,
   GlobalStyles,
+  Menu,
+  MenuItem,
   Skeleton,
   Stack,
   Tooltip,
@@ -36,14 +40,18 @@ function DashboardWidget({
   onRangeChange,
   onConfigChange,
   onVisibleChange,
+  onTitleChange,
+  onRemove,
 }: {
-  widget: { id: string; type: string; visible: boolean; config?: Record<string, unknown> };
+  widget: { id: string; type: string; title?: string; visible: boolean; config?: Record<string, unknown> };
   currency: string;
   locale: string;
   editMode: boolean;
   onRangeChange: (range: string) => void;
   onConfigChange: (patch: Record<string, unknown>) => void;
   onVisibleChange: (visible: boolean) => void;
+  onTitleChange: (title: string) => void;
+  onRemove: () => void;
 }) {
   const range = (widget.config?.range as string) ?? DEFAULT_RANGE;
   const { from, to } = rangeToDates(range);
@@ -66,13 +74,18 @@ function DashboardWidget({
       editMode={editMode}
       visible={widget.visible}
       onVisibleChange={onVisibleChange}
+      title={widget.title}
+      onTitleChange={onTitleChange}
+      onRemove={onRemove}
     />
   );
 }
 
 export default function DashboardPage() {
   const { t } = useTranslation('dashboard');
+  const { t: tw } = useTranslation('widgets');
   const [editMode, setEditMode] = useState(false);
+  const [addAnchorEl, setAddAnchorEl] = useState<HTMLElement | null>(null);
   const { settings, currency, locale, mutate: mutateSettings, isLoading: settingsLoading } = useSettings();
   const isMobile = useMediaQuery(useTheme().breakpoints.down('md'));
 
@@ -112,6 +125,26 @@ export default function DashboardPage() {
   const update = (index: number, patch: Record<string, unknown>) => {
     const next = widgetsWithLayout.map((w, i) => (i === index ? { ...w, ...patch } : w));
     saveWidgets(next);
+  };
+
+  const remove = (index: number) => {
+    const w = widgetsWithLayout[index];
+    if (!w) return;
+    if (!confirm(t('confirmRemoveWidget', { name: w.title || widgetTitle(w.type, tw) }))) return;
+    saveWidgets(widgetsWithLayout.filter((_, i) => i !== index));
+  };
+
+  const addWidget = (type: WidgetType) => {
+    setAddAnchorEl(null);
+    const newWidget = {
+      id: `w-${type}-${Date.now().toString(36)}`,
+      type,
+      size: 'half' as const,
+      visible: true,
+      config: {},
+      layout: nextLayoutSlot(widgetsWithLayout, 'half'),
+    };
+    saveWidgets([...widgetsWithLayout, newWidget]);
   };
 
   const handleLayoutStop = (layout: ReadonlyLayout) => {
@@ -161,16 +194,37 @@ export default function DashboardPage() {
       <PageHeader
         title={t('title')}
         action={
-          <Tooltip title={editMode ? t('doneEditing') : t('customiseWidgets')}>
-            <Button
-              variant={editMode ? 'contained' : 'outlined'}
-              startIcon={editMode ? <CheckIcon /> : <EditIcon />}
-              onClick={() => setEditMode((v) => !v)}
-              sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-            >
-              {editMode ? t('doneEditing') : t('customiseWidgets')}
-            </Button>
-          </Tooltip>
+          <Stack direction="row" spacing={1}>
+            {editMode && (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={(e) => setAddAnchorEl(e.currentTarget)}
+                  sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                >
+                  {t('addWidget')}
+                </Button>
+                <Menu anchorEl={addAnchorEl} open={!!addAnchorEl} onClose={() => setAddAnchorEl(null)}>
+                  {ALL_WIDGET_TYPES.map((type) => (
+                    <MenuItem key={type} onClick={() => addWidget(type)}>
+                      {widgetTitle(type, tw)}
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </>
+            )}
+            <Tooltip title={editMode ? t('doneEditing') : t('customiseWidgets')}>
+              <Button
+                variant={editMode ? 'contained' : 'outlined'}
+                startIcon={editMode ? <CheckIcon /> : <EditIcon />}
+                onClick={() => setEditMode((v) => !v)}
+                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+              >
+                {editMode ? t('doneEditing') : t('customiseWidgets')}
+              </Button>
+            </Tooltip>
+          </Stack>
         }
       />
 
@@ -204,6 +258,10 @@ export default function DashboardPage() {
                 onVisibleChange={(v) =>
                   update(widgetsWithLayout.findIndex((x) => x.id === w.id), { visible: v })
                 }
+                onTitleChange={(title) =>
+                  update(widgetsWithLayout.findIndex((x) => x.id === w.id), { title })
+                }
+                onRemove={() => remove(widgetsWithLayout.findIndex((x) => x.id === w.id))}
               />
             </Box>
           ))}
@@ -252,6 +310,10 @@ export default function DashboardPage() {
                 onVisibleChange={(v) =>
                   update(widgetsWithLayout.findIndex((x) => x.id === w.id), { visible: v })
                 }
+                onTitleChange={(title) =>
+                  update(widgetsWithLayout.findIndex((x) => x.id === w.id), { title })
+                }
+                onRemove={() => remove(widgetsWithLayout.findIndex((x) => x.id === w.id))}
               />
             </div>
           ))}

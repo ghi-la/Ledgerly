@@ -360,15 +360,17 @@ export default function DashboardPage() {
                 </Menu>
               </>
             )}
-            <Tooltip title={editMode ? t('doneEditing') : t('customiseWidgets')}>
-              <Button
-                variant={editMode ? 'contained' : 'outlined'}
-                startIcon={editMode ? <CheckIcon /> : <EditIcon />}
-                onClick={() => setEditMode((v) => !v)}
-              >
-                {editMode ? t('doneEditing') : t('customiseWidgets')}
-              </Button>
-            </Tooltip>
+            {!isMobile && (
+              <Tooltip title={editMode ? t('doneEditing') : t('customiseWidgets')}>
+                <Button
+                  variant={editMode ? 'contained' : 'outlined'}
+                  startIcon={editMode ? <CheckIcon /> : <EditIcon />}
+                  onClick={() => setEditMode((v) => !v)}
+                >
+                  {editMode ? t('doneEditing') : t('customiseWidgets')}
+                </Button>
+              </Tooltip>
+            )}
           </Stack>
         }
       />
@@ -470,6 +472,18 @@ export default function DashboardPage() {
         >
           {t('allHidden')}
         </Alert>
+      )}
+
+      {isMobile && (
+        <Button
+          fullWidth
+          variant={editMode ? 'contained' : 'outlined'}
+          startIcon={editMode ? <CheckIcon /> : <EditIcon />}
+          onClick={() => setEditMode((v) => !v)}
+          sx={{ mt: 3 }}
+        >
+          {editMode ? t('doneEditing') : t('customiseWidgets')}
+        </Button>
       )}
     </Box>
   );

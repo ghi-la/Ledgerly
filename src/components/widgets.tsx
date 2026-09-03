@@ -877,9 +877,9 @@ export function WidgetRenderer({
     case 'net-worth': {
       const items = [
         { label: t('netWorth.netWorth'), value: stats.netWorth, colored: false },
+        { label: t('netWorth.leftOver'), value: stats.totals.net, colored: true },
         { label: t('netWorth.moneyIn'), value: stats.totals.income, colored: true },
         { label: t('netWorth.moneyOut'), value: -stats.totals.expense, colored: true },
-        { label: t('netWorth.leftOver'), value: stats.totals.net, colored: true },
       ];
       return (
         <Shell

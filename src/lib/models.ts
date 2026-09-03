@@ -59,6 +59,7 @@ const WidgetSchema = new Schema<Widget>(
     visible: { type: Boolean, default: true },
     config: { type: Schema.Types.Mixed, default: {} },
     layout: { type: WidgetLayoutSchema, default: undefined },
+    mobileLayout: { type: WidgetLayoutSchema, default: undefined },
   },
   { _id: false },
 );

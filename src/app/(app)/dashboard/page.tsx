@@ -1,10 +1,21 @@
 'use client';
 
-import { PageHeader, useSettings } from '@/components/ui';
+import { PageHeader, useSettings, type UserSettings } from '@/components/ui';
 import { WidgetRenderer, widgetTitle, type Stats } from '@/components/widgets';
 import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
-import { GRID_COLS, GRID_MARGIN, ROW_HEIGHT, ensureLayouts, nextLayoutSlot } from '@/lib/dashboardLayout';
-import { ALL_WIDGET_TYPES, type WidgetType } from '@/lib/widgetTypes';
+import {
+  GRID_COLS,
+  GRID_COLS_MOBILE,
+  GRID_MARGIN,
+  GRID_MARGIN_MOBILE,
+  ROW_HEIGHT,
+  ROW_HEIGHT_MOBILE,
+  ensureLayouts,
+  ensureMobileLayouts,
+  nextLayoutSlot,
+  nextMobileLayoutSlot,
+} from '@/lib/dashboardLayout';
+import { ALL_WIDGET_TYPES, type WidgetLayout, type WidgetType } from '@/lib/widgetTypes';
 import AddIcon from '@mui/icons-material/Add';
 import CheckIcon from '@mui/icons-material/CheckOutlined';
 import EditIcon from '@mui/icons-material/EditOutlined';
@@ -89,8 +100,12 @@ export default function DashboardPage() {
   const { settings, currency, locale, mutate: mutateSettings, isLoading: settingsLoading } = useSettings();
   const isMobile = useMediaQuery(useTheme().breakpoints.down('md'));
 
+  type DashboardWidgetEntry = UserSettings['dashboard'][number];
+
   const widgets = settings?.dashboard ?? [];
-  const widgetsWithLayout = ensureLayouts(widgets);
+  const widgetsWithDesktopLayout: (DashboardWidgetEntry & { layout: WidgetLayout })[] = ensureLayouts(widgets);
+  const widgetsWithLayout: (DashboardWidgetEntry & { layout: WidgetLayout; mobileLayout: WidgetLayout })[] =
+    ensureMobileLayouts(widgetsWithDesktopLayout);
   const gridWidgets = editMode ? widgetsWithLayout : widgetsWithLayout.filter((w) => w.visible);
 
   const saveWidgets = async (next: typeof widgetsWithLayout) => {
@@ -143,6 +158,7 @@ export default function DashboardPage() {
       visible: true,
       config: {},
       layout: nextLayoutSlot(widgetsWithLayout, 'half'),
+      mobileLayout: nextMobileLayoutSlot(widgetsWithLayout),
     };
     saveWidgets([...widgetsWithLayout, newWidget]);
   };
@@ -150,7 +166,10 @@ export default function DashboardPage() {
   const handleLayoutStop = (layout: ReadonlyLayout) => {
     const next = widgetsWithLayout.map((w) => {
       const l = layout.find((li) => li.i === w.id);
-      return l ? { ...w, layout: { x: l.x, y: l.y, w: l.w, h: l.h } } : w;
+      if (!l) return w;
+      return isMobile
+        ? { ...w, mobileLayout: { x: 0, y: l.y, w: GRID_COLS_MOBILE, h: l.h } }
+        : { ...w, layout: { x: l.x, y: l.y, w: l.w, h: l.h } };
     });
     saveWidgets(next);
   };
@@ -197,12 +216,7 @@ export default function DashboardPage() {
           <Stack direction="row" spacing={1}>
             {editMode && (
               <>
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={(e) => setAddAnchorEl(e.currentTarget)}
-                  sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-                >
+                <Button variant="outlined" startIcon={<AddIcon />} onClick={(e) => setAddAnchorEl(e.currentTarget)}>
                   {t('addWidget')}
                 </Button>
                 <Menu anchorEl={addAnchorEl} open={!!addAnchorEl} onClose={() => setAddAnchorEl(null)}>
@@ -219,7 +233,6 @@ export default function DashboardPage() {
                 variant={editMode ? 'contained' : 'outlined'}
                 startIcon={editMode ? <CheckIcon /> : <EditIcon />}
                 onClick={() => setEditMode((v) => !v)}
-                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
               >
                 {editMode ? t('doneEditing') : t('customiseWidgets')}
               </Button>
@@ -234,57 +247,38 @@ export default function DashboardPage() {
             <Skeleton key={i} variant="rounded" height={220} />
           ))}
         </Stack>
-      ) : isMobile ? (
-        <Stack spacing={2}>
-          {gridWidgets.map((w) => (
-            <Box key={w.id}>
-              <DashboardWidget
-                widget={w}
-                currency={currency}
-                locale={locale}
-                editMode={false}
-                onRangeChange={(range) =>
-                  update(
-                    widgetsWithLayout.findIndex((x) => x.id === w.id),
-                    { config: { ...w.config, range } },
-                  )
-                }
-                onConfigChange={(patch) =>
-                  update(
-                    widgetsWithLayout.findIndex((x) => x.id === w.id),
-                    { config: { ...w.config, ...patch } },
-                  )
-                }
-                onVisibleChange={(v) =>
-                  update(widgetsWithLayout.findIndex((x) => x.id === w.id), { visible: v })
-                }
-                onTitleChange={(title) =>
-                  update(widgetsWithLayout.findIndex((x) => x.id === w.id), { title })
-                }
-                onRemove={() => remove(widgetsWithLayout.findIndex((x) => x.id === w.id))}
-              />
-            </Box>
-          ))}
-        </Stack>
       ) : (
         <GridLayoutWithWidth
-          layout={gridWidgets.map((w) => ({
-            i: w.id,
-            x: w.layout.x,
-            y: w.layout.y,
-            w: w.layout.w,
-            h: w.layout.h,
-            minW: 3,
-            minH: 4,
-          }))}
-          cols={GRID_COLS}
-          rowHeight={ROW_HEIGHT}
-          margin={GRID_MARGIN}
+          layout={gridWidgets.map((w) =>
+            isMobile
+              ? {
+                  i: w.id,
+                  x: 0,
+                  y: w.mobileLayout.y,
+                  w: GRID_COLS_MOBILE,
+                  h: w.mobileLayout.h,
+                  minW: GRID_COLS_MOBILE,
+                  maxW: GRID_COLS_MOBILE,
+                  minH: 4,
+                }
+              : {
+                  i: w.id,
+                  x: w.layout.x,
+                  y: w.layout.y,
+                  w: w.layout.w,
+                  h: w.layout.h,
+                  minW: 3,
+                  minH: 4,
+                },
+          )}
+          cols={isMobile ? GRID_COLS_MOBILE : GRID_COLS}
+          rowHeight={isMobile ? ROW_HEIGHT_MOBILE : ROW_HEIGHT}
+          margin={isMobile ? GRID_MARGIN_MOBILE : GRID_MARGIN}
           isDraggable={editMode}
           isResizable={editMode}
           draggableHandle=".drag-handle"
           draggableCancel=".no-drag"
-          resizeHandles={['se']}
+          resizeHandles={isMobile ? ['s'] : ['se']}
           onDragStop={handleLayoutStop}
           onResizeStop={handleLayoutStop}
         >

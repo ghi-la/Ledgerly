@@ -107,6 +107,7 @@ export interface UserSettings {
     visible: boolean;
     config?: Record<string, unknown>;
     layout?: { x: number; y: number; w: number; h: number };
+    mobileLayout?: { x: number; y: number; w: number; h: number };
   }[];
   recurringDateToleranceDays: number;
   recurringAmountTolerance: number;

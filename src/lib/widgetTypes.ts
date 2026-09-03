@@ -45,6 +45,8 @@ export interface Widget {
   visible: boolean;
   config?: Record<string, unknown>;
   layout?: WidgetLayout;
+  /** Independent layout for the single-column mobile grid (only x/w are fixed to full-width; y/h are user-editable). */
+  mobileLayout?: WidgetLayout;
 }
 
 export const DEFAULT_WIDGETS: Widget[] = [

@@ -200,7 +200,8 @@ async function computeStats(
     const subcategories = (childIdsByParent.get(id) ?? [])
       .map((cid) => leafByCategory.get(cid))
       .filter((s): s is NonNullable<typeof s> => !!s && s.amount > 0)
-      .map((s) => ({ categoryId: s.categoryId as string, name: s.name, color: s.color, amount: s.amount, count: s.count }));
+      .map((s) => ({ categoryId: s.categoryId as string, name: s.name, color: s.color, amount: s.amount, count: s.count }))
+      .sort((a, b) => b.amount - a.amount);
     const amount = (own?.amount ?? 0) + subcategories.reduce((sum, s) => sum + s.amount, 0);
     const count = (own?.count ?? 0) + subcategories.reduce((sum, s) => sum + s.count, 0);
     if (amount > 0) categorySpend.push({ categoryId: id, name: c.name, color: c.color, amount, count, subcategories });

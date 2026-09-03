@@ -460,6 +460,8 @@ type FlatCategoryRow = {
   count: number;
   subcategoryCount: number;
   depth: 0 | 1;
+  /** The top-level category's own id, shared by a category and all of its subcategories - lets hover-highlight treat them as one family regardless of which row triggered it. */
+  groupId: string | null;
 };
 
 /** Extracted (rather than a switch case) since it needs its own local state for the expand panel and drill-down dialog. */
@@ -488,13 +490,15 @@ function SpendByCategoryWidget({
   const data = stats.categorySpend.slice(0, 8);
   const [manualExpandedId, setManualExpandedId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ categoryId: string | null; name: string; color?: string } | null>(null);
+  // undefined = nothing hovered; null is itself a valid group (the "Uncategorised" bucket).
+  const [hoveredGroupId, setHoveredGroupId] = useState<string | null | undefined>(undefined);
 
   // What the chart actually renders: just top-level categories in "click" mode,
   // or top-level categories with their subcategories inlined right after them
   // (indented, same as the categories/budgets pages) when "always shown" is on.
   const chartRows: FlatCategoryRow[] = alwaysShow
     ? data.flatMap((d) => [
-        { categoryId: d.categoryId, name: d.name, color: d.color, amount: d.amount, count: d.count, subcategoryCount: d.subcategories.length, depth: 0 as const },
+        { categoryId: d.categoryId, name: d.name, color: d.color, amount: d.amount, count: d.count, subcategoryCount: d.subcategories.length, depth: 0 as const, groupId: d.categoryId },
         ...d.subcategories.map((s) => ({
           categoryId: s.categoryId as string | null,
           name: s.name,
@@ -503,6 +507,7 @@ function SpendByCategoryWidget({
           count: s.count,
           subcategoryCount: 0,
           depth: 1 as const,
+          groupId: d.categoryId,
         })),
       ])
     : data.map((d) => ({
@@ -513,7 +518,14 @@ function SpendByCategoryWidget({
         count: d.count,
         subcategoryCount: d.subcategories.length,
         depth: 0 as const,
+        groupId: d.categoryId,
       }));
+
+  /** Full opacity while nothing (or this row's own family) is hovered, dimmed once a *different* family is hovered. */
+  const rowOpacity = (row: { groupId: string | null }) => {
+    if (hoveredGroupId !== undefined && hoveredGroupId !== row.groupId) return 0.15;
+    return 1;
+  };
 
   const stackedRow: Record<string, number | string> = { name: 'total' };
   chartRows.forEach((d) => {
@@ -601,9 +613,12 @@ function SpendByCategoryWidget({
                       <Cell
                         key={d.categoryId ?? 'none'}
                         fill={d.color}
-                        fillOpacity={d.depth === 1 ? 0.6 : 1}
+                        fillOpacity={rowOpacity(d)}
+                        style={{ transition: 'fill-opacity 0.15s' }}
                         cursor="pointer"
                         onClick={() => handleSelect(d)}
+                        onMouseEnter={() => setHoveredGroupId(d.groupId)}
+                        onMouseLeave={() => setHoveredGroupId(undefined)}
                       />
                     ))}
                   </Pie>
@@ -632,9 +647,12 @@ function SpendByCategoryWidget({
                       <Cell
                         key={d.categoryId ?? 'none'}
                         fill={d.color}
-                        fillOpacity={d.depth === 1 ? 0.6 : 1}
+                        fillOpacity={rowOpacity(d)}
+                        style={{ transition: 'fill-opacity 0.15s' }}
                         cursor="pointer"
                         onClick={() => handleSelect(d)}
+                        onMouseEnter={() => setHoveredGroupId(d.groupId)}
+                        onMouseLeave={() => setHoveredGroupId(undefined)}
                       />
                     ))}
                   </Bar>
@@ -656,10 +674,13 @@ function SpendByCategoryWidget({
                         dataKey={d.name}
                         stackId="stack"
                         fill={d.color}
-                        fillOpacity={d.depth === 1 ? 0.6 : 1}
+                        fillOpacity={rowOpacity(d)}
+                        style={{ transition: 'fill-opacity 0.15s' }}
                         activeBar={false}
                         cursor="pointer"
                         onClick={() => handleSelect(d)}
+                        onMouseEnter={() => setHoveredGroupId(d.groupId)}
+                        onMouseLeave={() => setHoveredGroupId(undefined)}
                       />
                     ))}
                   </BarChart>
@@ -674,9 +695,11 @@ function SpendByCategoryWidget({
                       direction="row"
                       spacing={0.5}
                       onClick={() => handleSelect(d)}
-                      sx={{ alignItems: 'center', cursor: 'pointer' }}
+                      onMouseEnter={() => setHoveredGroupId(d.groupId)}
+                      onMouseLeave={() => setHoveredGroupId(undefined)}
+                      sx={{ alignItems: 'center', cursor: 'pointer', opacity: rowOpacity(d), transition: 'opacity 0.15s' }}
                     >
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: d.color, opacity: d.depth === 1 ? 0.6 : 1, flexShrink: 0 }} />
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: d.color, flexShrink: 0 }} />
                       <Typography sx={{ fontSize: 12 }} color="text.secondary">
                         {labelFor(d.name)}
                       </Typography>
@@ -700,7 +723,12 @@ function SpendByCategoryWidget({
                     const base = chartRows[0]?.amount;
                     const pct = base ? Math.round((d.amount / base) * 100) : 0;
                     return (
-                      <Box onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
+                      <Box
+                        onClick={() => handleSelect(d)}
+                        onMouseEnter={() => setHoveredGroupId(d.groupId)}
+                        onMouseLeave={() => setHoveredGroupId(undefined)}
+                        sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0, opacity: rowOpacity(d), transition: 'opacity 0.15s' }}
+                      >
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                           {d.depth === 1 && (
                             <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
@@ -745,7 +773,12 @@ function SpendByCategoryWidget({
                 const pct = base ? Math.round((d.amount / base) * 100) : 0;
                 const isExpanded = manualExpandedId === d.categoryId;
                 return (
-                  <Box onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
+                  <Box
+                    onClick={() => handleSelect(d)}
+                    onMouseEnter={() => setHoveredGroupId(d.groupId)}
+                    onMouseLeave={() => setHoveredGroupId(undefined)}
+                    sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0, opacity: rowOpacity(d), transition: 'opacity 0.15s' }}
+                  >
                     <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                       {d.depth === 1 && (
                         <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
@@ -826,7 +859,16 @@ function SpendByCategoryWidget({
                     key={s.categoryId}
                     direction="row"
                     onClick={() => setDialog({ categoryId: s.categoryId, name: s.name, color: s.color })}
-                    sx={{ alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover': { opacity: 0.75 } }}
+                    onMouseEnter={() => setHoveredGroupId(expandedRow.categoryId)}
+                    onMouseLeave={() => setHoveredGroupId(undefined)}
+                    sx={{
+                      alignItems: 'center',
+                      gap: 1,
+                      cursor: 'pointer',
+                      opacity: rowOpacity({ groupId: expandedRow.categoryId }),
+                      transition: 'opacity 0.15s',
+                      '&:hover': { opacity: 0.75 },
+                    }}
                   >
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: s.color, flexShrink: 0 }} />
                     <Typography sx={{ flex: 1, fontSize: 13 }}>{s.name}</Typography>

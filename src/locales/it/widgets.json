@@ -57,7 +57,15 @@
     "title": "Impostazioni widget",
     "visible": "Visibile in dashboard",
     "name": "Nome widget",
-    "remove": "Rimuovi widget"
+    "remove": "Rimuovi widget",
+    "size": "Dimensione",
+    "sizePresets": {
+      "sm": "S",
+      "md": "M",
+      "lg": "L"
+    },
+    "accountFilter": "Conti",
+    "allAccounts": "Tutti i conti"
   },
   "empty": {
     "accounts": "Ancora nessun conto.",
@@ -66,5 +74,13 @@
     "recentTransactions": "Importa un estratto conto per iniziare.",
     "goals": "Ancora nessun obiettivo.",
     "topMerchants": "Niente da mostrare per questo periodo."
+  },
+  "overflow": {
+    "accounts": "+{{count}} altri conti",
+    "spendByCategory": "+{{count}} altre categorie nascoste",
+    "budgetProgress": "+{{count}} altri budget nascosti",
+    "recentTransactions": "+{{count}} altre transazioni nascoste",
+    "goals": "+{{count}} altri obiettivi nascosti",
+    "topMerchants": "+{{count}} altri nascosti"
   }
 }

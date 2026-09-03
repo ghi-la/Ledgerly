@@ -17,6 +17,18 @@ function validateDashboard(dashboard: unknown): void {
   }
 }
 
+function validateDashboardLayouts(dashboardLayouts: unknown): void {
+  if (!Array.isArray(dashboardLayouts)) throw new HttpError(400, 'dashboardLayouts must be an array.');
+  const ids = new Set<string>();
+  for (const l of dashboardLayouts) {
+    if (!l || typeof l.id !== 'string' || !l.id || typeof l.name !== 'string' || !l.name.trim() || ids.has(l.id)) {
+      throw new HttpError(400, 'Invalid saved layout entry.');
+    }
+    ids.add(l.id);
+    validateDashboard(l.dashboard);
+  }
+}
+
 export const GET = route(async () => {
   const userId = await requireUser();
   const user = (await User.findById(userId).lean()) as any;
@@ -29,6 +41,7 @@ export const GET = route(async () => {
       locale: user.settings?.locale ?? 'en-GB',
       startOfMonth: user.settings?.startOfMonth ?? 1,
       dashboard: user.settings?.dashboard?.length ? user.settings.dashboard : DEFAULT_WIDGETS,
+      dashboardLayouts: user.settings?.dashboardLayouts ?? [],
       recurringDateToleranceDays: user.settings?.recurringDateToleranceDays ?? 3,
       recurringAmountTolerance: user.settings?.recurringAmountTolerance ?? 10,
       recurringMinOccurrences: user.settings?.recurringMinOccurrences ?? 3,
@@ -48,6 +61,10 @@ export const PATCH = route(async (req: Request) => {
   if (body.dashboard !== undefined) {
     validateDashboard(body.dashboard);
     set['settings.dashboard'] = body.dashboard;
+  }
+  if (body.dashboardLayouts !== undefined) {
+    validateDashboardLayouts(body.dashboardLayouts);
+    set['settings.dashboardLayouts'] = body.dashboardLayouts;
   }
   if (body.recurringDateToleranceDays !== undefined) {
     const v = Number(body.recurringDateToleranceDays);

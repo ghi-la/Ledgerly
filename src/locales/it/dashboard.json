@@ -6,5 +6,27 @@
   "chooseWidgets": "Scegli i widget",
   "allHidden": "Al momento tutti i widget sono nascosti.",
   "addWidget": "Aggiungi widget",
-  "confirmRemoveWidget": "Rimuovere \"{{name}}\" dalla dashboard?"
+  "confirmRemoveWidget": "Rimuovere \"{{name}}\" dalla dashboard?",
+  "more": "Altro",
+  "menuSections": {
+    "presets": "Preimpostazioni",
+    "sync": "Sincronizza layout"
+  },
+  "presets": {
+    "overview": "Panoramica",
+    "budgeting": "Budget",
+    "netWorth": "Patrimonio netto",
+    "activity": "Attività"
+  },
+  "confirmApplyPreset": "Sostituire la dashboard attuale con la preimpostazione \"{{name}}\"?",
+  "syncToMobile": "Copia la disposizione desktop sul mobile",
+  "syncToDesktop": "Copia la disposizione mobile sul desktop",
+  "confirmSyncToMobile": "Sostituire il layout mobile con la disposizione desktop? Le altezze vengono mantenute, l'ordine e i raggruppamenti no.",
+  "confirmSyncToDesktop": "Sostituire il layout desktop con la disposizione mobile? I widget verranno disposti due per riga.",
+  "resetToDefault": "Ripristina predefiniti",
+  "confirmReset": "Ripristinare la dashboard ai widget e al layout predefiniti? L'operazione non è reversibile.",
+  "saveLayoutAs": "Salva come…",
+  "promptLayoutName": "Assegna un nome a questo layout",
+  "confirmApplyLayout": "Passare al layout \"{{name}}\"? La disposizione attuale verrà sostituita.",
+  "confirmDeleteLayout": "Eliminare questo layout salvato?"
 }

@@ -57,7 +57,15 @@
     "title": "Widget settings",
     "visible": "Visible on dashboard",
     "name": "Widget name",
-    "remove": "Remove widget"
+    "remove": "Remove widget",
+    "size": "Size",
+    "sizePresets": {
+      "sm": "S",
+      "md": "M",
+      "lg": "L"
+    },
+    "accountFilter": "Accounts",
+    "allAccounts": "All accounts"
   },
   "empty": {
     "accounts": "No accounts yet.",
@@ -66,5 +74,13 @@
     "recentTransactions": "Import a statement to get started.",
     "goals": "No goals yet.",
     "topMerchants": "Nothing to show for this period."
+  },
+  "overflow": {
+    "accounts": "+{{count}} more accounts",
+    "spendByCategory": "+{{count}} more categories hidden",
+    "budgetProgress": "+{{count}} more budgets hidden",
+    "recentTransactions": "+{{count}} more transactions hidden",
+    "goals": "+{{count}} more goals hidden",
+    "topMerchants": "+{{count}} more hidden"
   }
 }

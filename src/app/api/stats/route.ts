@@ -41,12 +41,22 @@ function budgetTotalsByCategory(budgets: Record<string, unknown>[], monthKeys: s
  * Everything one dashboard widget needs for its own time window: balances
  * (always current), category spend, a monthly series, budget progress and
  * goal progress. Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD (defaults to the
- * trailing 3 months ending today).
+ * trailing 3 months ending today), optionally &accounts=id1,id2 to scope a
+ * widget to a subset of accounts (transactions, balances and totals only -
+ * budgets/goals aren't account-scoped, so they're unaffected).
  */
-async function computeStats(userIdStr: string, fromParam: string | null, toParam: string | null) {
+async function computeStats(
+  userIdStr: string,
+  fromParam: string | null,
+  toParam: string | null,
+  accountsParam: string | null,
+) {
   // aggregate() $match doesn't auto-cast like find() does, so the cache key's
   // plain string needs converting back to an ObjectId before use in queries.
   const userId = new mongoose.Types.ObjectId(userIdStr);
+  const accountIds = accountsParam ? accountsParam.split(',').filter(Boolean) : null;
+  const accountObjectIds = accountIds?.map((id) => new mongoose.Types.ObjectId(id)) ?? null;
+  const accountMatch = accountObjectIds ? { accountId: { $in: accountObjectIds } } : {};
   const now = new Date();
   const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
   const to = toParam ? new Date(`${toParam}T23:59:59.999Z`) : now;
@@ -77,7 +87,7 @@ async function computeStats(userIdStr: string, fromParam: string | null, toParam
       { $group: { _id: '$accountId', total: { $sum: '$amount' } } },
     ]),
     Transaction.aggregate([
-      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' } } },
+      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, ...accountMatch } },
       {
         $group: {
           _id: null,
@@ -88,12 +98,12 @@ async function computeStats(userIdStr: string, fromParam: string | null, toParam
       },
     ]),
     Transaction.aggregate([
-      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 } } },
+      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 }, ...accountMatch } },
       { $group: { _id: '$categoryId', total: { $sum: '$amount' }, count: { $sum: 1 } } },
       { $sort: { total: 1 } },
     ]),
     Transaction.aggregate([
-      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' } } },
+      { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, ...accountMatch } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
@@ -107,10 +117,10 @@ async function computeStats(userIdStr: string, fromParam: string | null, toParam
     // happen in the database - fetch the candidate rows and group them in
     // application code below, after decrypting.
     Transaction.find(
-      { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 } },
+      { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 }, ...accountMatch },
       { merchant: 1, description: 1, amount: 1, encVersion: 1 },
     ).lean(),
-    Transaction.find({ userId, date: { $gte: from, $lte: to } }).sort({ date: -1, _id: -1 }).limit(8).lean(),
+    Transaction.find({ userId, date: { $gte: from, $lte: to }, ...accountMatch }).sort({ date: -1, _id: -1 }).limit(8).lean(),
   ]);
 
   const dek = await getUserDek(userId);
@@ -136,6 +146,9 @@ async function computeStats(userIdStr: string, fromParam: string | null, toParam
     .map((g) => ({ _id: g.merchantKey, label: g.firstDescription, total: g.total, count: g.count }));
 
   const balanceByAccount = new Map(balanceAgg.map((b) => [String(b._id), b.total]));
+  // Kept unfiltered - goal-linked balances and the recent-transactions
+  // account name lookup below should resolve regardless of this request's
+  // own account filter (that filter only scopes this widget's own totals).
   const accountRows = accounts.map((a) => ({
     _id: String(a._id),
     name: a.name,
@@ -144,6 +157,7 @@ async function computeStats(userIdStr: string, fromParam: string | null, toParam
     archived: a.archived,
     balance: (a.openingBalance ?? 0) + (balanceByAccount.get(String(a._id)) ?? 0),
   }));
+  const visibleAccountRows = accountIds ? accountRows.filter((a) => accountIds.includes(a._id)) : accountRows;
 
   const categoryById = new Map(categories.map((c) => [String(c._id), c]));
 
@@ -227,8 +241,8 @@ async function computeStats(userIdStr: string, fromParam: string | null, toParam
   const payload = {
     from: from.toISOString().slice(0, 10),
     to: to.toISOString().slice(0, 10),
-    netWorth: accountRows.filter((a) => !a.archived).reduce((s, a) => s + a.balance, 0),
-    accounts: accountRows,
+    netWorth: visibleAccountRows.filter((a) => !a.archived).reduce((s, a) => s + a.balance, 0),
+    accounts: visibleAccountRows,
     totals: {
       income: totals.income ?? 0,
       expense: Math.abs(totals.expense ?? 0),
@@ -282,12 +296,17 @@ export const GET = route(async (req: Request) => {
   const url = new URL(req.url);
   const fromParam = url.searchParams.get('from');
   const toParam = url.searchParams.get('to');
+  // Normalised so equivalent sets (any order) share the same cache entry.
+  const accountsParam = url.searchParams.get('accounts');
+  const normalisedAccountsParam = accountsParam
+    ? accountsParam.split(',').filter(Boolean).sort().join(',') || null
+    : null;
 
   const userIdStr = userId.toString();
   const getCachedStats = unstable_cache(computeStats, ['stats-v2'], {
     revalidate: 20,
     tags: [`stats:${userIdStr}`],
   });
-  const payload = await getCachedStats(userIdStr, fromParam, toParam);
+  const payload = await getCachedStats(userIdStr, fromParam, toParam, normalisedAccountsParam);
   return ok(payload);
 });

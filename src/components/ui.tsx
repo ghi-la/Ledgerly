@@ -95,20 +95,23 @@ export function Money({
   );
 }
 
+export interface DashboardWidgetSetting {
+  id: string;
+  type: string;
+  title?: string;
+  size: 'third' | 'half' | 'two-thirds' | 'full';
+  visible: boolean;
+  config?: Record<string, unknown>;
+  layout?: { x: number; y: number; w: number; h: number };
+  mobileLayout?: { x: number; y: number; w: number; h: number };
+}
+
 export interface UserSettings {
   currency: string;
   locale: string;
   startOfMonth: number;
-  dashboard: {
-    id: string;
-    type: string;
-    title?: string;
-    size: 'third' | 'half' | 'two-thirds' | 'full';
-    visible: boolean;
-    config?: Record<string, unknown>;
-    layout?: { x: number; y: number; w: number; h: number };
-    mobileLayout?: { x: number; y: number; w: number; h: number };
-  }[];
+  dashboard: DashboardWidgetSetting[];
+  dashboardLayouts: { id: string; name: string; dashboard: DashboardWidgetSetting[] }[];
   recurringDateToleranceDays: number;
   recurringAmountTolerance: number;
   recurringMinOccurrences: number;

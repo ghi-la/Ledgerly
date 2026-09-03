@@ -6,5 +6,27 @@
   "chooseWidgets": "Choose widgets",
   "allHidden": "Every widget is hidden right now.",
   "addWidget": "Add widget",
-  "confirmRemoveWidget": "Remove \"{{name}}\" from the dashboard?"
+  "confirmRemoveWidget": "Remove \"{{name}}\" from the dashboard?",
+  "more": "More",
+  "menuSections": {
+    "presets": "Presets",
+    "sync": "Sync layouts"
+  },
+  "presets": {
+    "overview": "Overview",
+    "budgeting": "Budgeting",
+    "netWorth": "Net worth",
+    "activity": "Activity"
+  },
+  "confirmApplyPreset": "Replace your current dashboard with the \"{{name}}\" preset?",
+  "syncToMobile": "Copy desktop arrangement to mobile",
+  "syncToDesktop": "Copy mobile arrangement to desktop",
+  "confirmSyncToMobile": "Replace your mobile layout with the desktop arrangement? Heights carry over, order and grouping don't.",
+  "confirmSyncToDesktop": "Replace your desktop layout with the mobile arrangement? Widgets will be packed two per row.",
+  "resetToDefault": "Reset to default",
+  "confirmReset": "Reset the dashboard back to its default widgets and layout? This can't be undone.",
+  "saveLayoutAs": "Save current as…",
+  "promptLayoutName": "Name this layout",
+  "confirmApplyLayout": "Switch to the \"{{name}}\" layout? Your current arrangement will be replaced.",
+  "confirmDeleteLayout": "Delete this saved layout?"
 }

@@ -64,6 +64,15 @@ const WidgetSchema = new Schema<Widget>(
   { _id: false },
 );
 
+const DashboardLayoutSchema = new Schema(
+  {
+    id: String,
+    name: String,
+    dashboard: { type: [WidgetSchema], default: [] },
+  },
+  { _id: false },
+);
+
 const UserSchema = new Schema(
   {
     name: String,
@@ -93,6 +102,7 @@ const UserSchema = new Schema(
       locale: { type: String, default: 'en-GB' },
       startOfMonth: { type: Number, default: 1 },
       dashboard: { type: [WidgetSchema], default: () => DEFAULT_WIDGETS },
+      dashboardLayouts: { type: [DashboardLayoutSchema], default: [] },
       recurringDateToleranceDays: { type: Number, default: 3 },
       recurringAmountTolerance: { type: Number, default: 10 },
       recurringMinOccurrences: { type: Number, default: 3 },

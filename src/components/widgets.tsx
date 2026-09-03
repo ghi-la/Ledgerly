@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import NextLink from 'next/link';
+import useSWR from 'swr';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import SettingsIcon from '@mui/icons-material/SettingsOutlined';
@@ -10,15 +11,19 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   Box,
   Button,
+  ButtonGroup,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   Divider,
   IconButton,
   LinearProgress,
   Link,
+  ListItemText,
   MenuItem,
   Popover,
+  Select,
   Stack,
   Switch,
   TextField,
@@ -43,9 +48,71 @@ import {
 } from 'recharts';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_RANGE, RANGE_PRESETS, formatDate, formatMoney, monthLabel } from '@/lib/client';
+import { DEFAULT_RANGE, RANGE_PRESETS, fetcher, formatDate, formatMoney, monthLabel } from '@/lib/client';
+import { SIZE_PRESET_ROWS, type SizePresetKey } from '@/lib/dashboardLayout';
 import { Money } from './ui';
 import { CategoryExpensesDialog } from './CategoryExpensesDialog';
+
+/**
+ * Renders a list whose row count varies with the data (spend-by-category,
+ * recent transactions, ...) inside whatever height the widget currently has
+ * - rather than guessing a "correct" widget height from the row count (which
+ * never quite matched reality across fonts/zoom/locale), it measures which
+ * rows actually fit after layout and shows a "+N more" footer for the rest.
+ * Resizing the widget bigger/smaller just changes how many rows fit; nothing
+ * about the widget's own size is ever changed from here.
+ */
+function OverflowList<T>({
+  items,
+  spacing,
+  renderItem,
+  moreLabel,
+  keyFor,
+}: {
+  items: T[];
+  spacing: number;
+  renderItem: (item: T, index: number) => React.ReactNode;
+  moreLabel: (hiddenCount: number) => string;
+  keyFor: (item: T, index: number) => React.Key;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(items.length);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const recompute = () => {
+      const bound = el.getBoundingClientRect().bottom;
+      let count = 0;
+      for (const child of Array.from(el.children)) {
+        if (child.getBoundingClientRect().bottom <= bound + 1) count += 1;
+        else break;
+      }
+      setVisibleCount(count);
+    };
+    recompute();
+    const observer = new ResizeObserver(recompute);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [items.length]);
+
+  const hidden = Math.max(items.length - visibleCount, 0);
+
+  return (
+    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <Stack ref={containerRef} spacing={spacing} sx={{ overflow: 'hidden', minHeight: 0 }}>
+        {items.map((item, i) => (
+          <Box key={keyFor(item, i)}>{renderItem(item, i)}</Box>
+        ))}
+      </Stack>
+      {hidden > 0 && (
+        <Typography variant="caption" color="text.secondary" sx={{ pt: 1, flexShrink: 0 }}>
+          {moreLabel(hidden)}
+        </Typography>
+      )}
+    </Box>
+  );
+}
 
 export interface Stats {
   from: string;
@@ -107,9 +174,56 @@ export interface WidgetProps {
   title?: string;
   onTitleChange?: (title: string) => void;
   onRemove?: () => void;
+  onSizePreset?: (size: SizePresetKey) => void;
 }
 
 export const widgetTitle = (type: string, t: TFunction) => t(`widgets:titles.${type}`, { defaultValue: type });
+
+/** A compact multi-select of the user's accounts, for widgets whose data can be scoped with `config.accountIds` (empty = every account). */
+function AccountFilterField({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (accountIds: string[]) => void;
+}) {
+  const { t } = useTranslation('widgets');
+  const { data: accounts } = useSWR<{ _id: string; name: string; archived: boolean }[]>('/api/accounts', fetcher);
+
+  if (!accounts || accounts.length === 0) return null;
+
+  return (
+    <Stack spacing={0.5}>
+      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{t('settings.accountFilter')}</Typography>
+      <Select
+        multiple
+        size="small"
+        variant="standard"
+        displayEmpty
+        value={value}
+        onChange={(e) => onChange(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+        renderValue={(selected) =>
+          (selected as string[]).length === 0
+            ? t('settings.allAccounts')
+            : accounts
+                .filter((a) => (selected as string[]).includes(a._id))
+                .map((a) => a.name)
+                .join(', ')
+        }
+        sx={{ fontSize: 13 }}
+      >
+        {accounts
+          .filter((a) => !a.archived)
+          .map((a) => (
+            <MenuItem key={a._id} value={a._id} dense>
+              <Checkbox size="small" checked={value.includes(a._id)} sx={{ p: 0.5 }} />
+              <ListItemText primary={a.name} primaryTypographyProps={{ fontSize: 13 }} />
+            </MenuItem>
+          ))}
+      </Select>
+    </Stack>
+  );
+}
 
 function Shell({
   title,
@@ -121,6 +235,7 @@ function Shell({
   onVisibleChange,
   onTitleChange,
   onRemove,
+  onSizePreset,
   settingsContent,
   children,
 }: {
@@ -133,6 +248,7 @@ function Shell({
   onVisibleChange?: (visible: boolean) => void;
   onTitleChange?: (title: string) => void;
   onRemove?: () => void;
+  onSizePreset?: (size: SizePresetKey) => void;
   settingsContent?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -217,6 +333,18 @@ function Shell({
                     )}
                     {settingsContent}
                     {settingsContent && <Divider />}
+                    {onSizePreset && (
+                      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ fontSize: 14 }}>{t('settings.size')}</Typography>
+                        <ButtonGroup size="small" variant="outlined">
+                          {(Object.keys(SIZE_PRESET_ROWS) as SizePresetKey[]).map((key) => (
+                            <Button key={key} onClick={() => onSizePreset(key)}>
+                              {t(`settings.sizePresets.${key}`)}
+                            </Button>
+                          ))}
+                        </ButtonGroup>
+                      </Stack>
+                    )}
                     <Stack
                       direction="row"
                       sx={{ alignItems: 'center', justifyContent: 'space-between' }}
@@ -250,7 +378,7 @@ function Shell({
             )}
           </Stack>
         </Stack>
-        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>{children}</Box>
       </CardContent>
     </Card>
   );
@@ -291,6 +419,38 @@ function ConfigSelect({
   );
 }
 
+/**
+ * The net-worth widget's side-by-side stats as genuine flex items, all with
+ * the same minimum width: the browser wraps them onto as many rows as the
+ * widget's current width calls for - full row, two-and-two, down to one per
+ * row - with no JS layout logic of our own, just flex-wrap reacting to the
+ * widget's actual size.
+ */
+function NetWorthStats({
+  items,
+  currency,
+  locale,
+}: {
+  items: { label: string; value: number; colored: boolean }[];
+  currency: string;
+  locale: string;
+}) {
+  return (
+    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexWrap: 'wrap', alignContent: 'center', gap: 2 }}>
+      {items.map((i) => (
+        <Box key={i.label} sx={{ flex: '1 1 150px', minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary">
+            {i.label}
+          </Typography>
+          <Box sx={{ mt: 0.25 }}>
+            <Money value={i.value} currency={currency} locale={locale} colored={i.colored} bold size={22} />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 type CategorySpendRow = Stats['categorySpend'][number];
 type FlatCategoryRow = {
   categoryId: string | null;
@@ -317,6 +477,7 @@ function SpendByCategoryWidget({
   title,
   onTitleChange,
   onRemove,
+  onSizePreset,
 }: WidgetProps) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
@@ -387,6 +548,7 @@ function SpendByCategoryWidget({
       onVisibleChange={onVisibleChange}
       onTitleChange={onTitleChange}
       onRemove={onRemove}
+      onSizePreset={onSizePreset}
       settingsContent={
         <Stack spacing={1.25}>
           <ConfigSelect
@@ -419,6 +581,10 @@ function SpendByCategoryWidget({
               { value: 'always', label: t('subcategories.always') },
             ]}
           />
+          <AccountFilterField
+            value={(config?.accountIds as string[]) ?? []}
+            onChange={(accountIds) => onConfigChange?.({ accountIds })}
+          />
         </Stack>
       }
     >
@@ -427,7 +593,7 @@ function SpendByCategoryWidget({
       ) : (
         <>
           {chartType === 'donut' && (
-            <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
+            <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 }, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={chartRows} dataKey="amount" nameKey="name" innerRadius="55%" outerRadius="80%" paddingAngle={2} stroke="none">
@@ -455,7 +621,7 @@ function SpendByCategoryWidget({
           )}
 
           {chartType === 'bar' && (
-            <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
+            <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 }, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartRows} layout="vertical" margin={{ left: 8, right: 16, top: 8 }}>
                   <XAxis type="number" hide />
@@ -478,8 +644,8 @@ function SpendByCategoryWidget({
           )}
 
           {chartType === 'stacked' && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Box sx={{ height: 28, borderRadius: 999, overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1, minHeight: 0 }}>
+              <Box sx={{ height: 28, flexShrink: 0, borderRadius: 999, overflow: 'hidden' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[stackedRow]} layout="vertical" margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                     <XAxis type="number" domain={[0, 'dataMax']} hide />
@@ -525,12 +691,16 @@ function SpendByCategoryWidget({
               )}
 
               {stackedDetail === 'bars' && (
-                <Stack spacing={1}>
-                  {chartRows.map((d) => {
+                <OverflowList
+                  items={chartRows}
+                  spacing={1}
+                  keyFor={(d) => d.categoryId ?? d.name}
+                  moreLabel={(n) => t('overflow.spendByCategory', { count: n })}
+                  renderItem={(d) => {
                     const base = chartRows[0]?.amount;
                     const pct = base ? Math.round((d.amount / base) * 100) : 0;
                     return (
-                      <Box key={d.categoryId ?? d.name} onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
+                      <Box onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                           {d.depth === 1 && (
                             <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
@@ -558,20 +728,24 @@ function SpendByCategoryWidget({
                         />
                       </Box>
                     );
-                  })}
-                </Stack>
+                  }}
+                />
               )}
             </Box>
           )}
 
           {chartType === 'list' && (
-            <Stack spacing={1}>
-              {chartRows.map((d) => {
+            <OverflowList
+              items={chartRows}
+              spacing={1}
+              keyFor={(d) => d.categoryId ?? 'none'}
+              moreLabel={(n) => t('overflow.spendByCategory', { count: n })}
+              renderItem={(d) => {
                 const base = chartRows[0]?.amount;
                 const pct = base ? Math.round((d.amount / base) * 100) : 0;
                 const isExpanded = manualExpandedId === d.categoryId;
                 return (
-                  <Box key={d.categoryId ?? 'none'} onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
+                  <Box onClick={() => handleSelect(d)} sx={{ cursor: 'pointer', pl: d.depth === 1 ? 3 : 0 }}>
                     <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                       {d.depth === 1 && (
                         <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
@@ -628,8 +802,8 @@ function SpendByCategoryWidget({
                     />
                   </Box>
                 );
-              })}
-            </Stack>
+              }}
+            />
           )}
 
           {expandedRow && (
@@ -694,6 +868,7 @@ export function WidgetRenderer({
   title,
   onTitleChange,
   onRemove,
+  onSizePreset,
 }: WidgetProps & { type: string }) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
@@ -716,23 +891,15 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
+          settingsContent={
+            <AccountFilterField
+              value={(config?.accountIds as string[]) ?? []}
+              onChange={(accountIds) => onConfigChange?.({ accountIds })}
+            />
+          }
         >
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            divider={<Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />}
-            spacing={{ xs: 1.5, sm: 3 }}
-          >
-            {items.map((i) => (
-              <Box key={i.label} sx={{ flex: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {i.label}
-                </Typography>
-                <Box sx={{ mt: 0.25 }}>
-                  <Money value={i.value} currency={currency} locale={locale} colored={i.colored} bold size={22} />
-                </Box>
-              </Box>
-            ))}
-          </Stack>
+          <NetWorthStats items={items} currency={currency} locale={locale} />
         </Shell>
       );
     }
@@ -748,33 +915,42 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
           action={
             <Link component={NextLink} href="/settings" variant="caption">
               {t('links.manage')}
             </Link>
           }
+          settingsContent={
+            <AccountFilterField
+              value={(config?.accountIds as string[]) ?? []}
+              onChange={(accountIds) => onConfigChange?.({ accountIds })}
+            />
+          }
         >
           {stats.accounts.length === 0 ? (
             <Nothing>{t('empty.accounts')}</Nothing>
           ) : (
-            <Stack spacing={1.25}>
-              {stats.accounts
-                .filter((a) => !a.archived)
-                .map((a) => (
-                  <Stack key={a._id} direction="row" sx={{ alignItems: 'center', gap: 1.25 }}>
-                    <Box sx={{ width: 8, height: 28, borderRadius: 1, bgcolor: a.color }} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography noWrap sx={{ fontWeight: 600, fontSize: 14 }}>
-                        {a.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
-                        {a.type}
-                      </Typography>
-                    </Box>
-                    <Money value={a.balance} currency={currency} locale={locale} bold />
-                  </Stack>
-                ))}
-            </Stack>
+            <OverflowList
+              items={stats.accounts.filter((a) => !a.archived)}
+              spacing={1.25}
+              keyFor={(a) => a._id}
+              moreLabel={(n) => t('overflow.accounts', { count: n })}
+              renderItem={(a) => (
+                <Stack direction="row" sx={{ alignItems: 'center', gap: 1.25 }}>
+                  <Box sx={{ width: 8, height: 28, borderRadius: 1, bgcolor: a.color }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography noWrap sx={{ fontWeight: 600, fontSize: 14 }}>
+                      {a.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                      {a.type}
+                    </Typography>
+                  </Box>
+                  <Money value={a.balance} currency={currency} locale={locale} bold />
+                </Stack>
+              )}
+            />
           )}
         </Shell>
       );
@@ -795,6 +971,7 @@ export function WidgetRenderer({
           title={title}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
         />
       );
 
@@ -823,6 +1000,7 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
           settingsContent={
             <Stack spacing={1.25}>
               <ConfigSelect
@@ -844,10 +1022,14 @@ export function WidgetRenderer({
                   { value: 'net', label: t('metrics.net') },
                 ]}
               />
+              <AccountFilterField
+                value={(config?.accountIds as string[]) ?? []}
+                onChange={(accountIds) => onConfigChange?.({ accountIds })}
+              />
             </Stack>
           }
         >
-          <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
+          <Box sx={{ height: { xs: 220, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 }, minHeight: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'bar' ? (
                 <BarChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }} barCategoryGap="5%" barGap={0}>
@@ -906,18 +1088,25 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
           settingsContent={
-            <ConfigSelect
-              value={chartType}
-              onChange={(v) => onConfigChange?.({ chartType: v })}
-              options={[
-                { value: 'bar', label: t('chartTypes.bar') },
-                { value: 'line', label: t('chartTypes.line') },
-              ]}
-            />
+            <Stack spacing={1.25}>
+              <ConfigSelect
+                value={chartType}
+                onChange={(v) => onConfigChange?.({ chartType: v })}
+                options={[
+                  { value: 'bar', label: t('chartTypes.bar') },
+                  { value: 'line', label: t('chartTypes.line') },
+                ]}
+              />
+              <AccountFilterField
+                value={(config?.accountIds as string[]) ?? []}
+                onChange={(accountIds) => onConfigChange?.({ accountIds })}
+              />
+            </Stack>
           }
         >
-          <Box sx={{ height: { xs: 200, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 } }}>
+          <Box sx={{ height: { xs: 200, md: 'auto' }, flexGrow: { md: 1 }, flexShrink: { md: 1 }, flexBasis: { md: 0 }, minHeight: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'line' ? (
                 <LineChart data={stats.series} margin={{ left: -18, right: 8, top: 8 }}>
@@ -973,6 +1162,7 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
           action={
             <Link component={NextLink} href="/budgets" variant="caption">
               {t('common:actions.edit')}
@@ -982,9 +1172,13 @@ export function WidgetRenderer({
           {stats.budgetProgress.length === 0 ? (
             <Nothing>{t('empty.budgetProgress')}</Nothing>
           ) : (
-            <Stack spacing={1.75}>
-              {stats.budgetProgress.slice(0, 6).map((b) => (
-                <Box key={b.categoryId}>
+            <OverflowList
+              items={stats.budgetProgress}
+              spacing={1.75}
+              keyFor={(b) => b.categoryId}
+              moreLabel={(n) => t('overflow.budgetProgress', { count: n })}
+              renderItem={(b) => (
+                <Box>
                   <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
                     <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{b.name}</Typography>
                     <Typography sx={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
@@ -1005,8 +1199,8 @@ export function WidgetRenderer({
                     }}
                   />
                 </Box>
-              ))}
-            </Stack>
+              )}
+            />
           )}
         </Shell>
       );
@@ -1022,18 +1216,32 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
           action={
             <Link component={NextLink} href="/transactions" variant="caption">
               {t('links.seeAll')}
             </Link>
           }
+          settingsContent={
+            <AccountFilterField
+              value={(config?.accountIds as string[]) ?? []}
+              onChange={(accountIds) => onConfigChange?.({ accountIds })}
+            />
+          }
         >
           {stats.recent.length === 0 ? (
             <Nothing>{t('empty.recentTransactions')}</Nothing>
           ) : (
-            <Stack divider={<Divider flexItem />} spacing={0}>
-              {stats.recent.map((tx) => (
-                <Stack key={tx._id} direction="row" sx={{ alignItems: 'center', gap: 1, py: 1 }}>
+            <OverflowList
+              items={stats.recent}
+              spacing={0}
+              keyFor={(tx) => tx._id}
+              moreLabel={(n) => t('overflow.recentTransactions', { count: n })}
+              renderItem={(tx, i) => (
+                <Stack
+                  direction="row"
+                  sx={{ alignItems: 'center', gap: 1, py: 1, borderTop: i > 0 ? 1 : 0, borderColor: 'divider' }}
+                >
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <DecryptedText
                       value={tx.description}
@@ -1046,8 +1254,8 @@ export function WidgetRenderer({
                   </Box>
                   <Money value={tx.amount} currency={currency} locale={locale} colored />
                 </Stack>
-              ))}
-            </Stack>
+              )}
+            />
           )}
         </Shell>
       );
@@ -1063,6 +1271,7 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
           action={
             <Link component={NextLink} href="/goals" variant="caption">
               {t('common:actions.edit')}
@@ -1072,11 +1281,15 @@ export function WidgetRenderer({
           {stats.goals.length === 0 ? (
             <Nothing>{t('empty.goals')}</Nothing>
           ) : (
-            <Stack spacing={1.75}>
-              {stats.goals.slice(0, 5).map((g) => {
+            <OverflowList
+              items={stats.goals}
+              spacing={1.75}
+              keyFor={(g) => g._id}
+              moreLabel={(n) => t('overflow.goals', { count: n })}
+              renderItem={(g) => {
                 const pct = g.targetAmount ? Math.round((g.savedAmount / g.targetAmount) * 100) : 0;
                 return (
-                  <Box key={g._id}>
+                  <Box>
                     <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
                       <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{g.name}</Typography>
                       <Typography sx={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
@@ -1095,8 +1308,8 @@ export function WidgetRenderer({
                     />
                   </Box>
                 );
-              })}
-            </Stack>
+              }}
+            />
           )}
         </Shell>
       );
@@ -1112,21 +1325,32 @@ export function WidgetRenderer({
           onVisibleChange={onVisibleChange}
           onTitleChange={onTitleChange}
           onRemove={onRemove}
+          onSizePreset={onSizePreset}
+          settingsContent={
+            <AccountFilterField
+              value={(config?.accountIds as string[]) ?? []}
+              onChange={(accountIds) => onConfigChange?.({ accountIds })}
+            />
+          }
         >
           {stats.topMerchants.length === 0 ? (
             <Nothing>{t('empty.topMerchants')}</Nothing>
           ) : (
-            <Stack spacing={1}>
-              {stats.topMerchants.map((m) => (
-                <Stack key={m.name} direction="row" sx={{ alignItems: 'center', gap: 1 }}>
+            <OverflowList
+              items={stats.topMerchants}
+              spacing={1}
+              keyFor={(m) => m.name}
+              moreLabel={(n) => t('overflow.topMerchants', { count: n })}
+              renderItem={(m) => (
+                <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
                   <Typography noWrap sx={{ flex: 1, fontSize: 14, textTransform: 'capitalize' }}>
                     {m.name}
                   </Typography>
                   <Chip size="small" label={`${m.count}×`} variant="outlined" />
                   <Money value={-m.amount} currency={currency} locale={locale} />
                 </Stack>
-              ))}
-            </Stack>
+              )}
+            />
           )}
         </Shell>
       );

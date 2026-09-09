@@ -1,5 +1,7 @@
 import mongoose, { Schema, model, models } from 'mongoose';
 import { DEFAULT_WIDGETS, type Widget, type WidgetLayout } from './widgetTypes';
+import { DEFAULT_BOTTOM_NAV } from './navConfig';
+import { DEFAULT_FAB_ENABLED, DEFAULT_FAB_ICON_STYLE, DEFAULT_FAB_MODE } from './fabConfig';
 
 /* ------------------------------------------------------------------ types */
 
@@ -103,6 +105,10 @@ const UserSchema = new Schema(
       startOfMonth: { type: Number, default: 1 },
       dashboard: { type: [WidgetSchema], default: () => DEFAULT_WIDGETS },
       dashboardLayouts: { type: [DashboardLayoutSchema], default: [] },
+      bottomNav: { type: [String], default: () => DEFAULT_BOTTOM_NAV },
+      fabEnabled: { type: Boolean, default: DEFAULT_FAB_ENABLED },
+      fabMode: { type: String, default: DEFAULT_FAB_MODE },
+      fabIconStyle: { type: String, default: DEFAULT_FAB_ICON_STYLE },
       recurringDateToleranceDays: { type: Number, default: 3 },
       recurringAmountTolerance: { type: Number, default: 10 },
       recurringMinOccurrences: { type: Number, default: 3 },

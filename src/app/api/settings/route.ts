@@ -1,10 +1,35 @@
 import { ALL_WIDGET_TYPES, DEFAULT_WIDGETS, User } from '@/lib/models';
 import { HttpError, ok, requireUser, route } from '@/lib/api';
+import { BOTTOM_NAV_HREFS, BOTTOM_NAV_MAX, BOTTOM_NAV_MIN, DEFAULT_BOTTOM_NAV } from '@/lib/navConfig';
+import {
+  DEFAULT_FAB_ENABLED,
+  DEFAULT_FAB_ICON_STYLE,
+  DEFAULT_FAB_MODE,
+  FAB_ICON_STYLES,
+  FAB_MODES,
+} from '@/lib/fabConfig';
 
 export const dynamic = 'force-dynamic';
 
 const CADENCES = new Set(['weekly', 'fortnightly', 'monthly', 'quarterly', 'twice a year']);
 const WIDGET_TYPES = new Set(ALL_WIDGET_TYPES);
+const BOTTOM_NAV_SET = new Set<string>(BOTTOM_NAV_HREFS);
+const FAB_MODE_SET = new Set<string>(FAB_MODES);
+const FAB_ICON_STYLE_SET = new Set<string>(FAB_ICON_STYLES);
+
+function validateBottomNav(bottomNav: unknown): void {
+  if (!Array.isArray(bottomNav)) throw new HttpError(400, 'bottomNav must be an array.');
+  if (bottomNav.length < BOTTOM_NAV_MIN || bottomNav.length > BOTTOM_NAV_MAX) {
+    throw new HttpError(400, `bottomNav must have between ${BOTTOM_NAV_MIN} and ${BOTTOM_NAV_MAX} links.`);
+  }
+  const seen = new Set<string>();
+  for (const href of bottomNav) {
+    if (typeof href !== 'string' || !BOTTOM_NAV_SET.has(href) || seen.has(href)) {
+      throw new HttpError(400, 'Invalid bottom navigation entry.');
+    }
+    seen.add(href);
+  }
+}
 
 function validateDashboard(dashboard: unknown): void {
   if (!Array.isArray(dashboard)) throw new HttpError(400, 'dashboard must be an array.');
@@ -42,6 +67,10 @@ export const GET = route(async () => {
       startOfMonth: user.settings?.startOfMonth ?? 1,
       dashboard: user.settings?.dashboard?.length ? user.settings.dashboard : DEFAULT_WIDGETS,
       dashboardLayouts: user.settings?.dashboardLayouts ?? [],
+      bottomNav: user.settings?.bottomNav?.length ? user.settings.bottomNav : DEFAULT_BOTTOM_NAV,
+      fabEnabled: user.settings?.fabEnabled ?? DEFAULT_FAB_ENABLED,
+      fabMode: user.settings?.fabMode ?? DEFAULT_FAB_MODE,
+      fabIconStyle: user.settings?.fabIconStyle ?? DEFAULT_FAB_ICON_STYLE,
       recurringDateToleranceDays: user.settings?.recurringDateToleranceDays ?? 3,
       recurringAmountTolerance: user.settings?.recurringAmountTolerance ?? 10,
       recurringMinOccurrences: user.settings?.recurringMinOccurrences ?? 3,
@@ -65,6 +94,23 @@ export const PATCH = route(async (req: Request) => {
   if (body.dashboardLayouts !== undefined) {
     validateDashboardLayouts(body.dashboardLayouts);
     set['settings.dashboardLayouts'] = body.dashboardLayouts;
+  }
+  if (body.bottomNav !== undefined) {
+    validateBottomNav(body.bottomNav);
+    set['settings.bottomNav'] = body.bottomNav;
+  }
+  if (body.fabEnabled !== undefined) set['settings.fabEnabled'] = Boolean(body.fabEnabled);
+  if (body.fabMode !== undefined) {
+    if (typeof body.fabMode !== 'string' || !FAB_MODE_SET.has(body.fabMode)) {
+      throw new HttpError(400, 'Invalid fabMode.');
+    }
+    set['settings.fabMode'] = body.fabMode;
+  }
+  if (body.fabIconStyle !== undefined) {
+    if (typeof body.fabIconStyle !== 'string' || !FAB_ICON_STYLE_SET.has(body.fabIconStyle)) {
+      throw new HttpError(400, 'Invalid fabIconStyle.');
+    }
+    set['settings.fabIconStyle'] = body.fabIconStyle;
   }
   if (body.recurringDateToleranceDays !== undefined) {
     const v = Number(body.recurringDateToleranceDays);

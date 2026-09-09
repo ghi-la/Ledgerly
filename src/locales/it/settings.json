@@ -10,6 +10,23 @@
   },
   "saveChanges": "Salva modifiche",
   "toast": { "saved": "Impostazioni salvate." },
+  "bottomNav": {
+    "title": "Barra di navigazione inferiore",
+    "description": "Scegli quali link mostrare nella barra inferiore su mobile e trascina la maniglia per riordinarli ({{min}}–{{max}} link).",
+    "addLink": "Aggiungi link"
+  },
+  "fab": {
+    "title": "Pulsante di aggiunta rapida",
+    "description": "Un pulsante + fluttuante sopra la barra inferiore su mobile per azioni rapide.",
+    "enable": "Mostra il pulsante di aggiunta rapida",
+    "behavior": "Al tocco",
+    "modeChoices": "Mostra le opzioni",
+    "modeTransaction": "Aggiungi transazione direttamente",
+    "modeImport": "Importa direttamente",
+    "iconStyle": "Icona del pulsante",
+    "iconPlain": "Sempre +",
+    "iconMatch": "Corrispondente all'azione"
+  },
   "recurring": {
     "title": "Addebiti ricorrenti",
     "perMonthPre": "~",

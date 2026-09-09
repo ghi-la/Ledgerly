@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { PageHeader, useSettings, type UserSettings } from '@/components/ui';
 import { WidgetRenderer, widgetTitle, type Stats } from '@/components/widgets';
 import { DEFAULT_RANGE, fetcher, rangeToDates, send } from '@/lib/client';
+import { DEFAULT_BOTTOM_NAV } from '@/lib/navConfig';
+import { DEFAULT_FAB_ENABLED, DEFAULT_FAB_ICON_STYLE, DEFAULT_FAB_MODE } from '@/lib/fabConfig';
 import {
   GRID_COLS,
   GRID_COLS_MOBILE,
@@ -154,6 +156,10 @@ export default function DashboardPage() {
                   startOfMonth: 1,
                   dashboard: next,
                   dashboardLayouts: [],
+                  bottomNav: DEFAULT_BOTTOM_NAV,
+                  fabEnabled: DEFAULT_FAB_ENABLED,
+                  fabMode: DEFAULT_FAB_MODE,
+                  fabIconStyle: DEFAULT_FAB_ICON_STYLE,
                   recurringDateToleranceDays: 3,
                   recurringAmountTolerance: 10,
                   recurringMinOccurrences: 3,
@@ -184,6 +190,10 @@ export default function DashboardPage() {
                   startOfMonth: 1,
                   dashboard: DEFAULT_WIDGETS,
                   dashboardLayouts: next,
+                  bottomNav: DEFAULT_BOTTOM_NAV,
+                  fabEnabled: DEFAULT_FAB_ENABLED,
+                  fabMode: DEFAULT_FAB_MODE,
+                  fabIconStyle: DEFAULT_FAB_ICON_STYLE,
                   recurringDateToleranceDays: 3,
                   recurringAmountTolerance: 10,
                   recurringMinOccurrences: 3,

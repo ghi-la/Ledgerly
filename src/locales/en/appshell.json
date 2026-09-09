@@ -18,5 +18,10 @@
   "accountMenu": "Account menu",
   "switchTheme": "Switch theme",
   "darkTheme": "Dark theme",
-  "lightTheme": "Light theme"
+  "lightTheme": "Light theme",
+  "quickAdd": {
+    "button": "Quick add",
+    "addTransaction": "Add transaction",
+    "import": "Import a file"
+  }
 }

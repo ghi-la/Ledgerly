@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter, useSearchParams } from 'next/navigation';
 import { categoryMenuItems } from '@/components/categoryMenuItems';
 import RuleDialog, { blankRuleDraft, buildRulePayload, type Condition, type RuleDraft } from '@/components/RuleDialog';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
@@ -97,6 +98,8 @@ export default function TransactionsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { currency, locale } = useSettings();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [search, setSearch] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -171,6 +174,16 @@ export default function TransactionsPage() {
     },
     [],
   );
+
+  // Lets the bottom-bar "+" button deep-link straight into the add-transaction
+  // dialog (e.g. from AppShell); the param is stripped right away so a
+  // refresh or back-navigation doesn't reopen it.
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setAddOpen(true);
+      router.replace('/transactions', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Once a filter change (or the natural refetch cadence) makes a pinned
   // transaction match again, drop the pin - it's back for real, no need to

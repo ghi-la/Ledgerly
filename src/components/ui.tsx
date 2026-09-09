@@ -3,6 +3,7 @@
 import { Box, Button, Stack, Typography } from '@mui/material';
 import useSWR from 'swr';
 import { fetcher, formatMoney } from '@/lib/client';
+import type { FabIconStyle, FabMode } from '@/lib/fabConfig';
 
 export function PageHeader({
   title,
@@ -112,6 +113,10 @@ export interface UserSettings {
   startOfMonth: number;
   dashboard: DashboardWidgetSetting[];
   dashboardLayouts: { id: string; name: string; dashboard: DashboardWidgetSetting[] }[];
+  bottomNav: string[];
+  fabEnabled: boolean;
+  fabMode: FabMode;
+  fabIconStyle: FabIconStyle;
   recurringDateToleranceDays: number;
   recurringAmountTolerance: number;
   recurringMinOccurrences: number;

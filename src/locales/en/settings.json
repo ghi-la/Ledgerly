@@ -10,6 +10,23 @@
   },
   "saveChanges": "Save changes",
   "toast": { "saved": "Settings saved." },
+  "bottomNav": {
+    "title": "Bottom navigation",
+    "description": "Choose which links appear in the mobile bottom bar, and drag the handle to reorder them ({{min}}–{{max}} links).",
+    "addLink": "Add link"
+  },
+  "fab": {
+    "title": "Quick add button",
+    "description": "A floating + button above the mobile bottom bar for quick actions.",
+    "enable": "Show the quick add button",
+    "behavior": "On tap",
+    "modeChoices": "Show choices",
+    "modeTransaction": "Add transaction directly",
+    "modeImport": "Import directly",
+    "iconStyle": "Button icon",
+    "iconPlain": "Always +",
+    "iconMatch": "Match the action"
+  },
   "recurring": {
     "title": "Recurring charges",
     "perMonthPre": "~",

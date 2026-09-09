@@ -13,6 +13,7 @@ import {
   BottomNavigationAction,
   Divider,
   Drawer,
+  Fab,
   IconButton,
   List,
   ListItemButton,
@@ -38,11 +39,14 @@ import SettingsIcon from '@mui/icons-material/TuneOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import DarkIcon from '@mui/icons-material/DarkModeOutlined';
 import LightIcon from '@mui/icons-material/LightModeOutlined';
+import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 import { useColorMode } from '@/app/providers';
 import { useSettings } from './ui';
 import { toI18nLang } from '@/i18n/languageMap';
 import { LANG_STORAGE_KEY } from '@/i18n/languageDetector';
+import { DEFAULT_BOTTOM_NAV } from '@/lib/navConfig';
+import { DEFAULT_FAB_ENABLED, DEFAULT_FAB_ICON_STYLE, DEFAULT_FAB_MODE } from '@/lib/fabConfig';
 import RouteProgress from './RouteProgress';
 
 const DRAWER = 248;
@@ -60,9 +64,10 @@ export default function AppShell({
   const router = useRouter();
   const { mode, toggle } = useColorMode();
   const { t, i18n } = useTranslation('appshell');
-  const { locale } = useSettings();
+  const { settings, locale } = useSettings();
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+  const [fabAnchor, setFabAnchor] = useState<null | HTMLElement>(null);
 
   // Authoritative language sync for signed-in users - this component only
   // ever mounts after the server-side auth() redirect-guard, so `locale` is
@@ -76,12 +81,12 @@ export default function AppShell({
   }, [locale, i18n]);
 
   const NAV = [
-    { href: '/dashboard', label: t('nav.dashboard'), icon: <DashboardIcon />, group: 'top', mobile: true },
-    { href: '/transactions', label: t('nav.transactions'), icon: <ReceiptIcon />, group: 'top', mobile: true },
+    { href: '/dashboard', label: t('nav.dashboard'), icon: <DashboardIcon />, group: 'top' },
+    { href: '/transactions', label: t('nav.transactions'), icon: <ReceiptIcon />, group: 'top' },
     { href: '/categories', label: t('nav.categories'), icon: <CategoryIcon />, group: 'organize' },
     { href: '/rules', label: t('nav.rules'), icon: <RulesIcon />, group: 'organize' },
-    { href: '/budgets', label: t('nav.budgets'), icon: <BudgetIcon />, group: 'organize', mobile: true },
-    { href: '/goals', label: t('nav.goals'), icon: <GoalIcon />, group: 'organize', mobile: true },
+    { href: '/budgets', label: t('nav.budgets'), icon: <BudgetIcon />, group: 'organize' },
+    { href: '/goals', label: t('nav.goals'), icon: <GoalIcon />, group: 'organize' },
     { href: '/import', label: t('nav.import'), icon: <ImportIcon />, group: 'data' },
     { href: '/export', label: t('nav.export'), icon: <ExportIcon />, group: 'data' },
   ];
@@ -91,7 +96,34 @@ export default function AppShell({
     { key: 'organize', label: t('nav.groups.organize') },
     { key: 'data', label: t('nav.groups.data') },
   ];
-  const MOBILE_NAV = NAV.filter((n) => n.mobile);
+  const bottomNavHrefs = settings?.bottomNav?.length ? settings.bottomNav : DEFAULT_BOTTOM_NAV;
+  const MOBILE_NAV = bottomNavHrefs
+    .map((href) => NAV.find((n) => n.href === href))
+    .filter((n): n is (typeof NAV)[number] => !!n);
+
+  const fabEnabled = settings?.fabEnabled ?? DEFAULT_FAB_ENABLED;
+  const fabMode = settings?.fabMode ?? DEFAULT_FAB_MODE;
+  const fabIconStyle = settings?.fabIconStyle ?? DEFAULT_FAB_ICON_STYLE;
+  const FabIcon =
+    fabIconStyle === 'match' && fabMode === 'transaction'
+      ? ReceiptIcon
+      : fabIconStyle === 'match' && fabMode === 'import'
+        ? ImportIcon
+        : AddIcon;
+
+  const goAddTransaction = () => {
+    setFabAnchor(null);
+    router.push('/transactions?new=1');
+  };
+  const goImport = () => {
+    setFabAnchor(null);
+    router.push('/import');
+  };
+  const handleFabClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (fabMode === 'transaction') return goAddTransaction();
+    if (fabMode === 'import') return goImport();
+    setFabAnchor(e.currentTarget);
+  };
 
   const renderNavItem = (item: { href: string; label: string; icon: React.ReactNode }) => {
     const active = pathname.startsWith(item.href);
@@ -256,6 +288,39 @@ export default function AppShell({
       >
         {children}
       </Box>
+
+      {!isDesktop && fabEnabled && (
+        <>
+          <Fab
+            color="primary"
+            aria-label={t('quickAdd.button')}
+            onClick={handleFabClick}
+            sx={{
+              position: 'fixed',
+              bottom: 48,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: (th) => th.zIndex.appBar + 1,
+            }}
+          >
+            <FabIcon />
+          </Fab>
+          <Menu anchorEl={fabAnchor} open={!!fabAnchor} onClose={() => setFabAnchor(null)}>
+            <MenuItem onClick={goAddTransaction}>
+              <ListItemIcon>
+                <ReceiptIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={t('quickAdd.addTransaction')} />
+            </MenuItem>
+            <MenuItem onClick={goImport}>
+              <ListItemIcon>
+                <ImportIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={t('quickAdd.import')} />
+            </MenuItem>
+          </Menu>
+        </>
+      )}
 
       {!isDesktop && (
         <BottomNavigation

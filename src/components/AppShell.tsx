@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import NextLink from 'next/link';
 import { signOut } from 'next-auth/react';
+import { clearPersistedSWRCache } from '@/lib/swrCache';
 import {
   AppBar,
   Avatar,
@@ -210,7 +211,12 @@ export default function AppShell({
             >
               {t('nav.settings')}
             </MenuItem>
-            <MenuItem onClick={() => signOut({ callbackUrl: '/login' })}>
+            <MenuItem
+              onClick={() => {
+                clearPersistedSWRCache();
+                signOut({ callbackUrl: '/login' });
+              }}
+            >
               {t('common:actions.signOut')}
             </MenuItem>
           </Menu>

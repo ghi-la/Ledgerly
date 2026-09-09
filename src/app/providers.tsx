@@ -11,7 +11,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SessionProvider } from 'next-auth/react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SWRConfig } from 'swr';
 import I18nProvider from '@/i18n/I18nProvider';
+import { localStorageProvider } from '@/lib/swrCache';
 
 /** Keeps MUI X's date pickers (month/weekday names) in sync with `i18n.language` - a separate config knob react-i18next doesn't touch on its own. */
 function LocalizedPickers({ children }: { children: React.ReactNode }) {
@@ -63,7 +65,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             <Analytics />
             <SpeedInsights />
             <LocalizedPickers>
-              <SessionProvider>{children}</SessionProvider>
+              <SessionProvider>
+                <SWRConfig
+                  value={{
+                    provider: localStorageProvider,
+                    revalidateOnFocus: true,
+                    revalidateOnReconnect: true,
+                    dedupingInterval: 5000,
+                  }}
+                >
+                  {children}
+                </SWRConfig>
+              </SessionProvider>
             </LocalizedPickers>
           </ThemeProvider>
         </ColorModeContext.Provider>

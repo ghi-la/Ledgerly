@@ -93,7 +93,7 @@ function DashboardWidget({
   const { from, to } = rangeToDates(range);
   const accountIds = ((widget.config?.accountIds as string[] | undefined) ?? []).slice().sort();
   const statsUrl = `/api/stats?from=${from}&to=${to}${accountIds.length ? `&accounts=${accountIds.join(',')}` : ''}`;
-  const { data: stats, error } = useSWR<Stats>(statsUrl, fetcher);
+  const { data: stats, error, isValidating } = useSWR<Stats>(statsUrl, fetcher);
   const { t } = useTranslation('dashboard');
 
   if (error) return <Alert severity="error">{t('widgetLoadError')}</Alert>;
@@ -116,6 +116,7 @@ function DashboardWidget({
       onTitleChange={onTitleChange}
       onRemove={onRemove}
       onSizePreset={onSizePreset}
+      isValidating={isValidating}
     />
   );
 }

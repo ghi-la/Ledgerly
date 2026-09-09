@@ -16,6 +16,7 @@ import {
   CardContent,
   Checkbox,
   Chip,
+  CircularProgress,
   Divider,
   IconButton,
   LinearProgress,
@@ -175,6 +176,8 @@ export interface WidgetProps {
   onTitleChange?: (title: string) => void;
   onRemove?: () => void;
   onSizePreset?: (size: SizePresetKey) => void;
+  /** True while this widget's stats are being silently re-fetched in the background (cached data is already showing). */
+  isValidating?: boolean;
 }
 
 export const widgetTitle = (type: string, t: TFunction) => t(`widgets:titles.${type}`, { defaultValue: type });
@@ -237,6 +240,7 @@ function Shell({
   onRemove,
   onSizePreset,
   settingsContent,
+  isValidating,
   children,
 }: {
   title: string;
@@ -250,6 +254,7 @@ function Shell({
   onRemove?: () => void;
   onSizePreset?: (size: SizePresetKey) => void;
   settingsContent?: React.ReactNode;
+  isValidating?: boolean;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation('widgets');
@@ -282,6 +287,9 @@ function Shell({
             >
               {title}
             </Typography>
+            {isValidating && (
+              <CircularProgress size={10} thickness={6} sx={{ color: 'text.disabled', flexShrink: 0 }} />
+            )}
           </Stack>
           <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }} className="no-drag">
             {onRangeChange && (
@@ -480,6 +488,7 @@ function SpendByCategoryWidget({
   onTitleChange,
   onRemove,
   onSizePreset,
+  isValidating,
 }: WidgetProps) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
@@ -561,6 +570,7 @@ function SpendByCategoryWidget({
       onTitleChange={onTitleChange}
       onRemove={onRemove}
       onSizePreset={onSizePreset}
+      isValidating={isValidating}
       settingsContent={
         <Stack spacing={1.25}>
           <ConfigSelect
@@ -911,6 +921,7 @@ export function WidgetRenderer({
   onTitleChange,
   onRemove,
   onSizePreset,
+  isValidating,
 }: WidgetProps & { type: string }) {
   const { t } = useTranslation('widgets');
   const money = (v: number) => formatMoney(v, currency, locale);
@@ -934,6 +945,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           settingsContent={
             <AccountFilterField
               value={(config?.accountIds as string[]) ?? []}
@@ -958,6 +970,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           action={
             <Link component={NextLink} href="/settings" variant="caption">
               {t('links.manage')}
@@ -1014,6 +1027,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
         />
       );
 
@@ -1043,6 +1057,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           settingsContent={
             <Stack spacing={1.25}>
               <ConfigSelect
@@ -1131,6 +1146,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           settingsContent={
             <Stack spacing={1.25}>
               <ConfigSelect
@@ -1205,6 +1221,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           action={
             <Link component={NextLink} href="/budgets" variant="caption">
               {t('common:actions.edit')}
@@ -1259,6 +1276,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           action={
             <Link component={NextLink} href="/transactions" variant="caption">
               {t('links.seeAll')}
@@ -1314,6 +1332,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           action={
             <Link component={NextLink} href="/goals" variant="caption">
               {t('common:actions.edit')}
@@ -1368,6 +1387,7 @@ export function WidgetRenderer({
           onTitleChange={onTitleChange}
           onRemove={onRemove}
           onSizePreset={onSizePreset}
+          isValidating={isValidating}
           settingsContent={
             <AccountFilterField
               value={(config?.accountIds as string[]) ?? []}

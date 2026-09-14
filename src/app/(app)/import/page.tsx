@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
 import useSWR from 'swr';
 import {
@@ -35,6 +35,17 @@ import { fetcher, formatDate, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
 import { translateApiError } from '@/i18n/translateApiError';
 
+interface ImportProfile {
+  _id: string;
+  name: string;
+  accountId: string | null;
+  dateFormat: string;
+  amountMode: 'single' | 'debit_credit';
+  invertSign: boolean;
+  decimalSeparator: string;
+  mapping: Record<string, string>;
+}
+
 interface Draft {
   index: number;
   date: string | null;
@@ -65,6 +76,9 @@ const FIELD_KEYS = [
   { key: 'notes', required: false },
 ] as const;
 
+/** Device-level convenience, not account data - same pattern as the theme mode toggle. */
+const LAST_ACCOUNT_KEY = 'ledgerly-last-import-account';
+
 /** Best-effort match of common bank export headers to our fields. */
 const GUESSES: Record<string, RegExp> = {
   date: /^(date|transaction date|booking date|value date|data|posted)/i,
@@ -87,6 +101,10 @@ export default function ImportPage() {
     '/api/categories',
     fetcher,
   );
+  const { data: profiles, mutate: mutateProfiles } = useSWR<ImportProfile[]>(
+    '/api/import/profiles',
+    fetcher,
+  );
 
   const fileInput = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0);
@@ -104,9 +122,90 @@ export default function ImportPage() {
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [presetBusy, setPresetBusy] = useState(false);
   const [toast, setToast] = useState('');
 
   const categoryById = new Map((categories ?? []).map((c) => [c._id, c]));
+  const currentProfile = profiles?.find((p) => p.accountId === accountId);
+
+  // Preselect the account used last time, once the account list has loaded.
+  useEffect(() => {
+    if (accountId || !accounts?.length) return;
+    try {
+      const saved = window.localStorage.getItem(LAST_ACCOUNT_KEY);
+      if (saved && accounts.some((a) => a._id === saved)) setAccountId(saved);
+    } catch {
+      // Storage unavailable (e.g. private browsing) - just skip preselection.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts]);
+
+  useEffect(() => {
+    if (!accountId) return;
+    try {
+      window.localStorage.setItem(LAST_ACCOUNT_KEY, accountId);
+    } catch {
+      // ignore
+    }
+  }, [accountId]);
+
+  /** Applies a saved preset's mapping, keeping only entries whose column still exists in this file. */
+  const applyProfile = (profile: ImportProfile, availableHeaders: string[]) => {
+    const filteredMapping: Record<string, string> = {};
+    for (const [field, header] of Object.entries(profile.mapping ?? {})) {
+      if (typeof header === 'string' && availableHeaders.includes(header)) filteredMapping[field] = header;
+    }
+    setMapping((prev) => ({ ...prev, ...filteredMapping }));
+    setAmountMode(profile.amountMode === 'debit_credit' ? 'debit_credit' : 'single');
+    setDateFormat(profile.dateFormat || 'auto');
+    setDecimalSeparator(profile.decimalSeparator || 'auto');
+    setInvertSign(!!profile.invertSign);
+  };
+
+  const handleAccountChange = (id: string) => {
+    setAccountId(id);
+    const profile = profiles?.find((p) => p.accountId === id);
+    if (profile && headers.length) applyProfile(profile, headers);
+  };
+
+  const savePreset = async () => {
+    const account = accounts?.find((a) => a._id === accountId);
+    if (!account) return;
+    setPresetBusy(true);
+    setError('');
+    try {
+      await send('/api/import/profiles', 'POST', {
+        name: account.name,
+        accountId,
+        dateFormat,
+        amountMode,
+        invertSign,
+        decimalSeparator,
+        mapping,
+      });
+      await mutateProfiles();
+      setToast(t('preset.saved', { account: account.name }));
+    } catch (e) {
+      setError(e instanceof Error ? translateApiError(i18n, e.message) : t('preset.saveFailed'));
+    } finally {
+      setPresetBusy(false);
+    }
+  };
+
+  const removePreset = async () => {
+    if (!currentProfile) return;
+    setPresetBusy(true);
+    setError('');
+    try {
+      await send('/api/import/profiles', 'DELETE', { id: currentProfile._id });
+      await mutateProfiles();
+      setToast(t('preset.removed'));
+    } catch (e) {
+      setError(e instanceof Error ? translateApiError(i18n, e.message) : t('preset.removeFailed'));
+    } finally {
+      setPresetBusy(false);
+    }
+  };
 
   const readFile = (file: File) => {
     setError('');
@@ -139,6 +238,10 @@ export default function ImportPage() {
         }
         setMapping(guessed);
         setAmountMode(guessed.amount ? 'single' : guessed.debit || guessed.credit ? 'debit_credit' : 'single');
+        // An account may already be selected (preselected from last time) - prefer its saved
+        // preset over the header-guessing above, for whichever columns it recognises.
+        const profile = accountId ? profiles?.find((p) => p.accountId === accountId) : undefined;
+        if (profile) applyProfile(profile, fields);
         setStep(1);
       },
       error: () => setError(t('errors.csvUnreadable')),
@@ -311,7 +414,7 @@ export default function ImportPage() {
                     select
                     label={t('fields.importInto')}
                     value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
+                    onChange={(e) => handleAccountChange(e.target.value)}
                     required
                   >
                     {(accounts ?? []).map((a) => (
@@ -320,6 +423,27 @@ export default function ImportPage() {
                       </MenuItem>
                     ))}
                   </TextField>
+
+                  {accountId && (
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      {currentProfile ? (
+                        <>
+                          <Chip size="small" variant="outlined" label={t('preset.usingSaved')} />
+                          <Button size="small" disabled={presetBusy} onClick={removePreset}>
+                            {t('preset.remove')}
+                          </Button>
+                        </>
+                      ) : (
+                        <Tooltip title={mappingReady ? '' : t('preset.needsMapping')}>
+                          <span>
+                            <Button size="small" disabled={presetBusy || !mappingReady} onClick={savePreset}>
+                              {t('preset.save')}
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      )}
+                    </Stack>
+                  )}
 
                   <TextField
                     select

@@ -35,6 +35,16 @@
     "reading": "Lettura…",
     "previewRows": "Anteprima righe"
   },
+  "preset": {
+    "usingSaved": "Layout colonne salvato in uso",
+    "save": "Salva layout colonne per questo conto",
+    "remove": "Dimentica layout",
+    "needsMapping": "Abbina prima le colonne obbligatorie.",
+    "saved": "Layout colonne salvato per {{account}}.",
+    "saveFailed": "Impossibile salvare il layout delle colonne.",
+    "removed": "Layout colonne dimenticato.",
+    "removeFailed": "Impossibile rimuovere il layout delle colonne."
+  },
   "columnLabels": {
     "date": "Data",
     "description": "Descrizione",

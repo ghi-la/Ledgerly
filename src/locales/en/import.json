@@ -35,6 +35,16 @@
     "reading": "Reading…",
     "previewRows": "Preview rows"
   },
+  "preset": {
+    "usingSaved": "Using saved column layout",
+    "save": "Save column layout for this account",
+    "remove": "Forget layout",
+    "needsMapping": "Match the required columns first.",
+    "saved": "Saved the column layout for {{account}}.",
+    "saveFailed": "Could not save the column layout.",
+    "removed": "Forgot the saved column layout.",
+    "removeFailed": "Could not remove the column layout."
+  },
   "columnLabels": {
     "date": "Date",
     "description": "Description",

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from 'next/font/google';
+import Script from 'next/script';
 import Providers from './providers';
 
 const display = Bricolage_Grotesque({
@@ -31,6 +32,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body>
+        {/* Fires as early as possible - before hydration, overlapping the JS
+            bundle download - so a cold serverless instance starts opening its
+            MongoDB connection right away instead of waiting for the first
+            real data request. See src/app/api/warmup/route.ts. */}
+        <Script id="warmup-ping" strategy="beforeInteractive">
+          {"try { fetch('/api/warmup', { cache: 'no-store', keepalive: true }); } catch (e) {}"}
+        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>

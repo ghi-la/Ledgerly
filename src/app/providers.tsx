@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { SWRConfig } from 'swr';
 import I18nProvider from '@/i18n/I18nProvider';
 import { localStorageProvider } from '@/lib/swrCache';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 
 /** Keeps MUI X's date pickers (month/weekday names) in sync with `i18n.language` - a separate config knob react-i18next doesn't touch on its own. */
 function LocalizedPickers({ children }: { children: React.ReactNode }) {
@@ -64,6 +65,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             <CssBaseline />
             <Analytics />
             <SpeedInsights />
+            <ServiceWorkerRegister />
             <LocalizedPickers>
               <SessionProvider>
                 <SWRConfig

@@ -30,6 +30,9 @@
     "That email and password combination did not work.": "Questa combinazione di email e password non è corretta.",
     "This verification link is invalid or has already been used.": "Questo link di verifica non è valido o è già stato utilizzato.",
     "This verification link has expired. Request a new one from the sign-in page.": "Questo link di verifica è scaduto. Richiedine uno nuovo dalla pagina di accesso.",
+    "Missing reset token.": "Token di reimpostazione mancante.",
+    "This password reset link is invalid or has already been used.": "Questo link di reimpostazione password non è valido o è già stato utilizzato.",
+    "This password reset link has expired. Request a new one from the sign-in page.": "Questo link di reimpostazione password è scaduto. Richiedine uno nuovo dalla pagina di accesso.",
     "Date could not be read": "Data non leggibile",
     "Amount could not be read": "Importo non leggibile",
     "Temporary/disposable email addresses are not allowed. Please use a permanent email address.": "Non sono consentiti indirizzi email temporanei/usa e getta. Utilizza un indirizzo email permanente."

@@ -201,16 +201,20 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                     />
                   )}
                   {mode === 'login' && (
-                    <FormControlLabel
-                      sx={{ mr: 0 }}
-                      control={
-                        <Checkbox
-                          checked={rememberMe}
-                          onChange={(e) => setRememberMe(e.target.checked)}
-                        />
-                      }
-                      label={t('rememberMe')}
-                    />
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mr: 0 }}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                          />
+                        }
+                        label={t('rememberMe')}
+                      />
+                      <Link component={NextLink} href="/forgot-password" variant="body2">
+                        {t('forgotPassword.link')}
+                      </Link>
+                    </Stack>
                   )}
                   {mode === 'login' && unverifiedEmail !== '' && unverifiedEmail === email.trim().toLowerCase() && (
                     <Alert

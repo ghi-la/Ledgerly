@@ -99,6 +99,11 @@ const UserSchema = new Schema(
     emailVerificationTokenHash: { type: String, default: null },
     emailVerificationExpires: { type: Date, default: null },
     emailVerificationSentAt: { type: Date, default: null },
+    // Forgot-password flow. Same hash-only-storage approach as email
+    // verification above.
+    passwordResetTokenHash: { type: String, default: null },
+    passwordResetExpires: { type: Date, default: null },
+    passwordResetSentAt: { type: Date, default: null },
     settings: {
       currency: { type: String, default: 'EUR' },
       locale: { type: String, default: 'en-GB' },

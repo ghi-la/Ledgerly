@@ -40,3 +40,35 @@ export async function sendVerificationEmail(to: string, name: string, verifyUrl:
     throw new Error('Could not send the verification email. Try again shortly.');
   }
 }
+
+export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string) {
+  if (!resend) {
+    console.warn(`[email] RESEND_API_KEY not set. Password reset link for ${to}:\n${resetUrl}`);
+    return;
+  }
+
+  const from = process.env.EMAIL_FROM || 'Ledgerly <onboarding@resend.dev>';
+  const { error } = await resend.emails.send({
+    from,
+    to,
+    subject: 'Reset your Ledgerly password',
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #2E7D6F;">Reset your password${name ? `, ${name}` : ''}</h2>
+        <p>We got a request to reset the password on your Ledgerly account.</p>
+        <p>
+          <a href="${resetUrl}" style="display: inline-block; background: #2E7D6F; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+            Reset password
+          </a>
+        </p>
+        <p style="color: #666; font-size: 13px;">Or paste this link into your browser: ${resetUrl}</p>
+        <p style="color: #666; font-size: 13px;">This link expires in 1 hour. If you didn't request this, you can ignore this email - your password won't change.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[email] Failed to send password reset email:', error);
+    throw new Error('Could not send the password reset email. Try again shortly.');
+  }
+}

@@ -2,8 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { Alert, Box, Button, Divider, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  IconButton,
+  Snackbar,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import CopyIcon from '@mui/icons-material/ContentCopyOutlined';
+import CheckIcon from '@mui/icons-material/CheckRounded';
 import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { useSettings } from '@/components/ui';
@@ -32,31 +44,48 @@ export default function ShareSetup() {
   const [name, setName] = useState('iPhone');
   const [created, setCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState('');
+  // Whether the new token made it onto the clipboard when it was created.
+  const [autoCopied, setAutoCopied] = useState(false);
+  const [toast, setToast] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploadUrl, setUploadUrl] = useState('');
 
   useEffect(() => setUploadUrl(`${window.location.origin}/api/import/inbox`), []);
 
+  // The copy button shows a check mark briefly, then goes back to the copy icon.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(''), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
   const copy = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(value);
+      setToast(t('share.copiedToast'));
     } catch {
       // Clipboard blocked - the value is still selectable on screen.
+      setToast(t('share.copyFailed'));
     }
   };
 
   const create = async () => {
     setBusy(true);
     setError('');
+    setAutoCopied(false);
     const request = send('/api/tokens', 'POST', { name });
     // Safari only allows clipboard writes during the tap itself, so the copy is
     // started now with the token as a promise rather than after the request returns.
     try {
       void navigator.clipboard
         .write([new ClipboardItem({ 'text/plain': request.then((r) => new Blob([r.token], { type: 'text/plain' })) })])
-        .then(() => request.then((r) => setCopied(r.token)))
+        .then(() => request.then((r) => {
+          setCopied(r.token);
+          setAutoCopied(true);
+          setToast(t('share.tokenCopiedToast'));
+        }))
         .catch(() => undefined);
     } catch {
       // ClipboardItem unsupported - the token is still shown with a copy button.
@@ -89,7 +118,11 @@ export default function ShareSetup() {
         endAdornment: (
           <Tooltip title={copied === value ? t('share.copied') : t('share.copy')}>
             <IconButton size="small" edge="end" onClick={() => copy(value)}>
-              <CopyIcon fontSize="small" />
+              {copied === value ? (
+                <CheckIcon fontSize="small" color="success" />
+              ) : (
+                <CopyIcon fontSize="small" />
+              )}
             </IconButton>
           </Tooltip>
         ),
@@ -118,7 +151,7 @@ export default function ShareSetup() {
       {created ? (
         <Alert severity="success" onClose={() => setCreated(null)}>
           <Typography variant="body2" sx={{ mb: 1.5 }}>
-            {t('share.tokenOnce')}
+            {autoCopied ? t('share.tokenOnce') : t('share.tokenCopyManually')}
           </Typography>
           {copyField(t('share.token'), created)}
         </Alert>
@@ -163,6 +196,8 @@ export default function ShareSetup() {
           ))}
         </Stack>
       )}
+
+      <Snackbar open={!!toast} autoHideDuration={2500} onClose={() => setToast('')} message={toast} />
     </Stack>
   );
 }

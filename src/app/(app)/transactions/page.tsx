@@ -134,7 +134,13 @@ export default function TransactionsPage() {
   const searchTerm = search.trim();
 
   const query = useMemo(() => {
-    const p = new URLSearchParams({ sortBy, sortDir, limit: String(rowsPerPage), skip: String(page * rowsPerPage) });
+    const p = new URLSearchParams({
+      sortBy,
+      sortDir,
+      limit: String(rowsPerPage),
+      skip: String(page * rowsPerPage),
+      balances: '1',
+    });
     if (accountId) p.set('accountId', accountId);
     if (categoryId) p.set('categoryId', categoryId);
     if (from) p.set('from', from);

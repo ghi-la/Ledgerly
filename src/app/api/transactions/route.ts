@@ -3,6 +3,7 @@ import { HttpError, invalidateStats, ok, oid, requireUser, route } from '@/lib/a
 import { dedupeKey, recurringKey } from '@/lib/parse';
 import { buildTransactionFilter } from '@/lib/transactionFilter';
 import { decryptTxFields, encryptTxFields, getUserDek } from '@/lib/serverCrypto';
+import { getAccountTotals } from '@/lib/accountTotals';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,39 +34,78 @@ function fetchSorted(
   ]);
 }
 
+/** Ledger order within an account: by date, ties broken by _id (both ascending). */
+function compareLedger(a: Record<string, unknown>, b: Record<string, unknown>) {
+  const byDate = new Date(a.date as Date).getTime() - new Date(b.date as Date).getTime();
+  if (byDate) return byDate;
+  // ObjectId hex strings are fixed-length, so string order is _id order.
+  const aId = String(a._id);
+  const bId = String(b._id);
+  if (aId === bId) return 0;
+  return aId < bId ? -1 : 1;
+}
+
+/**
+ * For each of `rows` (all in one account), the sum of every transaction that
+ * comes after it in that account's ledger - one grouped pass over only the
+ * transactions dated on/after the oldest of `rows`.
+ */
+async function sumsLedgeredAfter(userId: unknown, accountId: string, rows: Record<string, unknown>[]) {
+  const oldest = rows.reduce((min, r) => (compareLedger(r, min) < 0 ? r : min), rows[0]);
+  const sums = Object.fromEntries(
+    rows.map((r, i) => [
+      `s${i}`,
+      {
+        $sum: {
+          $cond: [
+            { $or: [{ $gt: ['$date', r.date] }, { $and: [{ $eq: ['$date', r.date] }, { $gt: ['$_id', r._id] }] }] },
+            '$amount',
+            0,
+          ],
+        },
+      },
+    ]),
+  );
+  const [result] = await Transaction.aggregate([
+    { $match: { userId, accountId: oid(accountId), date: { $gte: oldest.date } } },
+    { $group: { _id: null, ...sums } },
+  ]);
+  return rows.map((r, i) => [String(r._id), (result?.[`s${i}`] as number) ?? 0] as const);
+}
+
 /**
  * Attaches each transaction's running balance in its own account's full
  * chronological ledger (seeded by the account's opening balance); the real
  * point-in-time balance, independent of whatever filter/sort produced `items`.
+ *
+ * Worked backwards from the account's cached all-time total - balance after
+ * a row = opening + total - (everything ledgered after it) - so only the
+ * transactions newer than the page's oldest row get scanned. Newest-first
+ * browsing therefore touches a page's worth of rows, not the whole history.
  */
 async function attachBalances(userId: unknown, items: Record<string, unknown>[]) {
   if (!items.length) return;
-  const accountIds = [...new Set(items.map((i) => String(i.accountId)))].map((id) => oid(id));
-  const txIds = items.map((i) => i._id);
+  const rowsByAccount = new Map<string, Record<string, unknown>[]>();
+  for (const item of items) {
+    const key = String(item.accountId);
+    if (!rowsByAccount.has(key)) rowsByAccount.set(key, []);
+    rowsByAccount.get(key)!.push(item);
+  }
 
-  const [accounts, running] = await Promise.all([
-    Account.find({ _id: { $in: accountIds } }, { openingBalance: 1 }).lean(),
-    Transaction.aggregate([
-      { $match: { userId, accountId: { $in: accountIds } } },
-      {
-        $setWindowFields: {
-          partitionBy: '$accountId',
-          sortBy: { date: 1, _id: 1 },
-          output: { runningTotal: { $sum: '$amount', window: { documents: ['unbounded', 'current'] } } },
-        },
-      },
-      { $match: { _id: { $in: txIds } } },
-      { $project: { runningTotal: 1 } },
-    ]),
+  const [accounts, totals, laterSums] = await Promise.all([
+    Account.find({ _id: { $in: [...rowsByAccount.keys()].map((id) => oid(id)) } }, { openingBalance: 1 }).lean(),
+    getAccountTotals(userId),
+    Promise.all([...rowsByAccount].map(([accountId, rows]) => sumsLedgeredAfter(userId, accountId, rows))),
   ]);
 
   const openingByAccount = new Map(accounts.map((a) => [String(a._id), a.openingBalance ?? 0]));
-  const runningByTx = new Map(running.map((r) => [String(r._id), r.runningTotal]));
+  const laterByTx = new Map(laterSums.flat());
 
   for (const item of items) {
-    const opening = openingByAccount.get(String(item.accountId)) ?? 0;
-    const runningTotal = runningByTx.get(String(item._id)) ?? 0;
-    item.balance = opening + runningTotal;
+    const accountId = String(item.accountId);
+    const opening = openingByAccount.get(accountId) ?? 0;
+    const total = totals[accountId]?.total ?? 0;
+    item.balance = opening + total - (laterByTx.get(String(item._id)) ?? 0);
   }
 }
 
@@ -141,7 +181,9 @@ export const GET = route(async (req: Request) => {
     total = count;
   }
 
-  await attachBalances(userId, items);
+  // The running-balance window scan covers each account's whole ledger, so
+  // only callers that render the balance column opt in.
+  if (q.get('balances') === '1') await attachBalances(userId, items);
 
   return ok({ items, total, limit, skip });
 });

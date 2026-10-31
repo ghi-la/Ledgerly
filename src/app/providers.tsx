@@ -73,7 +73,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     provider: localStorageProvider,
                     revalidateOnFocus: true,
                     revalidateOnReconnect: true,
-                    dedupingInterval: 5000,
+                    // Refocusing a tab shouldn't refire every mounted key (7+
+                    // stats requests on the dashboard) more than once a minute.
+                    focusThrottleInterval: 60000,
+                    keepPreviousData: true,
+                    dedupingInterval: 10000,
                   }}
                 >
                   {children}

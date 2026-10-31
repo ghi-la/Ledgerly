@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { Account, Budget, Category, Goal, Transaction } from '@/lib/models';
 import { ok, requireUser, route } from '@/lib/api';
 import { decryptTxFields, getUserDek } from '@/lib/serverCrypto';
+import { getAccountTotals } from '@/lib/accountTotals';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,11 +82,8 @@ async function computeStats(
 
   const monthKeys = monthsBetween(from, to);
 
-  const [balanceAgg, totalsAgg, byCategoryAgg, seriesAgg, expenseRows, recentRaw] = await Promise.all([
-    Transaction.aggregate([
-      { $match: { userId } },
-      { $group: { _id: '$accountId', total: { $sum: '$amount' } } },
-    ]),
+  const [accountTotals, totalsAgg, byCategoryAgg, seriesAgg, expenseRows, recentRaw] = await Promise.all([
+    getAccountTotals(userIdStr),
     Transaction.aggregate([
       { $match: { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, ...accountMatch } },
       {
@@ -145,7 +143,6 @@ async function computeStats(
     .slice(0, 8)
     .map((g) => ({ _id: g.merchantKey, label: g.firstDescription, total: g.total, count: g.count }));
 
-  const balanceByAccount = new Map(balanceAgg.map((b) => [String(b._id), b.total]));
   // Kept unfiltered - goal-linked balances and the recent-transactions
   // account name lookup below should resolve regardless of this request's
   // own account filter (that filter only scopes this widget's own totals).
@@ -155,7 +152,7 @@ async function computeStats(
     type: a.type,
     color: a.color,
     archived: a.archived,
-    balance: (a.openingBalance ?? 0) + (balanceByAccount.get(String(a._id)) ?? 0),
+    balance: (a.openingBalance ?? 0) + (accountTotals[String(a._id)]?.total ?? 0),
   }));
   const visibleAccountRows = accountIds ? accountRows.filter((a) => accountIds.includes(a._id)) : accountRows;
 

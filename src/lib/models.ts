@@ -180,6 +180,9 @@ const TransactionSchema = new Schema(
 );
 TransactionSchema.index({ userId: 1, date: -1 });
 TransactionSchema.index({ accountId: 1, date: 1 });
+TransactionSchema.index({ userId: 1, accountId: 1, date: 1 });
+TransactionSchema.index({ userId: 1, categoryId: 1, date: -1 });
+TransactionSchema.index({ userId: 1, type: 1, date: -1 });
 
 const RuleSchema = new Schema(
   {

@@ -1,21 +1,19 @@
-import { Account, Transaction } from '@/lib/models';
+import { Account } from '@/lib/models';
 import { invalidateStats, ok, requireUser, route, HttpError } from '@/lib/api';
+import { getAccountTotals } from '@/lib/accountTotals';
 
 export const dynamic = 'force-dynamic';
 
 export const GET = route(async () => {
   const userId = await requireUser();
-  const accounts = await Account.find({ userId }).sort({ archived: 1, name: 1 }).lean();
-
-  const sums = await Transaction.aggregate([
-    { $match: { userId } },
-    { $group: { _id: '$accountId', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+  const [accounts, totals] = await Promise.all([
+    Account.find({ userId }).sort({ archived: 1, name: 1 }).lean(),
+    getAccountTotals(userId),
   ]);
-  const byAccount = new Map(sums.map((s) => [String(s._id), s]));
 
   return ok(
     accounts.map((a) => {
-      const s = byAccount.get(String(a._id));
+      const s = totals[String(a._id)];
       return {
         ...a,
         balance: (a.openingBalance ?? 0) + (s?.total ?? 0),

@@ -66,7 +66,9 @@ export async function readUpload(req: Request): Promise<{ fileName: string; text
 
   const text = decodeText(bytes);
   if (!text.trim()) throw new HttpError(400, 'No file was attached.');
-  return { fileName: fileName.trim() || 'statement.csv', text };
+  // A raw-body upload (the Shortcut's "File" request body) carries no file name.
+  const fallbackName = `import-${new Date().toISOString().slice(0, 10)}.csv`;
+  return { fileName: fileName.trim() || fallbackName, text };
 }
 
 export async function addToInbox(

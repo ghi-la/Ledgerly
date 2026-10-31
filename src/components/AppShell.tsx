@@ -48,6 +48,7 @@ import { LANG_STORAGE_KEY } from '@/i18n/languageDetector';
 import { DEFAULT_BOTTOM_NAV } from '@/lib/navConfig';
 import { DEFAULT_FAB_ENABLED, DEFAULT_FAB_ICON_STYLE, DEFAULT_FAB_MODE } from '@/lib/fabConfig';
 import RouteProgress from './RouteProgress';
+import { INBOX_FILE_EVENT, useFreshInboxFile } from '@/lib/useFreshInboxFile';
 
 const DRAWER = 248;
 
@@ -79,6 +80,13 @@ export default function AppShell({
       window.localStorage.setItem(LANG_STORAGE_KEY, lang);
     }
   }, [locale, i18n]);
+
+  // A CSV just sent from the iOS Shortcut: jump to the import page with it
+  // loaded, or hand it to the import page if that's already on screen.
+  useFreshInboxFile((id) => {
+    if (pathname === '/import') window.dispatchEvent(new CustomEvent(INBOX_FILE_EVENT, { detail: id }));
+    else router.push(`/import?inbox=${id}`);
+  });
 
   const NAV = [
     { href: '/dashboard', label: t('nav.dashboard'), icon: <DashboardIcon />, group: 'top' },

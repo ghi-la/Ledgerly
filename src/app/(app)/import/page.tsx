@@ -35,6 +35,7 @@ import { useTranslation } from 'react-i18next';
 import { fetcher, formatDate, send } from '@/lib/client';
 import { Money, PageHeader, useSettings } from '@/components/ui';
 import { translateApiError } from '@/i18n/translateApiError';
+import { INBOX_FILE_EVENT, markInboxFileHandled } from '@/lib/useFreshInboxFile';
 
 interface ImportProfile {
   _id: string;
@@ -145,15 +146,25 @@ export default function ImportPage() {
   const currentProfile = profiles?.find((p) => p.accountId === accountId);
   // Papa's completion callback (and inbox fetches) resolve after later renders,
   // so they read the selected account and presets from here rather than a stale closure.
-  const latest = useRef({ accountId, profiles });
-  latest.current = { accountId, profiles };
+  const latest = useRef({ accountId, profiles, step });
+  latest.current = { accountId, profiles, step };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const shareError = params.get('shareError');
     if (shareError) setError(translateApiError(i18n, shareError));
     pendingInboxId.current = params.get('inbox');
+    // Stops the app shell's fresh-file check from opening this same file again.
+    if (pendingInboxId.current) markInboxFileHandled(pendingInboxId.current);
     if (shareError || pendingInboxId.current) window.history.replaceState(null, '', '/import');
+
+    // A file sent from the iOS Shortcut while this page was already open (see AppShell).
+    const onFreshFile = (e: Event) => {
+      void mutateInbox();
+      if (latest.current.step === 0) void openInboxFile((e as CustomEvent<string>).detail);
+    };
+    window.addEventListener(INBOX_FILE_EVENT, onFreshFile);
+    return () => window.removeEventListener(INBOX_FILE_EVENT, onFreshFile);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

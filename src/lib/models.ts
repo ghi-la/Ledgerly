@@ -279,7 +279,7 @@ const ApiTokenSchema = new Schema(
 const InboxFileSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    fileName: { type: String, default: 'statement.csv' },
+    fileName: { type: String, required: true },
     size: { type: Number, default: 0 },
     source: { type: String, enum: ['shortcut', 'share-target'], default: 'shortcut' },
     content: { type: String, required: true },

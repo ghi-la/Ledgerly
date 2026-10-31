@@ -12,7 +12,7 @@
   "toast": { "saved": "Settings saved." },
   "bottomNav": {
     "title": "Bottom navigation",
-    "description": "Choose which links appear in the mobile bottom bar, and drag the handle to reorder them ({{min}}–{{max}} links).",
+    "description": "Send bank CSVs from the iPhone share sheet straight to Ledgerly with an iOS Shortcut. Set it up once:",
     "addLink": "Add link"
   },
   "fab": {
@@ -56,14 +56,22 @@
     "description": "Lets an iOS Shortcut send CSVs from the share sheet straight into your import inbox. The Shortcut needs the upload URL and an access token.",
     "uploadUrl": "Upload URL",
     "tokenName": "Device name",
-    "create": "Create access token",
+    "create": "Create and copy token",
     "createFailed": "Could not create the access token.",
-    "tokenOnce": "Copy this token into the Shortcut now. It will not be shown again.",
+    "tokenOnce": "Token copied. Paste it into the Shortcut now. It will not be shown again.",
     "token": "Access token",
     "copy": "Copy",
     "copied": "Copied",
     "lastUsed": "Last used {{date}}",
     "neverUsed": "Never used",
-    "revoke": "Revoke"
+    "revoke": "Revoke",
+    "guide": {
+      "token": "Below, tap \"Create and copy token\".",
+      "create": "In the Shortcuts app, tap + and name the new shortcut \"Send to Ledgerly\".",
+      "shareSheet": "Open its details (ⓘ), turn on \"Show in Share Sheet\", and under Receive keep only Files.",
+      "request": "Add the \"Get Contents of URL\" action: paste the upload URL below, set Method to POST, add the header Authorization with the value \"Bearer \" followed by your token, and set Request Body to File with Shortcut Input.",
+      "open": "Optional: add \"Show Notification\" at the end, so you know the file arrived.",
+      "use": "From your bank app or Safari, open the CSV, tap Share, then \"Send to Ledgerly\". Then tap the Ledgerly icon within 10 minutes: it opens on the import with the file ready."
+    }
   }
 }

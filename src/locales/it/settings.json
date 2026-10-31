@@ -12,7 +12,7 @@
   "toast": { "saved": "Impostazioni salvate." },
   "bottomNav": {
     "title": "Barra di navigazione inferiore",
-    "description": "Scegli quali link mostrare nella barra inferiore su mobile e trascina la maniglia per riordinarli ({{min}}–{{max}} link).",
+    "description": "Invia i CSV della banca dal menu Condividi dell’iPhone direttamente a Ledgerly con un Comando rapido iOS. Si configura una volta sola:",
     "addLink": "Aggiungi link"
   },
   "fab": {
@@ -56,14 +56,22 @@
     "description": "Permette a un Comando rapido iOS di inviare i CSV dal menu Condividi direttamente nella tua coda di importazione. Il Comando ha bisogno dell’URL di caricamento e di un token di accesso.",
     "uploadUrl": "URL di caricamento",
     "tokenName": "Nome del dispositivo",
-    "create": "Crea token di accesso",
+    "create": "Crea e copia token",
     "createFailed": "Impossibile creare il token di accesso.",
-    "tokenOnce": "Copia subito questo token nel Comando rapido. Non verrà più mostrato.",
+    "tokenOnce": "Token copiato. Incollalo subito nel Comando rapido. Non verrà più mostrato.",
     "token": "Token di accesso",
     "copy": "Copia",
     "copied": "Copiato",
     "lastUsed": "Ultimo utilizzo {{date}}",
     "neverUsed": "Mai utilizzato",
-    "revoke": "Revoca"
+    "revoke": "Revoca",
+    "guide": {
+      "token": "Qui sotto, tocca \"Crea e copia token\".",
+      "create": "Nell’app Comandi, tocca + e chiama il nuovo comando \"Send to Ledgerly\".",
+      "shareSheet": "Apri i dettagli (ⓘ), attiva \"Mostra nel foglio di condivisione\" e in Ricevi lascia solo File.",
+      "request": "Aggiungi l’azione \"Ottieni contenuti di URL\": incolla l’URL di caricamento qui sotto, imposta Metodo su POST, aggiungi l’intestazione Authorization con valore \"Bearer \" seguito dal token, e imposta Corpo della richiesta su File con Input comando rapido.",
+      "open": "Facoltativo: aggiungi alla fine \"Mostra notifica\", così sai che il file è arrivato.",
+      "use": "Dall’app della banca o da Safari apri il CSV, tocca Condividi e poi \"Send to Ledgerly\". Poi tocca l’icona di Ledgerly entro 10 minuti: si apre sull’importazione con il file pronto."
+    }
   }
 }

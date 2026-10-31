@@ -9,6 +9,9 @@ import { fetcher, formatDate, send } from '@/lib/client';
 import { useSettings } from '@/components/ui';
 import { translateApiError } from '@/i18n/translateApiError';
 
+/** Steps for building the "Send to Ledgerly" Shortcut, as keys under `share.guide`. */
+const GUIDE_STEPS = ['token', 'create', 'shareSheet', 'request', 'open', 'use'];
+
 interface Token {
   _id: string;
   name: string;
@@ -47,8 +50,19 @@ export default function ShareSetup() {
   const create = async () => {
     setBusy(true);
     setError('');
+    const request = send('/api/tokens', 'POST', { name });
+    // Safari only allows clipboard writes during the tap itself, so the copy is
+    // started now with the token as a promise rather than after the request returns.
     try {
-      const res = await send('/api/tokens', 'POST', { name });
+      void navigator.clipboard
+        .write([new ClipboardItem({ 'text/plain': request.then((r) => new Blob([r.token], { type: 'text/plain' })) })])
+        .then(() => request.then((r) => setCopied(r.token)))
+        .catch(() => undefined);
+    } catch {
+      // ClipboardItem unsupported - the token is still shown with a copy button.
+    }
+    try {
+      const res = await request;
       setCreated(res.token);
       await mutate();
     } catch (e) {
@@ -89,7 +103,11 @@ export default function ShareSetup() {
         {t('share.description')}
       </Typography>
 
-      {copyField(t('share.uploadUrl'), uploadUrl)}
+      <Box component="ol" sx={{ m: 0, pl: 2.5, '& li': { mb: 0.75 }, typography: 'body2' }}>
+        {GUIDE_STEPS.map((step) => (
+          <li key={step}>{t(`share.guide.${step}`)}</li>
+        ))}
+      </Box>
 
       {error && (
         <Alert severity="error" onClose={() => setError('')}>
@@ -118,6 +136,8 @@ export default function ShareSetup() {
           </Button>
         </Stack>
       )}
+
+      {copyField(t('share.uploadUrl'), uploadUrl)}
 
       {!!tokens?.length && (
         <Stack divider={<Divider flexItem />}>

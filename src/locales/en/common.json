@@ -35,6 +35,13 @@
     "This password reset link has expired. Request a new one from the sign-in page.": "This password reset link has expired. Request a new one from the sign-in page.",
     "Date could not be read": "Date could not be read",
     "Amount could not be read": "Amount could not be read",
-    "Temporary/disposable email addresses are not allowed. Please use a permanent email address.": "Temporary/disposable email addresses are not allowed. Please use a permanent email address."
+    "Temporary/disposable email addresses are not allowed. Please use a permanent email address.": "Temporary/disposable email addresses are not allowed. Please use a permanent email address.",
+    "That access token is not valid. Create a new one in Settings.": "That access token is not valid. Create a new one in Settings.",
+    "That file is not a CSV.": "That file is not a CSV.",
+    "No file was attached.": "No file was attached.",
+    "That file is too large (2 MB max).": "That file is too large (2 MB max).",
+    "Your import inbox is full. Import or discard some files first.": "Your import inbox is full. Import or discard some files first.",
+    "That file is no longer waiting to be imported.": "That file is no longer waiting to be imported.",
+    "You have too many access tokens. Revoke one first.": "You have too many access tokens. Revoke one first."
   }
 }

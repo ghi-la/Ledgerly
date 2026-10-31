@@ -35,6 +35,13 @@
     "This password reset link has expired. Request a new one from the sign-in page.": "Questo link di reimpostazione password è scaduto. Richiedine uno nuovo dalla pagina di accesso.",
     "Date could not be read": "Data non leggibile",
     "Amount could not be read": "Importo non leggibile",
-    "Temporary/disposable email addresses are not allowed. Please use a permanent email address.": "Non sono consentiti indirizzi email temporanei/usa e getta. Utilizza un indirizzo email permanente."
+    "Temporary/disposable email addresses are not allowed. Please use a permanent email address.": "Non sono consentiti indirizzi email temporanei/usa e getta. Utilizza un indirizzo email permanente.",
+    "That access token is not valid. Create a new one in Settings.": "Questo token di accesso non è valido. Creane uno nuovo nelle Impostazioni.",
+    "That file is not a CSV.": "Questo file non è un CSV.",
+    "No file was attached.": "Nessun file allegato.",
+    "That file is too large (2 MB max).": "Il file è troppo grande (massimo 2 MB).",
+    "Your import inbox is full. Import or discard some files first.": "La coda di importazione è piena. Importa o scarta prima qualche file.",
+    "That file is no longer waiting to be imported.": "Questo file non è più in attesa di importazione.",
+    "You have too many access tokens. Revoke one first.": "Hai troppi token di accesso. Revocane prima uno."
   }
 }

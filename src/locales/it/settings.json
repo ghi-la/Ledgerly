@@ -50,5 +50,20 @@
       "showCadences": "Mostra frequenze",
       "save": "Salva preferenze"
     }
+  },
+  "share": {
+    "title": "Condivisione da iPhone",
+    "description": "Permette a un Comando rapido iOS di inviare i CSV dal menu Condividi direttamente nella tua coda di importazione. Il Comando ha bisogno dell’URL di caricamento e di un token di accesso.",
+    "uploadUrl": "URL di caricamento",
+    "tokenName": "Nome del dispositivo",
+    "create": "Crea token di accesso",
+    "createFailed": "Impossibile creare il token di accesso.",
+    "tokenOnce": "Copia subito questo token nel Comando rapido. Non verrà più mostrato.",
+    "token": "Token di accesso",
+    "copy": "Copia",
+    "copied": "Copiato",
+    "lastUsed": "Ultimo utilizzo {{date}}",
+    "neverUsed": "Mai utilizzato",
+    "revoke": "Revoca"
   }
 }

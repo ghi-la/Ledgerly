@@ -31,6 +31,14 @@ export const authConfig: NextAuthConfig = {
       // The landing page at "/" handles its own auth check and redirect,
       // so it must stay reachable for signed-out visitors.
       if (request.nextUrl.pathname === '/') return true;
+      // The iOS Shortcut has no session cookie; it authenticates with a
+      // personal access token, which the route itself verifies.
+      if (
+        request.nextUrl.pathname === '/api/import/inbox' &&
+        request.headers.get('authorization')?.startsWith('Bearer ')
+      ) {
+        return true;
+      }
       return !!auth?.user;
     },
     async jwt({ token, user }) {

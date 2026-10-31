@@ -89,5 +89,12 @@
   "toast": {
     "imported_one": "Imported {{count}} transaction.",
     "imported_other": "Imported {{count}} transactions."
+  },
+  "inbox": {
+    "title": "Waiting to import",
+    "subtitle": "Files you shared to Ledgerly from your phone.",
+    "received": "Received {{date}}",
+    "open": "Import",
+    "discard": "Discard"
   }
 }

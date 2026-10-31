@@ -11,6 +11,7 @@ import {
   CardContent,
   Checkbox,
   Chip,
+  Divider,
   FormControlLabel,
   Grid,
   MenuItem,
@@ -44,6 +45,14 @@ interface ImportProfile {
   invertSign: boolean;
   decimalSeparator: string;
   mapping: Record<string, string>;
+}
+
+interface InboxItem {
+  _id: string;
+  fileName: string;
+  size: number;
+  source: 'shortcut' | 'share-target';
+  createdAt: string;
 }
 
 interface Draft {
@@ -105,8 +114,15 @@ export default function ImportPage() {
     '/api/import/profiles',
     fetcher,
   );
+  const { data: inbox, mutate: mutateInbox } = useSWR<InboxItem[]>('/api/import/inbox', fetcher);
 
   const fileInput = useRef<HTMLInputElement>(null);
+  // File shared in from the iOS Shortcut / Android share sheet that's currently loaded,
+  // so it can be cleared from the inbox once imported.
+  const [inboxId, setInboxId] = useState<string | null>(null);
+  const [inboxBusy, setInboxBusy] = useState(false);
+  // `?inbox=<id>` from the Android share target, opened once accounts and presets have loaded.
+  const pendingInboxId = useRef<string | null>(null);
   const [step, setStep] = useState(0);
   const [fileName, setFileName] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
@@ -127,6 +143,27 @@ export default function ImportPage() {
 
   const categoryById = new Map((categories ?? []).map((c) => [c._id, c]));
   const currentProfile = profiles?.find((p) => p.accountId === accountId);
+  // Papa's completion callback (and inbox fetches) resolve after later renders,
+  // so they read the selected account and presets from here rather than a stale closure.
+  const latest = useRef({ accountId, profiles });
+  latest.current = { accountId, profiles };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareError = params.get('shareError');
+    if (shareError) setError(translateApiError(i18n, shareError));
+    pendingInboxId.current = params.get('inbox');
+    if (shareError || pendingInboxId.current) window.history.replaceState(null, '', '/import');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!pendingInboxId.current || !profiles || !accounts) return;
+    const id = pendingInboxId.current;
+    pendingInboxId.current = null;
+    void openInboxFile(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profiles, accounts]);
 
   // Preselect the account used last time, once the account list has loaded.
   useEffect(() => {
@@ -207,10 +244,36 @@ export default function ImportPage() {
     }
   };
 
-  const readFile = (file: File) => {
+  const openInboxFile = async (id: string) => {
+    setInboxBusy(true);
     setError('');
-    setFileName(file.name);
-    Papa.parse<Record<string, string>>(file, {
+    try {
+      const file = await fetcher(`/api/import/inbox/${id}`);
+      setInboxId(id);
+      parseCsv(file.text, file.fileName);
+    } catch (e) {
+      setError(e instanceof Error ? translateApiError(i18n, e.message) : t('errors.csvUnreadable'));
+      void mutateInbox();
+    } finally {
+      setInboxBusy(false);
+    }
+  };
+
+  const discardInboxFile = async (id: string) => {
+    await send(`/api/import/inbox/${id}`, 'DELETE').catch(() => undefined);
+    if (inboxId === id) setInboxId(null);
+    void mutateInbox();
+  };
+
+  const readFile = (file: File) => {
+    setInboxId(null);
+    parseCsv(file, file.name);
+  };
+
+  const parseCsv = (input: File | string, name: string) => {
+    setError('');
+    setFileName(name);
+    Papa.parse<Record<string, string>>(input as File, {
       header: true,
       skipEmptyLines: 'greedy',
       delimiter: '', // papaparse sniffs comma, semicolon or tab
@@ -240,6 +303,7 @@ export default function ImportPage() {
         setAmountMode(guessed.amount ? 'single' : guessed.debit || guessed.credit ? 'debit_credit' : 'single');
         // An account may already be selected (preselected from last time) - prefer its saved
         // preset over the header-guessing above, for whichever columns it recognises.
+        const { accountId, profiles } = latest.current;
         const profile = accountId ? profiles?.find((p) => p.accountId === accountId) : undefined;
         if (profile) applyProfile(profile, fields);
         setStep(1);
@@ -284,6 +348,7 @@ export default function ImportPage() {
       const chosen = drafts.filter((d) => !excluded.has(d.index) && !d.error);
       const res = await send('/api/import/commit', 'POST', { accountId, drafts: chosen });
       setToast(t('toast.imported', { count: res.imported }));
+      if (inboxId) void discardInboxFile(inboxId);
       reset();
     } catch (e) {
       setError(e instanceof Error ? translateApiError(i18n, e.message) : t('errors.importFailed'));
@@ -298,6 +363,7 @@ export default function ImportPage() {
     setHeaders([]);
     setDrafts([]);
     setFileName('');
+    setInboxId(null);
     setExcluded(new Set());
     if (fileInput.current) fileInput.current.value = '';
   };
@@ -362,6 +428,39 @@ export default function ImportPage() {
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
           {error}
         </Alert>
+      )}
+
+      {step === 0 && !!inbox?.length && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <Typography variant="overline" color="text.secondary">
+              {t('inbox.title')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {t('inbox.subtitle')}
+            </Typography>
+            <Stack divider={<Divider flexItem />}>
+              {inbox.map((item) => (
+                <Stack key={item._id} direction="row" spacing={1} sx={{ alignItems: 'center', py: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography noWrap sx={{ fontWeight: 600 }}>
+                      {item.fileName}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('inbox.received', { date: formatDate(item.createdAt, locale) })}
+                    </Typography>
+                  </Box>
+                  <Button size="small" color="inherit" disabled={inboxBusy} onClick={() => discardInboxFile(item._id)}>
+                    {t('inbox.discard')}
+                  </Button>
+                  <Button size="small" variant="contained" disabled={inboxBusy} onClick={() => openInboxFile(item._id)}>
+                    {t('inbox.open')}
+                  </Button>
+                </Stack>
+              ))}
+            </Stack>
+          </CardContent>
+        </Card>
       )}
 
       {step === 0 && (

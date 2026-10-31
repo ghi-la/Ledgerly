@@ -259,6 +259,34 @@ const ImportProfileSchema = new Schema(
   { timestamps: true },
 );
 
+// Personal access tokens, so an iOS Shortcut (which can't carry the browser
+// session) can drop files into the import inbox. Only the hash is stored.
+const ApiTokenSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    name: { type: String, required: true },
+    tokenHash: { type: String, required: true, unique: true },
+    // First characters of the token, shown so the user can tell tokens apart.
+    prefix: { type: String, required: true },
+    lastUsedAt: { type: Date, default: null },
+  },
+  { timestamps: true },
+);
+
+// CSVs shared into the app (iOS Shortcut or Android share target) waiting to
+// be reviewed on the import page. Content is encrypted with the user's DEK,
+// like transaction text, and expires on its own if never imported.
+const InboxFileSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    fileName: { type: String, default: 'statement.csv' },
+    size: { type: Number, default: 0 },
+    source: { type: String, enum: ['shortcut', 'share-target'], default: 'shortcut' },
+    content: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 30 },
+  },
+);
+
 /* ---------------------------------------------------------------- exports */
 
 export const User = models.User || model('User', UserSchema);
@@ -269,5 +297,7 @@ export const Rule = models.Rule || model('Rule', RuleSchema);
 export const Budget = models.Budget || model('Budget', BudgetSchema);
 export const Goal = models.Goal || model('Goal', GoalSchema);
 export const ImportProfile = models.ImportProfile || model('ImportProfile', ImportProfileSchema);
+export const ApiToken = models.ApiToken || model('ApiToken', ApiTokenSchema);
+export const InboxFile = models.InboxFile || model('InboxFile', InboxFileSchema);
 
 export type Id = mongoose.Types.ObjectId;

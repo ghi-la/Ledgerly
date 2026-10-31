@@ -50,5 +50,20 @@
       "showCadences": "Show cadences",
       "save": "Save preferences"
     }
+  },
+  "share": {
+    "title": "Share from iPhone",
+    "description": "Lets an iOS Shortcut send CSVs from the share sheet straight into your import inbox. The Shortcut needs the upload URL and an access token.",
+    "uploadUrl": "Upload URL",
+    "tokenName": "Device name",
+    "create": "Create access token",
+    "createFailed": "Could not create the access token.",
+    "tokenOnce": "Copy this token into the Shortcut now. It will not be shown again.",
+    "token": "Access token",
+    "copy": "Copy",
+    "copied": "Copied",
+    "lastUsed": "Last used {{date}}",
+    "neverUsed": "Never used",
+    "revoke": "Revoke"
   }
 }

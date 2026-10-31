@@ -30,6 +30,7 @@ import { Money, PageHeader, useSettings } from '@/components/ui';
 import { DecryptedText } from '@/components/widgets';
 import AccountsManager from '@/components/AccountsManager';
 import BottomNavSettings from '@/components/BottomNavSettings';
+import ShareSetup from '@/components/ShareSetup';
 import { toI18nLang } from '@/i18n/languageMap';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD', 'CHF', 'CAD', 'AUD', 'JPY', 'SEK', 'NOK', 'DKK', 'PLN', 'INR'];
@@ -185,6 +186,17 @@ export default function SettingsPage() {
         </AccordionSummary>
         <AccordionDetails>
           <BottomNavSettings />
+        </AccordionDetails>
+      </Accordion>
+
+      <Accordion sx={{ mb: 3 }} disableGutters>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="overline" color="text.secondary">
+            {t('share.title')}
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <ShareSetup />
         </AccordionDetails>
       </Accordion>
 

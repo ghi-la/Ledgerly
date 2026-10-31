@@ -49,6 +49,17 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
 
+const MIN_SEARCH_CHARS = 3;
+// How far back a text search looks when no From date is set.
+const SEARCH_DEFAULT_MONTHS = 12;
+
+/** YYYY-MM-DD, SEARCH_DEFAULT_MONTHS before today. */
+function searchDefaultFrom() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - SEARCH_DEFAULT_MONTHS);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 interface Tx {
   _id: string;
   date: string;
@@ -132,8 +143,20 @@ export default function TransactionsPage() {
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
   const { data: rules, mutate: refreshRules } = useSWR<RuleSummary[]>('/api/rules', fetcher);
 
-  // A text search makes the server decrypt every candidate row, so don't fire one per keystroke.
-  const searchTerm = useDebouncedValue(search.trim());
+  // A text search makes the server decrypt every candidate row, so don't fire
+  // one per keystroke, nor for 1-2 characters (which match almost everything).
+  const debouncedSearch = useDebouncedValue(search.trim());
+  const searchTerm = debouncedSearch.length >= MIN_SEARCH_CHARS ? debouncedSearch : '';
+  // ...and without a From date, only search recent history (the hint under the
+  // search box says so), so the decrypt pass is bounded by default.
+  const searchRecentOnly = !!searchTerm && !from;
+  const typedSearch = search.trim();
+  let searchHint: string | undefined;
+  if (typedSearch && typedSearch.length < MIN_SEARCH_CHARS) {
+    searchHint = t('filters.searchMinChars', { count: MIN_SEARCH_CHARS });
+  } else if (searchRecentOnly) {
+    searchHint = t('filters.searchRecentOnly', { count: SEARCH_DEFAULT_MONTHS });
+  }
 
   const query = useMemo(() => {
     const p = new URLSearchParams({
@@ -146,10 +169,11 @@ export default function TransactionsPage() {
     if (accountId) p.set('accountId', accountId);
     if (categoryId) p.set('categoryId', categoryId);
     if (from) p.set('from', from);
+    else if (searchRecentOnly) p.set('from', searchDefaultFrom());
     if (to) p.set('to', to);
     if (searchTerm) p.set('search', searchTerm);
     return p.toString();
-  }, [accountId, categoryId, from, to, sortBy, sortDir, rowsPerPage, page, searchTerm]);
+  }, [accountId, categoryId, from, to, sortBy, sortDir, rowsPerPage, page, searchTerm, searchRecentOnly]);
 
   const { data, mutate, isLoading } = useSWR<{ items: Tx[]; total: number }>(
     `/api/transactions?${query}`,
@@ -413,6 +437,7 @@ export default function TransactionsPage() {
                 setSearch(e.target.value);
                 setPage(0);
               }}
+              helperText={searchHint}
               fullWidth
             />
           </Grid>

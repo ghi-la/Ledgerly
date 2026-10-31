@@ -11,7 +11,8 @@ const SORTABLE_FIELDS = new Set(['date', 'description', 'amount', 'account', 'ca
 // Bounds how many rows a text search decrypts+scans server-side per request.
 const SEARCH_SCAN_CAP = 20000;
 
-function fetchSorted(
+async function fetchSorted(
+  userId: unknown,
   filter: Record<string, unknown>,
   sortBy: string,
   sortDir: 1 | -1,
@@ -21,16 +22,39 @@ function fetchSorted(
   if (sortBy !== 'account' && sortBy !== 'category') {
     return Transaction.find(filter).sort({ [sortBy]: sortDir, _id: sortDir }).skip(skip).limit(limit).lean();
   }
-  const from = sortBy === 'account' ? Account.collection.name : Category.collection.name;
-  const localField = sortBy === 'account' ? 'accountId' : 'categoryId';
+  // Rank the user's accounts/categories by name up front (a few dozen docs)
+  // and sort transactions by that rank, instead of $lookup-joining a name onto
+  // every matching transaction. Equal names share a rank, and a missing one
+  // (uncategorised) ranks -1, i.e. as the empty name did.
+  const docs = (
+    sortBy === 'account'
+      ? await Account.find({ userId }, { name: 1 }).lean()
+      : await Category.find({ userId }, { name: 1 }).lean()
+  ) as unknown as { _id: unknown; name: string }[];
+  // The default code-unit sort (not localeCompare) matches MongoDB's default
+  // binary string ordering, so pages come out as the old $lookup sort did.
+  const names = [...new Set(docs.map((d) => d.name ?? ''))].sort(); // NOSONAR - code-unit order intended
+  const rankOfName = new Map(names.map((n, i) => [n, i]));
+  const ids = docs.map((d) => d._id);
+  const ranks = docs.map((d) => rankOfName.get(d.name ?? '')!);
+  const field = sortBy === 'account' ? '$accountId' : '$categoryId';
+
   return Transaction.aggregate([
     { $match: filter },
-    { $lookup: { from, localField, foreignField: '_id', as: '_sortJoin' } },
-    { $addFields: { _sortName: { $ifNull: [{ $arrayElemAt: ['$_sortJoin.name', 0] }, ''] } } },
-    { $sort: { _sortName: sortDir, _id: sortDir } },
+    {
+      $addFields: {
+        _sortRank: {
+          $let: {
+            vars: { i: { $indexOfArray: [ids, field] } },
+            in: { $cond: [{ $lt: ['$$i', 0] }, -1, { $arrayElemAt: [ranks, '$$i'] }] },
+          },
+        },
+      },
+    },
+    { $sort: { _sortRank: sortDir, _id: sortDir } },
     { $skip: skip },
     { $limit: limit },
-    { $project: { _sortJoin: 0, _sortName: 0 } },
+    { $project: { _sortRank: 0 } },
   ]);
 }
 
@@ -174,7 +198,7 @@ export const GET = route(async (req: Request) => {
     items = matched.slice(skip, skip + limit);
   } else {
     const [page, count] = await Promise.all([
-      fetchSorted(filter, sortBy, sortDir, skip, limit),
+      fetchSorted(userId, filter, sortBy, sortDir, skip, limit),
       Transaction.countDocuments(filter),
     ]);
     items = await Promise.all(page.map((tx) => decryptTxFields(tx, dek)));

@@ -6,6 +6,10 @@
   "add": "Add",
   "filters": {
     "search": "Search description, notes, reference",
+    "searchMinChars_one": "Type at least {{count}} character to search",
+    "searchMinChars_other": "Type at least {{count}} characters to search",
+    "searchRecentOnly_one": "Searching the last month - set a From date to search further back",
+    "searchRecentOnly_other": "Searching the last {{count}} months - set a From date to search further back",
     "account": "Account",
     "allAccounts": "All accounts",
     "category": "Category",

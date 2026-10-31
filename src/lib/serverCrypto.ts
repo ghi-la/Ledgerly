@@ -67,7 +67,32 @@ async function unwrapDekWithMaster(wrappedB64: string, ivB64: string): Promise<w
  * rather than silently minting an unrelated key that would orphan every
  * transaction already encrypted under the real one.
  */
-export async function getUserDek(userId: unknown): Promise<webcrypto.CryptoKey> {
+// Unwrapped DEKs, per server instance. A user's wrapped DEK never changes once
+// `encDekMaster` is set, so this only saves the User lookup + unwrap that
+// almost every request otherwise repeats. Storing the promise also folds
+// concurrent first requests into one. Bounded so a long-lived instance
+// doesn't hold every user's key forever.
+const DEK_CACHE_TTL_MS = 10 * 60_000;
+const DEK_CACHE_MAX = 500;
+const dekCache = new Map<string, { dek: Promise<webcrypto.CryptoKey>; expires: number }>();
+
+export function getUserDek(userId: unknown): Promise<webcrypto.CryptoKey> {
+  const key = String(userId);
+  const hit = dekCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.dek;
+
+  const dek = loadUserDek(userId);
+  dekCache.delete(key);
+  if (dekCache.size >= DEK_CACHE_MAX) dekCache.delete(dekCache.keys().next().value!);
+  dekCache.set(key, { dek, expires: Date.now() + DEK_CACHE_TTL_MS });
+  // Failures (e.g. a legacy account not migrated yet) must be retried next time.
+  dek.catch(() => {
+    if (dekCache.get(key)?.dek === dek) dekCache.delete(key);
+  });
+  return dek;
+}
+
+async function loadUserDek(userId: unknown): Promise<webcrypto.CryptoKey> {
   const user = (await User.findById(userId, {
     encDekMaster: 1,
     encDekMasterIv: 1,

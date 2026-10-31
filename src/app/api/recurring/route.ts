@@ -1,3 +1,5 @@
+import { unstable_cache } from 'next/cache';
+import mongoose from 'mongoose';
 import { Category, Transaction, User } from '@/lib/models';
 import { ok, requireUser, route } from '@/lib/api';
 import { normalizeMerchantText } from '@/lib/parse';
@@ -44,14 +46,15 @@ interface Cluster {
  * that occurrences land on a consistent schedule. Returns a cadence and the
  * next expected date so upcoming charges are visible before they land.
  */
-export const GET = route(async () => {
-  const userId = await requireUser();
-
-  const user = (await User.findById(userId).lean()) as any;
-  const dateToleranceDays = user?.settings?.recurringDateToleranceDays ?? 3;
-  const amountAbsTolerance = user?.settings?.recurringAmountTolerance ?? 10;
-  const minOccurrences = user?.settings?.recurringMinOccurrences ?? 3;
-  const hiddenCadences = new Set<string>(user?.settings?.recurringHiddenCadences ?? []);
+async function computeRecurring(
+  userIdStr: string,
+  dateToleranceDays: number,
+  amountAbsTolerance: number,
+  minOccurrences: number,
+  hiddenCadenceList: string[],
+) {
+  const userId = new mongoose.Types.ObjectId(userIdStr);
+  const hiddenCadences = new Set(hiddenCadenceList);
 
   const amountMatches = (candidate: number, cluster: Cluster): boolean => {
     const avg = cluster.sumAmount / cluster.members.length;
@@ -69,7 +72,10 @@ export const GET = route(async () => {
 
   const since = new Date(Date.now() - 400 * DAY);
   const [rawTransactions, categories] = await Promise.all([
-    Transaction.find({ userId, date: { $gte: since }, type: { $ne: 'transfer' } })
+    Transaction.find(
+      { userId, date: { $gte: since }, type: { $ne: 'transfer' } },
+      { description: 1, amount: 1, date: 1, categoryId: 1, encVersion: 1 },
+    )
       .sort({ date: 1 })
       .lean() as unknown as Promise<RecurringTx[]>,
     Category.find({ userId }).lean(),
@@ -185,5 +191,29 @@ export const GET = route(async () => {
     .filter((r) => r.direction === 'out')
     .reduce((s, r) => s + (r.averageAmount * 30) / r.averageGapDays, 0);
 
-  return ok({ items: results, monthlyEquivalentOut: Math.round(monthlyOut * 100) / 100 });
+  return { items: results, monthlyEquivalentOut: Math.round(monthlyOut * 100) / 100 };
+}
+
+export const GET = route(async () => {
+  const userId = await requireUser();
+
+  const user = (await User.findById(userId).lean()) as any;
+  const userIdStr = userId.toString();
+  // Decrypting and clustering ~400 days of transactions is expensive, so the
+  // result is cached until a transaction write invalidates the user's stats
+  // tag. The detection settings are arguments, so they're part of the cache
+  // key - changing them in settings yields a fresh result straight away.
+  const getCachedRecurring = unstable_cache(computeRecurring, ['recurring-v1'], {
+    revalidate: 3600,
+    tags: [`stats:${userIdStr}`],
+  });
+  return ok(
+    await getCachedRecurring(
+      userIdStr,
+      user?.settings?.recurringDateToleranceDays ?? 3,
+      user?.settings?.recurringAmountTolerance ?? 10,
+      user?.settings?.recurringMinOccurrences ?? 3,
+      [...(user?.settings?.recurringHiddenCadences ?? [])].sort(),
+    ),
+  );
 });

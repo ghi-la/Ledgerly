@@ -94,7 +94,9 @@ function DashboardWidget({
   const range = (widget.config?.range as string) ?? DEFAULT_RANGE;
   const { from, to } = rangeToDates(range);
   const accountIds = ((widget.config?.accountIds as string[] | undefined) ?? []).slice().sort();
-  const statsUrl = `/api/stats?from=${from}&to=${to}${accountIds.length ? `&accounts=${accountIds.join(',')}` : ''}`;
+  // Merchant grouping decrypts every expense in range - only this widget pays for it.
+  const merchantsParam = widget.type === 'top-merchants' ? '&merchants=1' : '';
+  const statsUrl = `/api/stats?from=${from}&to=${to}${accountIds.length ? `&accounts=${accountIds.join(',')}` : ''}${merchantsParam}`;
   const { data: stats, error, isValidating } = useSWR<Stats>(statsUrl, fetcher);
   const { t } = useTranslation('dashboard');
 

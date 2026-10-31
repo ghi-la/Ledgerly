@@ -9,6 +9,30 @@ export const fetcher = async (url: string) => {
   return res.json();
 };
 
+// Writes to these routes change balances/stats (they're the routes that call
+// `invalidateStats` server-side), so the client's cached copies go stale too.
+const DERIVED_DATA_WRITERS = [
+  '/api/transactions',
+  '/api/import/commit',
+  '/api/rules/apply',
+  '/api/accounts',
+  '/api/categories',
+  '/api/budgets',
+  '/api/goals',
+];
+
+type KeyMatcher = (key: unknown) => boolean;
+let revalidateMatching: ((matcher: KeyMatcher) => unknown) | null = null;
+
+/**
+ * Hands `send` the `mutate` bound to the app's SWR cache - the global
+ * `mutate` export only reaches SWR's default cache, not the custom
+ * localStorage provider. Called once from inside `<SWRConfig>`.
+ */
+export function registerSWRMutate(mutate: (matcher: KeyMatcher) => unknown) {
+  revalidateMatching = mutate;
+}
+
 export async function send(url: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', body?: unknown) {
   const res = await fetch(url, {
     method,
@@ -17,6 +41,9 @@ export async function send(url: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELE
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? 'Request failed.');
+  if (DERIVED_DATA_WRITERS.some((prefix) => url.startsWith(prefix))) {
+    revalidateMatching?.((key) => typeof key === 'string' && (key.startsWith('/api/stats') || key === '/api/accounts'));
+  }
   return data;
 }
 

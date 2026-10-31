@@ -5,6 +5,7 @@ import { categoryMenuItems } from '@/components/categoryMenuItems';
 import RuleDialog, { blankRuleDraft, buildRulePayload, type Condition, type RuleDraft } from '@/components/RuleDialog';
 import { EmptyState, Money, PageHeader, useSettings } from '@/components/ui';
 import { fetcher, formatDate, send } from '@/lib/client';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/DeleteOutline';
@@ -131,7 +132,8 @@ export default function TransactionsPage() {
   const { data: categories } = useSWR<Category[]>('/api/categories', fetcher);
   const { data: rules, mutate: refreshRules } = useSWR<RuleSummary[]>('/api/rules', fetcher);
 
-  const searchTerm = search.trim();
+  // A text search makes the server decrypt every candidate row, so don't fire one per keystroke.
+  const searchTerm = useDebouncedValue(search.trim());
 
   const query = useMemo(() => {
     const p = new URLSearchParams({

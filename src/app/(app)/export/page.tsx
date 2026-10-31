@@ -7,7 +7,11 @@ import { Box, Button, Card, CardContent, Grid, MenuItem, Stack, TextField, Typog
 import DownloadIcon from '@mui/icons-material/FileDownloadOutlined';
 import { useTranslation } from 'react-i18next';
 import { fetcher } from '@/lib/client';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { PageHeader } from '@/components/ui';
+
+// The most rows /api/transactions returns per request.
+const PAGE_SIZE = 500;
 
 interface Account {
   _id: string;
@@ -42,26 +46,46 @@ export default function ExportPage() {
   const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const filterQuery = useMemo(() => {
+  // Everything but the text search, which is handled separately below.
+  const structuralQuery = useMemo(() => {
     const p = new URLSearchParams();
     if (accountId) p.set('accountId', accountId);
     if (categoryId) p.set('categoryId', categoryId);
     if (from) p.set('from', from);
     if (to) p.set('to', to);
-    if (search.trim()) p.set('search', search.trim());
     return p.toString();
-  }, [accountId, categoryId, from, to, search]);
+  }, [accountId, categoryId, from, to]);
 
+  // A text search makes the server decrypt every candidate row, so the count
+  // preview waits for typing to pause instead of refiring per keystroke.
+  const searchTerm = useDebouncedValue(search.trim());
+  const previewQuery = searchTerm
+    ? `${structuralQuery}&search=${encodeURIComponent(searchTerm)}`
+    : structuralQuery;
   const { data: preview } = useSWR<{ total: number }>(
-    `/api/transactions?${filterQuery}&limit=1&skip=0`,
+    `/api/transactions?${previewQuery}&limit=1&skip=0`,
     fetcher,
   );
 
   const downloadCsv = async () => {
     setBusy(true);
     try {
-      const res = await fetcher(`/api/transactions?${filterQuery}&limit=50000&skip=0`);
-      const items = res.items as ExportTx[];
+      // Paged, since the API caps each response at PAGE_SIZE rows. The text
+      // search is applied here rather than server-side - on the server each
+      // page would re-decrypt every candidate row just to skip past earlier
+      // pages, whereas this decrypts each row once. Same match as the API's.
+      const fetched: ExportTx[] = [];
+      for (let skip = 0; ; skip += PAGE_SIZE) {
+        const res = await fetcher(`/api/transactions?${structuralQuery}&limit=${PAGE_SIZE}&skip=${skip}`);
+        fetched.push(...(res.items as ExportTx[]));
+        if (res.items.length < PAGE_SIZE || skip + PAGE_SIZE >= res.total) break;
+      }
+      const needle = search.trim().toLowerCase();
+      const items = needle
+        ? fetched.filter((tx) =>
+            [tx.description, tx.merchant, tx.notes, tx.reference].some((f) => (f ?? '').toLowerCase().includes(needle)),
+          )
+        : fetched;
 
       const accountName = new Map((accounts ?? []).map((a) => [a._id, a.name]));
       const categoryName = new Map((categories ?? []).map((c) => [c._id, c.name]));

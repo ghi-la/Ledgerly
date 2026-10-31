@@ -44,13 +44,15 @@ function budgetTotalsByCategory(budgets: Record<string, unknown>[], monthKeys: s
  * goal progress. Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD (defaults to the
  * trailing 3 months ending today), optionally &accounts=id1,id2 to scope a
  * widget to a subset of accounts (transactions, balances and totals only -
- * budgets/goals aren't account-scoped, so they're unaffected).
+ * budgets/goals aren't account-scoped, so they're unaffected), and
+ * &merchants=1 to fill `topMerchants` (left empty otherwise).
  */
 async function computeStats(
   userIdStr: string,
   fromParam: string | null,
   toParam: string | null,
   accountsParam: string | null,
+  includeMerchants: boolean,
 ) {
   // aggregate() $match doesn't auto-cast like find() does, so the cache key's
   // plain string needs converting back to an ObjectId before use in queries.
@@ -113,11 +115,14 @@ async function computeStats(
     ]),
     // merchant/description are encrypted, so grouping by merchant text can't
     // happen in the database - fetch the candidate rows and group them in
-    // application code below, after decrypting.
-    Transaction.find(
-      { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 }, ...accountMatch },
-      { merchant: 1, description: 1, amount: 1, encVersion: 1 },
-    ).lean(),
+    // application code below, after decrypting. That's every expense in
+    // range, so it only runs for callers that show merchants.
+    includeMerchants
+      ? Transaction.find(
+          { userId, date: { $gte: from, $lte: to }, type: { $ne: 'transfer' }, amount: { $lt: 0 }, ...accountMatch },
+          { merchant: 1, description: 1, amount: 1, encVersion: 1 },
+        ).lean()
+      : Promise.resolve([]),
     Transaction.find({ userId, date: { $gte: from, $lte: to }, ...accountMatch }).sort({ date: -1, _id: -1 }).limit(8).lean(),
   ]);
 
@@ -301,10 +306,12 @@ export const GET = route(async (req: Request) => {
     : null;
 
   const userIdStr = userId.toString();
-  const getCachedStats = unstable_cache(computeStats, ['stats-v2'], {
-    revalidate: 20,
+  // Every write already invalidates the tag, so the TTL is only a safety net.
+  const getCachedStats = unstable_cache(computeStats, ['stats-v3'], {
+    revalidate: 300,
     tags: [`stats:${userIdStr}`],
   });
-  const payload = await getCachedStats(userIdStr, fromParam, toParam, normalisedAccountsParam);
+  const includeMerchants = url.searchParams.get('merchants') === '1';
+  const payload = await getCachedStats(userIdStr, fromParam, toParam, normalisedAccountsParam, includeMerchants);
   return ok(payload);
 });
